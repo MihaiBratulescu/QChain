@@ -2,8 +2,8 @@ name: NuGet
 
 on:
   push:
-    branches: [ master ]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -37,3 +37,24 @@ jobs:
         with:
           name: nuget-packages
           path: ./artifacts/*
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./artifacts
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Push package
+        run: dotnet nuget push "./artifacts/*.nupkg" \
+          --source https://api.nuget.org/v3/index.json \
+          --api-key ${{ secrets.NUGET_API_KEY }} \
+          --skip-duplicate
