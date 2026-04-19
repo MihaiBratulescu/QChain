@@ -6,8 +6,16 @@
 	<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
-  <ItemGroup>
-    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
-  </ItemGroup>
-  
+  <PropertyGroup>
+    <Authors>Mihai Bratulescu</Authors>
+    <RepositoryUrl>https://github.com/MihaiBratulescu/QChain</RepositoryUrl>
+	<PackageLicenseExpression>MIT</PackageLicenseExpression>
+	
+	<PackageTags>linq query composable efcore repository unitofwork</PackageTags>
+	  
+	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+	
 </Project>

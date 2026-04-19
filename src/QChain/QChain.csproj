@@ -1,3 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+   <PropertyGroup>
+     <PackageId>QChain</PackageId>
+     <Description>Composable query building library for .NET.</Description>
+   </PropertyGroup>
 </Project>
