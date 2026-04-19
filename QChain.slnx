@@ -7,4 +7,5 @@
     <Project Path="src/QChain.EntityFrameworkCore/QChain.EntityFrameworkCore.csproj" />
     <Project Path="src/QChain/QChain.csproj" />
   </Folder>
+  <Folder Name="/tests/" />
 </Solution>

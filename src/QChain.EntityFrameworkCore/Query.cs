@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace QChain.EntityFrameworkCore;
 
-internal class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     #region Internal Query
     protected IQueryable<Q> Source { get; }

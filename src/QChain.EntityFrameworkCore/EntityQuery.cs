@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace QChain.EntityFrameworkCore;
 
-internal class EntityQuery<T> : Query<T, T>, IEntityQuery<T>
+public class EntityQuery<T> : Query<T, T>, IEntityQuery<T>
     where T : class
 {
     public EntityQuery(IQueryable<T> query) : base(query, q => q) { }

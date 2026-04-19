@@ -4,7 +4,7 @@ using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
 
-internal class QueryExecutor<T>(IQuery<T> query) : IQueryExecutor<T>
+public class QueryExecutor<T>(IQuery<T> query) : IQueryExecutor<T>
 {
     public Task<T?> FirstOrDefault(CancellationToken ct) => Queriable(q => q.FirstOrDefaultAsync(ct));
     public Task<T?> FirstOrDefault(Expression<Func<T, bool>> selector, CancellationToken ct) => Queriable(selector, q => q.FirstOrDefaultAsync(ct));

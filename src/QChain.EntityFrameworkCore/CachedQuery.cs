@@ -1,6 +1,6 @@
 ﻿namespace QChain.EntityFrameworkCore;
 
-internal class CachedQuery<T, Q> : Query<T, Q>, ICachedQuery<T>
+public class CachedQuery<T, Q> : Query<T, Q>, ICachedQuery<T>
 {
     public string Key { get; }
     public TimeSpan Expiry { get; }
