@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+  <PropertyGroup>
+    <TargetFrameworks>net10.0</TargetFrameworks>
+  </PropertyGroup>
+	
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
+  </ItemGroup>
+	
+  <ItemGroup>
+    <ProjectReference Include="..\src\QChain.EntityFrameworkCore\QChain.EntityFrameworkCore.csproj" />
+    <ProjectReference Include="..\src\QChain\QChain.csproj" />
+  </ItemGroup>
+
+</Project>

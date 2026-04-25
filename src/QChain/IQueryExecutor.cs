@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace Common.Query;
+namespace QChain;
 
 public interface IQueryExecutor<T>
 {

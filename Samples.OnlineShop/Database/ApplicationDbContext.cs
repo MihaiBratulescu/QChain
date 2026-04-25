@@ -1,0 +1,29 @@
+﻿using QChain;
+using QChain.EntityFrameworkCore;
+
+using Microsoft.EntityFrameworkCore;
+
+using Samples.OnlineShop.DatabaseModels;
+using Samples.OnlineShop.Repositories;
+
+namespace Samples.OnlineShop.Database;
+
+public class ApplicationDbContext : DbContext, IUnitOfWork
+{
+    public IAccountsRepository Accounts => new AccountsRepository(Set<Account>());
+    public IOrdersRepository Orders => new OrdersRepository(Set<Order>());
+    public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
+
+    public ApplicationDbContext(DbContextOptions options) : base(options)
+    {
+    }
+
+    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) =>
+        new QueryExecutor<T>(query(this));
+
+    #region DbSets
+    private DbSet<Account> _accounts = null!;
+    private DbSet<Order> _orders = null!;
+    private DbSet<Transaction> _transactions = null!;
+    #endregion
+}

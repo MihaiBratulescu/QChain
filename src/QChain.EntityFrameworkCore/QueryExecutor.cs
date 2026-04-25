@@ -1,5 +1,4 @@
-﻿using Common.Query;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
