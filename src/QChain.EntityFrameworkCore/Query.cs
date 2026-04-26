@@ -62,6 +62,8 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
                                    Expression<Func<IGrouping<K, T>, R>> selector)
     {
+        return new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
+
         Expression<Func<IGrouping<K, Q>, R>> translatedSelector = TranslateGroup<K, R>(selector);
 
         return new Query<IGrouping<K, T>, IGrouping<K, Q>>(
