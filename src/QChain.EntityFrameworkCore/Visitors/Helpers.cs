@@ -7,6 +7,11 @@ internal static class Helpers
 {
     public static bool TryInlineMemberAccess(Expression target, MemberInfo accessedMember, out Expression rewritten)
     {
+        target = StripConvert(target);
+
+        if (TryRewriteTupleAccess(target, accessedMember.Name, out rewritten))
+            return true;
+
         if (target is NewExpression e && e.Members is not null)
         {
             for (var i = 0; i < e.Members.Count; i++)
@@ -18,9 +23,6 @@ internal static class Helpers
                 }
             }
         }
-
-        if (TryRewriteTupleAccess(target, accessedMember.Name, out rewritten))
-            return true;
 
         if (target is MemberInitExpression mie)
         {
@@ -42,6 +44,7 @@ internal static class Helpers
     public static bool TryRewriteTupleAccess(Expression tupleExpression, string memberName, out Expression rewritten)
     {
         rewritten = null!;
+        tupleExpression = StripConvert(tupleExpression);
 
         if (!TryGetTupleIndex(memberName, out var index))
             return false;

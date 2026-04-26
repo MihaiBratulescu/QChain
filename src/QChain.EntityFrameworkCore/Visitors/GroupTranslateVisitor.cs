@@ -39,36 +39,13 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
     {
         var expr = Visit(node.Expression);
 
-        if (expr is MethodCallExpression call &&
-            call.Method.DeclaringType == typeof(ValueTuple) &&
-            call.Method.Name == nameof(ValueTuple.Create) &&
-            TryGetTupleIndex(node.Member.Name, out var index))
+        if (expr is not null &&
+            Helpers.TryInlineMemberAccess(expr, node.Member, out var rewritten))
         {
-            return call.Arguments[index];
-        }
-
-        if (expr is NewExpression ne &&
-            ne.Type.FullName!.StartsWith("System.ValueTuple`") &&
-            TryGetTupleIndex(node.Member.Name, out var index2))
-        {
-            return ne.Arguments[index2];
+            return Visit(rewritten);
         }
 
         return node.Update(expr);
-    }
-
-    private static bool TryGetTupleIndex(string name, out int index)
-    {
-        index = -1;
-
-        if (!name.StartsWith("Item"))
-            return false;
-
-        if (!int.TryParse(name.Substring(4), out var itemNumber))
-            return false;
-
-        index = itemNumber - 1;
-        return index >= 0;
     }
 
     private Expression VisitMethodArgument(Expression arg)
