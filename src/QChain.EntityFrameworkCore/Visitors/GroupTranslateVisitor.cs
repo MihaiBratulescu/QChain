@@ -23,33 +23,26 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
     {
         var obj = Visit(node.Object);
         var args = node.Arguments.Select(VisitMethodArgument).ToArray();
-        var method = RewriteMethod(node.Method);
+        var method = IsLinqMethod(node.Method)
+            ? RewriteMethod(node.Method)
+            : node.Method;
 
         return Expression.Call(obj, method, args);
+    }
+    private static bool IsLinqMethod(MethodInfo method)
+    {
+        var type = method.DeclaringType;
+        return type == typeof(Queryable) || type == typeof(Enumerable);
     }
 
     protected override Expression VisitMember(MemberExpression node)
     {
         var expr = Visit(node.Expression);
 
-        if (node.Member.Name == nameof(IGrouping<int, int>.Key) &&
-            expr is not null &&
-            expr.Type.IsGenericType &&
-            expr.Type.GetGenericTypeDefinition() == typeof(IGrouping<,>))
+        if (expr is not null &&
+            Helpers.TryInlineMemberAccess(expr, node.Member, out var rewritten))
         {
-            return Expression.Property(expr, nameof(IGrouping<int, int>.Key));
-        }
-
-        if (expr is not null && expr != node.Expression)
-        {
-            if (ProjectionReduction.TryInlineMemberAccess(expr, node.Member, out var rewritten))
-                return Visit(rewritten);
-
-            if (node.Member is PropertyInfo property)
-                return Expression.Property(expr, property.Name);
-
-            if (node.Member is FieldInfo field)
-                return Expression.Field(expr, field.Name);
+            return Visit(rewritten);
         }
 
         return node.Update(expr);
