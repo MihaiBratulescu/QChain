@@ -14,3 +14,11 @@ public class EntityQuery<T> : Query<T, T>, IEntityQuery<T>
     public IEntityQuery<T> Include<N>(Expression<Func<T, N>> include) =>
         new EntityQuery<T>(Source.Include(include));
 }
+
+public static class IQueryableHandlers
+{
+    public static IQuery<T> AsQuery<T>(this IQueryable<T> query)
+    {
+        return new Query<T, T>(query, q => q);
+    }
+}

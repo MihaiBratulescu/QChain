@@ -1,4 +1,5 @@
 ﻿using QChain.EntityFrameworkCore.Visitors;
+using System.Collections;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -14,7 +15,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public LambdaExpression UntypedShape => Shape;
     #endregion
 
-    protected Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
+    public Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         (Source, Shape) = (source, shape);
 
     protected Query(Query<T, Q> query) =>
@@ -34,22 +35,12 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     #endregion
 
     #region Grouping
-    public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
-        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
-            g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
-    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
-        new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
+    public IQuery<IGrouping<K, T>> GroupBy1<K>(Expression<Func<T, K>> key) => 
+        new Query<IGrouping<K, T>, IGrouping<K, T>>(Source.Select(Shape).GroupBy(key), g => g);
 
-    public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
-    {
-        Expression<Func<Q, K>> keySelector = Translate(key);
-        Expression<Func<Q, R>> elementSelector = Translate(selector);
-
-        return new Query<IGrouping<K, R>, IGrouping<K, R>>(
-            Source.GroupBy(keySelector, elementSelector),
-            q => q);
-    }
+    public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> resultSelector) =>
+        new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(resultSelector)), g => g);
 
     #endregion
 
@@ -104,12 +95,13 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
     }
 
-    private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
+    private Expression<Func<IGrouping<K, Q>, R>> TranslateGroup<K, R>(Expression<Func<IGrouping<K, T>, R>> selector)
     {
-        var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
-        var visitor = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape);
+        var groupQ = Expression.Parameter(typeof(IGrouping<K, Q>), selector.Parameters[0].Name);
+        var body = new GroupTranslateVisitor<K, Q, T>(groupQ, selector.Parameters[0], Shape).Visit(selector.Body)!;
+        //body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
-        return Expression.Lambda<Func<IGrouping<G, Q>, R>>(visitor.Visit(selector.Body), groupQ);
+        return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, groupQ);
     }
 
     private static Expression<Func<TSource, TResult>> Compose<TSource, TMiddle, TResult>(Expression<Func<TMiddle, TResult>> outer, Expression<Func<TSource, TMiddle>> inner)
@@ -255,5 +247,15 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         public required T1 Left { get; init; }
         public required T2 Right { get; init; }
+    }
+
+    private class Grouping<K, T> : IGrouping<K, T>
+    {
+        public K Key { get; set; }
+        public IEnumerable<T> Items { get; set; }
+
+        public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
