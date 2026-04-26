@@ -62,11 +62,15 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
                                    Expression<Func<IGrouping<K, T>, R>> selector)
     {
-        //return GroupBy1(key).Map(selector);
-
         Expression<Func<IGrouping<K, Q>, R>> translatedSelector = TranslateGroup<K, R>(selector);
 
-        return new Query<R, IGrouping<K, Q>>(Source.GroupBy(Translate(key)), translatedSelector);
+        return new Query<IGrouping<K, T>, IGrouping<K, Q>>(
+            Source.GroupBy(Translate(key)),
+            g => new Grouping<K, T>
+            {
+                Key = g.Key,
+                Items = g.AsQueryable().Select(Shape).ToArray(),
+            }).Map(selector);
     }
 
     public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
@@ -74,39 +78,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
                                Expression<Func<K, IEnumerable<E>, R>> resultSelector)
     {
         return null;
-    }
-
-
-    //public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
-    //    new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
-    //        g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
-
-    //public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
-    //    new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
-
-    //public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
-    //{
-    //    Expression<Func<Q, K>> keySelector = Translate(key);
-    //    Expression<Func<Q, R>> elementSelector = Translate(selector);
-
-    //    return new Query<IGrouping<K, R>, IGrouping<K, Q>>(
-
-    //        Source.GroupBy(keySelector),
-    //        g => new Grouping<K, R>
-    //        {
-    //            Key = g.Key,
-    //            Items = g.AsQueryable().Select(elementSelector)
-    //        });
-    //}
-
-    private class Grouping<K, T> : IGrouping<K, T>
-    {
-        public K Key { get; set; }
-        public IEnumerable<T> Items { get; set; }
-
-        public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();
-
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     #endregion
@@ -161,14 +132,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
     }
-
-    //private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
-    //{
-    //    var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
-    //    var visitor = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape);
-
-    //    return Expression.Lambda<Func<IGrouping<G, Q>, R>>(visitor.Visit(selector.Body), groupQ);
-    //}
 
     private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
     {
@@ -321,5 +284,15 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         public required T1 Left { get; init; }
         public required T2 Right { get; init; }
+    }
+
+    private class Grouping<K, T> : IGrouping<K, T>
+    {
+        public K Key { get; set; }
+        public IEnumerable<T> Items { get; set; }
+
+        public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
