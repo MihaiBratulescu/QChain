@@ -15,7 +15,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public LambdaExpression UntypedShape => Shape;
     #endregion
 
-    protected Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
+    public Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         (Source, Shape) = (source, shape);
 
     protected Query(Query<T, Q> query) =>
@@ -62,17 +62,11 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
                                    Expression<Func<IGrouping<K, T>, R>> selector)
     {
-        return new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
-
         Expression<Func<IGrouping<K, Q>, R>> translatedSelector = TranslateGroup<K, R>(selector);
 
-        return new Query<IGrouping<K, T>, IGrouping<K, Q>>(
+        return new Query<R, IGrouping<K, Q>>(
             Source.GroupBy(Translate(key)),
-            g => new Grouping<K, T>
-            {
-                Key = g.Key,
-                Items = g.AsQueryable().Select(Shape).ToArray(),
-            }).Map(selector);
+            translatedSelector);
     }
 
     public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
