@@ -13,8 +13,9 @@ public interface IQuery<T>
     #endregion
 
     #region Grouping
-    IQuery<(G Key, IEnumerable<T> Items)> GroupBy<G>(Expression<Func<T, G>> key);
-    IQuery<R> GroupBy<G, R>(Expression<Func<T, G>> key, Expression<Func<IGrouping<G, T>, R>> selector);
+    IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> key);
+    IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector);
+    //IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector);
     #endregion
 
     #region Projection

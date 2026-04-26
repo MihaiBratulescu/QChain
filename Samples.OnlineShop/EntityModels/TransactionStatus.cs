@@ -7,3 +7,8 @@ public enum TransactionStatus
     Refunded,
     Failed
 }
+
+public enum CurrencyType
+{
+    EUR, USD, BTC, ETH
+}

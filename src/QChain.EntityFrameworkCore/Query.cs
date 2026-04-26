@@ -34,12 +34,23 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     #endregion
 
     #region Grouping
-    public IQuery<(G Key, IEnumerable<T> Items)> GroupBy<G>(Expression<Func<T, G>> selector) =>
-        new Query<(G, IEnumerable<T>), IGrouping<G, Q>>(Source.GroupBy(Translate(selector)),
+    public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
+        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
             g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
-    public IQuery<R> GroupBy<G, R>(Expression<Func<T, G>> key, Expression<Func<IGrouping<G, T>, R>> selector) =>
+    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
         new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
+
+    public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
+    {
+        Expression<Func<Q, K>> keySelector = Translate(key);
+        Expression<Func<Q, R>> elementSelector = Translate(selector);
+
+        return new Query<IGrouping<K, R>, IGrouping<K, R>>(
+            Source.GroupBy(keySelector, elementSelector),
+            q => q);
+    }
+
     #endregion
 
     #region Projection

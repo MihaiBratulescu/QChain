@@ -75,11 +75,15 @@ public class GroupJoin(SqliteFixture fixture) : QChainIntegrationTestBench(fixtu
     [Fact]
     public async Task WithProjection()
     {
-        int[] result = await Query(q =>
-            q.Accounts.GroupBy(a => a.Name, a => a.Count()));
+        //var test = await Query(q =>
+        //    q.Accounts.GroupBy(a => a.Name, a => ValueTuple.Create(a.Key, a.Count()))
+        //    .Join(q.Accounts, g => g.Item1, a => a.Name));
+
+        (string? name, int count)[] result = await Query(q =>
+            q.Accounts.GroupBy(a => a.Name, a => ValueTuple.Create(a.Key, a.Count())));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.name, a.Name)));
+        Assert.All(result, q => Assert.True(q.count > 0) );
     }
 }
 

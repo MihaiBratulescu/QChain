@@ -9,6 +9,9 @@ public interface IAccountsRepository : IQuery<Account>
 {
     IAccountsRepository Active();
     IAccountsRepository Before(DateTime dateTime);
+    IAccountsRepository FromEurope();
+
+    IQuery<(Account account, IEnumerable<Order> orders)> WithOrders(IQuery<Order> orders);
 }
 
 public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account>(query), IAccountsRepository
@@ -25,6 +28,9 @@ public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account
     public IAccountsRepository Before(DateTime dateTime) =>
         new AccountsRepository(Where(a => a.CreatedDate < dateTime));
 
+    public IAccountsRepository FromEurope() =>
+        new AccountsRepository(Where(a => true));
+
     public IQuery<(Account account, IEnumerable<Order> orders)> WithOrders(IQuery<Order> orders) =>
         GroupJoin(orders, a => a.AccountId, o => o.AccountId);
 }
@@ -32,6 +38,9 @@ public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account
 public interface IOrdersRepository : IQuery<Order>
 {
     IOrdersRepository InLastMonth();
+    IOrdersRepository NewestFirst();
+    IOrdersRepository WithCurrencies(params CurrencyType[] currencies);
+    IQuery<(Order order, IEnumerable<Transaction> transactions)> WithTransactions(IQuery<Transaction> transactions);
 }
 
 public class OrdersRepository(IQueryable<Order> query) : EntityQuery<Order>(query), IOrdersRepository
@@ -42,6 +51,15 @@ public class OrdersRepository(IQueryable<Order> query) : EntityQuery<Order>(quer
 
     public IOrdersRepository InLastMonth() =>
         new OrdersRepository(Where(o => o.CreatedDate >= DateTime.UtcNow.AddMonths(-1)));
+
+    public IOrdersRepository NewestFirst() =>
+        new OrdersRepository(OrderByDescending(o => o.CreatedDate));
+
+    public IOrdersRepository WithCurrencies(params CurrencyType[] currencies) =>
+        new OrdersRepository(Where(o => currencies.Contains(o.CurrencyId)));
+
+    public IQuery<(Order order, IEnumerable<Transaction> transactions)> WithTransactions(IQuery<Transaction> transactions) =>
+        GroupJoin(transactions, o => o.OrderId, t => t.TransactionId);
 }
 
 public interface ITransactionsRepository : IQuery<Transaction>

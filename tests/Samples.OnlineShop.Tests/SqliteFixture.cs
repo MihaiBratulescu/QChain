@@ -31,14 +31,14 @@ public sealed class SqliteFixture : IAsyncLifetime
                         new Account { AccountId = 6, Name = null!, IsActive = true, CreatedDate = now });
 
                     db.Set<Order>().AddRange(
-                        new Order { OrderId = 1, AccountId = 1, Total = 100, CreatedDate = now.AddMonths(-2) },
-                        new Order { OrderId = 2, AccountId = 1, Total = 200, CreatedDate = now.AddDays(-5) },
-                        new Order { OrderId = 3, AccountId = 2, Total = 50, CreatedDate = now.AddDays(-2) },
-                        new Order { OrderId = 4, AccountId = 2, Total = 75, CreatedDate = now.AddMonths(-1) },
-                        new Order { OrderId = 5, AccountId = 3, Total = 300, CreatedDate = now.AddMonths(-3) },
+                        new Order { OrderId = 1, AccountId = 1, Total = 100, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddMonths(-2) },
+                        new Order { OrderId = 2, AccountId = 1, Total = 200, CurrencyId = CurrencyType.USD, CreatedDate = now.AddDays(-5) },
+                        new Order { OrderId = 3, AccountId = 2, Total = 50, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddDays(-2) },
+                        new Order { OrderId = 4, AccountId = 2, Total = 75, CurrencyId = CurrencyType.ETH, CreatedDate = now.AddMonths(-1) },
+                        new Order { OrderId = 5, AccountId = 3, Total = 300, CurrencyId = CurrencyType.BTC, CreatedDate = now.AddMonths(-3) },
                         // account with no orders → AccountId = 4
-                        new Order { OrderId = 6, AccountId = 5, Total = 10, CreatedDate = now.AddHours(-3) },
-                        new Order { OrderId = 7, AccountId = 1, Total = 100, CreatedDate = now.AddDays(-1) }
+                        new Order { OrderId = 6, AccountId = 5, Total = 10, CurrencyId = CurrencyType.USD, CreatedDate = now.AddHours(-3) },
+                        new Order { OrderId = 7, AccountId = 1, Total = 100, CurrencyId = CurrencyType.BTC, CreatedDate = now.AddDays(-1) }
                     );
 
                     db.Set<Transaction>().AddRange(
@@ -57,6 +57,11 @@ public sealed class SqliteFixture : IAsyncLifetime
                         // mixed statuses same order
                         new Transaction { TransactionId = 7, OrderId = 7, Status = TransactionStatus.Settled, Amount = 100, CreatedDate = now.AddHours(-3) },
                         new Transaction { TransactionId = 8, OrderId = 7, Status = TransactionStatus.Pending, Amount = 100, CreatedDate = now.AddHours(-2) }
+                    );
+
+                    db.Set<Currency>().AddRange(
+                        Enum.GetValues<CurrencyType>()
+                            .Select(t => new Currency { CurrencyId = t, Symbol = t.ToString()})
                     );
                 }
 
