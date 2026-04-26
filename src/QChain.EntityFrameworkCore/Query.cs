@@ -36,20 +36,11 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     #region Grouping
 
-    public IQuery<IGrouping<K, T>> GroupBy1<K>(Expression<Func<T, K>> key)
-    {
-        return new Query<IGrouping<K, T>, IGrouping<K, T>>(
-            Source.Select(Shape).GroupBy(key),
-            g => g);
-    }
+    public IQuery<IGrouping<K, T>> GroupBy1<K>(Expression<Func<T, K>> key) => 
+        new Query<IGrouping<K, T>, IGrouping<K, T>>(Source.Select(Shape).GroupBy(key), g => g);
 
-    public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
-                                    Expression<Func<IGrouping<K, T>, R>> resultSelector)
-    {
-        return new Query<R, R>(
-            Source.GroupBy(Translate(key)).Select(TranslateGroup(resultSelector)),
-            g => g);
-    }
+    public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> resultSelector) =>
+        new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(resultSelector)), g => g);
 
     #endregion
 
@@ -108,7 +99,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         var groupQ = Expression.Parameter(typeof(IGrouping<K, Q>), selector.Parameters[0].Name);
         var body = new GroupTranslateVisitor<K, Q, T>(groupQ, selector.Parameters[0], Shape).Visit(selector.Body)!;
-        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
+        //body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, groupQ);
     }
