@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace QChain.EntityFrameworkCore.Visitors;
 
-internal static class ProjectionReduction
+internal static class Helpers
 {
     public static bool TryInlineMemberAccess(Expression target, MemberInfo accessedMember, out Expression rewritten)
     {
@@ -91,4 +91,15 @@ internal static class ProjectionReduction
 
     public static bool SameMember(MemberInfo left, MemberInfo right) =>
         left == right || (left.MetadataToken == right.MetadataToken && left.Module == right.Module);
+
+    public static Expression StripConvert(Expression e)
+    {
+        while (e is UnaryExpression u &&
+               (u.NodeType == ExpressionType.Convert ||
+                u.NodeType == ExpressionType.ConvertChecked))
+        {
+            e = u.Operand;
+        }
+        return e;
+    }
 }

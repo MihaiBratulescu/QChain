@@ -127,9 +127,11 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
         body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
+        body = Helpers.StripConvert(body);
+
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
     }
-
+    
     private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
     {
         var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
@@ -307,7 +309,7 @@ internal sealed class ValueTupleCreateToNewVisitor : ExpressionVisitor
     {
         var visited = (MethodCallExpression)base.VisitMethodCall(node);
 
-        if (ProjectionReduction.IsValueTupleCreate(visited.Method))
+        if (Helpers.IsValueTupleCreate(visited.Method))
         {
             var tupleType = typeof(ValueTuple<,>).MakeGenericType(
                 visited.Arguments[0].Type,
