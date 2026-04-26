@@ -70,11 +70,13 @@ public class All(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
                 .Distinct()
                 .Join(db.Orders, x => x, o => o.AccountId));
 
-        (CurrencyType, int accountId, IEnumerable<(Order, Account)>)[] group = await Query(db => db.Orders
+        (CurrencyType ct, int accountId, IEnumerable<(Order, Account)>)[] group = 
+            await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .GroupBy(a => new { a.Item1.CurrencyId, a.Item2.AccountId })
                 .Map(j => ValueTuple.Create(j.Key.CurrencyId, j.Key.AccountId, j.Items)));
-
+        //.Join(db.Currencies, j => j.Item1, c => c.CurrencyId, (j, c) =>
+        //ValueTuple.Create(j.Item1, j.Item2, j.Item3, c))
 
         (CurrencyType, int activeCount, decimal sum, Currency currency)[] group2 = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)

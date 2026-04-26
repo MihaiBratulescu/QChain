@@ -14,7 +14,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public LambdaExpression UntypedShape => Shape;
     #endregion
 
-    protected Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
+    internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         (Source, Shape) = (source, shape);
 
     protected Query(Query<T, Q> query) =>
