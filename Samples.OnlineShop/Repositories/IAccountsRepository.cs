@@ -8,6 +8,7 @@ namespace Samples.OnlineShop.Repositories;
 public interface IAccountsRepository : IQuery<Account>
 {
     IAccountsRepository Active();
+    IAccountsRepository Before(DateTime dateTime);
 }
 
 public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account>(query), IAccountsRepository
@@ -20,6 +21,9 @@ public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account
 
     public IAccountsRepository Active() =>
         new AccountsRepository(Where(a => a.IsActive));
+
+    public IAccountsRepository Before(DateTime dateTime) =>
+        new AccountsRepository(Where(a => a.CreatedDate < dateTime));
 
     public IQuery<(Account account, IEnumerable<Order> orders)> WithOrders(IQuery<Order> orders) =>
         GroupJoin(orders, a => a.AccountId, o => o.AccountId);
