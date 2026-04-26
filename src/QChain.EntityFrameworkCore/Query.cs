@@ -35,22 +35,14 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     #region Grouping
     public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
-        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
+        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(
+            Source.GroupBy(Translate(selector)),
             g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
     public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
-        new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
-
-    public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
-    {
-        Expression<Func<Q, K>> keySelector = Translate(key);
-        Expression<Func<Q, R>> elementSelector = Translate(selector);
-
-        return new Query<IGrouping<K, R>, IGrouping<K, R>>(
-            Source.GroupBy(keySelector, elementSelector),
-            q => q);
-    }
-
+        new Query<R, R>(
+            Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), 
+            x => x);
     #endregion
 
     #region Projection
@@ -99,6 +91,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         var body = new ProjectionInliningVisitor(expression.Parameters[0], Shape.Body).Visit(expression.Body)!;
 
+        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
         body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
@@ -107,15 +100,19 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
     {
         var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
-        var visitor = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape);
+        
+        var body = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape).Visit(selector.Body);
+        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
+        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
-        return Expression.Lambda<Func<IGrouping<G, Q>, R>>(visitor.Visit(selector.Body), groupQ);
+        return Expression.Lambda<Func<IGrouping<G, Q>, R>>(body, groupQ);
     }
 
     private static Expression<Func<TSource, TResult>> Compose<TSource, TMiddle, TResult>(Expression<Func<TMiddle, TResult>> outer, Expression<Func<TSource, TMiddle>> inner)
     {
         var body = ReplaceExpressionVisitor.Replace(outer.Body, outer.Parameters[0], inner.Body);
 
+        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
         body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<TSource, TResult>>(body, inner.Parameters);
@@ -255,5 +252,35 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         public required T1 Left { get; init; }
         public required T2 Right { get; init; }
+    }
+}
+
+internal sealed class ValueTupleCreateToCtorVisitor : ExpressionVisitor
+{
+    protected override Expression VisitMethodCall(MethodCallExpression node)
+    {
+        var visited = (MethodCallExpression)base.VisitMethodCall(node);
+
+        if (visited.Method.DeclaringType != typeof(ValueTuple) ||
+            visited.Method.Name != nameof(ValueTuple.Create))
+            return visited;
+
+        var args = visited.Arguments;
+        var types = args.Select(a => a.Type).ToArray();
+
+        var tupleType = types.Length switch
+        {
+            1 => typeof(ValueTuple<>).MakeGenericType(types),
+            2 => typeof(ValueTuple<,>).MakeGenericType(types),
+            3 => typeof(ValueTuple<,,>).MakeGenericType(types),
+            4 => typeof(ValueTuple<,,,>).MakeGenericType(types),
+            5 => typeof(ValueTuple<,,,,>).MakeGenericType(types),
+            6 => typeof(ValueTuple<,,,,,>).MakeGenericType(types),
+            7 => typeof(ValueTuple<,,,,,,>).MakeGenericType(types),
+            _ => throw new NotSupportedException("ValueTuple arity > 7 not supported yet.")
+        };
+
+        var ctor = tupleType.GetConstructor(types)!;
+        return Expression.New(ctor, args);
     }
 }
