@@ -134,6 +134,8 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
         var body = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape).Visit(selector.Body);
+
+        body = new ValueTupleCreateToNewVisitor().Visit(body)!;
         body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<IGrouping<G, Q>, R>>(body, groupQ);
@@ -296,5 +298,27 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+}
+
+internal sealed class ValueTupleCreateToNewVisitor : ExpressionVisitor
+{
+    protected override Expression VisitMethodCall(MethodCallExpression node)
+    {
+        var visited = (MethodCallExpression)base.VisitMethodCall(node);
+
+        if (ProjectionReduction.IsValueTupleCreate(visited.Method))
+        {
+            var tupleType = typeof(ValueTuple<,>).MakeGenericType(
+                visited.Arguments[0].Type,
+                visited.Arguments[1].Type);
+
+            var ctor = tupleType.GetConstructor(
+                visited.Arguments.Select(a => a.Type).ToArray())!;
+
+            return Expression.New(ctor, visited.Arguments);
+        }
+
+        return visited;
     }
 }
