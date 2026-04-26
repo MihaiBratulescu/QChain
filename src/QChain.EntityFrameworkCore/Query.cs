@@ -63,7 +63,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
                                    Expression<Func<IGrouping<K, T>, R>> selector)
     {
         var translatedKey = Translate(key);
-        var translatedSelector = TranslateGroup<K, R>(selector);
+        var translatedSelector = TranslateGroup(selector);
 
         return new Query<R, IGrouping<K, Q>>(
             Source.GroupBy(translatedKey),
@@ -259,6 +259,8 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
             [result.Parameters[0]] = leftPublic,
             [result.Parameters[1]] = projectedRight
         });
+
+        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<Pair<Q, IEnumerable<QR>>, TOut>>(body, pairParam);
     }
