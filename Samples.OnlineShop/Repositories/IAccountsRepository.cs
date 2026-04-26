@@ -37,7 +37,7 @@ public class OrdersRepository(IQueryable<Order> query) : EntityQuery<Order>(quer
     }
 
     public IOrdersRepository InLastMonth() =>
-        new OrdersRepository(Where(o => o.CreatedDate < DateTime.UtcNow.AddMonths(-1)));
+        new OrdersRepository(Where(o => o.CreatedDate >= DateTime.UtcNow.AddMonths(-1)));
 }
 
 public interface ITransactionsRepository : IQuery<Transaction>
