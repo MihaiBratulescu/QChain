@@ -13,12 +13,12 @@ public interface IQuery<T>
     #endregion
 
     #region Grouping
-    IQuery<IGrouping<K, T>> GroupBy<K>(Expression<Func<T, K>> key);
-    IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, 
+    IQuery<IGrouping<K, T>> GroupBy1<K>(Expression<Func<T, K>> key);
+    IQuery<IGrouping<K, R>> GroupBy2<K, R>(Expression<Func<T, K>> key, 
                                           Expression<Func<T, R>> elementSelector);
 
-    IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, 
-                            Expression<Func<K, IEnumerable<T>, R>> resultSelector);
+    IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
+                            Expression<Func<IGrouping<K, T>, R>> selector);
 
     IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
                                Expression<Func<T, E>> elementSelector,
