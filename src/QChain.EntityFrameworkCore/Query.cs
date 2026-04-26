@@ -37,7 +37,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
         new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(
             Source.GroupBy(Translate(selector)),
-            g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
+            g => new ValueTuple<K, IEnumerable<T>>(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
     public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
         new Query<R, R>(
@@ -69,13 +69,13 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     #region Joins
     public IQuery<(T, R)> Join<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
-        Join(right, lKey, rKey, (left, rightRow) => ValueTuple.Create(left, rightRow));
+        Join(right, lKey, rKey, (left, rightRow) => new ValueTuple<T, R>(left, rightRow));
 
     public IQuery<TOut> Join<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result) =>
         JoinInternal((right as IInternalQuery)!, lKey, rKey, result);
 
     public IQuery<(T, IEnumerable<R>)> GroupJoin<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
-        GroupJoin(right, lKey, rKey, (t, items) => ValueTuple.Create(t, items));
+        GroupJoin(right, lKey, rKey, (t, items) => new ValueTuple<T, IEnumerable<R>>(t, items));
 
     public IQuery<TOut> GroupJoin<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
         GroupJoinInternal((right as IInternalQuery)!, lKey, rKey, result);
@@ -252,35 +252,5 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         public required T1 Left { get; init; }
         public required T2 Right { get; init; }
-    }
-}
-
-internal sealed class ValueTupleCreateToCtorVisitor : ExpressionVisitor
-{
-    protected override Expression VisitMethodCall(MethodCallExpression node)
-    {
-        var visited = (MethodCallExpression)base.VisitMethodCall(node);
-
-        if (visited.Method.DeclaringType != typeof(ValueTuple) ||
-            visited.Method.Name != nameof(ValueTuple.Create))
-            return visited;
-
-        var args = visited.Arguments;
-        var types = args.Select(a => a.Type).ToArray();
-
-        var tupleType = types.Length switch
-        {
-            1 => typeof(ValueTuple<>).MakeGenericType(types),
-            2 => typeof(ValueTuple<,>).MakeGenericType(types),
-            3 => typeof(ValueTuple<,,>).MakeGenericType(types),
-            4 => typeof(ValueTuple<,,,>).MakeGenericType(types),
-            5 => typeof(ValueTuple<,,,,>).MakeGenericType(types),
-            6 => typeof(ValueTuple<,,,,,>).MakeGenericType(types),
-            7 => typeof(ValueTuple<,,,,,,>).MakeGenericType(types),
-            _ => throw new NotSupportedException("ValueTuple arity > 7 not supported yet.")
-        };
-
-        var ctor = tupleType.GetConstructor(types)!;
-        return Expression.New(ctor, args);
     }
 }
