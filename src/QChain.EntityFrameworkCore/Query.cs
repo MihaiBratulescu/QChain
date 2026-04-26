@@ -62,12 +62,10 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     public IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
                                    Expression<Func<IGrouping<K, T>, R>> selector)
     {
-        var translatedSelector = TranslateGroup<K, R>(selector);
+        Expression<Func<IGrouping<K, Q>, R>> translatedSelector = TranslateGroup<K, R>(selector);
 
 
-        return new Query<R, IGrouping<K, Q>>(
-            Source.GroupBy(Translate(key)),
-            translatedSelector);
+        return new Query<R, IGrouping<K, Q>>(Source.GroupBy(Translate(key)), translatedSelector);
     }
 
     public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
@@ -163,12 +161,23 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
     }
 
-    private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
-    {
-        var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
-        var visitor = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape);
+    //private Expression<Func<IGrouping<G, Q>, R>> TranslateGroup<G, R>(Expression<Func<IGrouping<G, T>, R>> selector)
+    //{
+    //    var groupQ = Expression.Parameter(typeof(IGrouping<G, Q>), selector.Parameters[0].Name);
+    //    var visitor = new GroupTranslateVisitor<G, Q, T>(groupQ, selector.Parameters[0], Shape);
 
-        return Expression.Lambda<Func<IGrouping<G, Q>, R>>(visitor.Visit(selector.Body), groupQ);
+    //    return Expression.Lambda<Func<IGrouping<G, Q>, R>>(visitor.Visit(selector.Body), groupQ);
+    //}
+
+    private Expression<Func<IGrouping<K, Q>, R>> TranslateGroup<K, R>(Expression<Func<IGrouping<K, T>, R>> selector)
+    {
+        var sourceGroup = Expression.Parameter(typeof(IGrouping<K, Q>), selector.Parameters[0].Name ?? "g");
+
+        var body = new GroupTranslateVisitor<K, Q, T>(sourceGroup, selector.Parameters[0], Shape).Visit(selector.Body)!;
+
+        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
+
+        return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, sourceGroup);
     }
 
     private static Expression<Func<TSource, TResult>> Compose<TSource, TMiddle, TResult>(Expression<Func<TMiddle, TResult>> outer, Expression<Func<TSource, TMiddle>> inner)
