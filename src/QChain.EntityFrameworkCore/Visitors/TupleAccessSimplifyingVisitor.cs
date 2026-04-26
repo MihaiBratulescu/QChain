@@ -6,22 +6,13 @@ internal sealed class TupleAccessSimplifyingVisitor : ExpressionVisitor
 {
     protected override Expression VisitMember(MemberExpression node)
     {
-        var expr = Helpers.StripConvert(Visit(node.Expression));
+        var target = Visit(node.Expression);
+        if (target is null)
+            return node;
 
-        if (expr is MethodCallExpression call &&
-            Helpers.IsValueTupleCreate(call.Method) &&
-            Helpers.TryGetTupleIndex(node.Member.Name, out var index))
-        {
-            return call.Arguments[index];
-        }
+        if (ProjectionReduction.TryInlineMemberAccess(target, node.Member, out var rewritten))
+            return Visit(rewritten);
 
-        if (expr is NewExpression ne &&
-            ne.Type.FullName!.StartsWith("System.ValueTuple`") &&
-            Helpers.TryGetTupleIndex(node.Member.Name, out var index2))
-        {
-            return ne.Arguments[index2];
-        }
-
-        return node.Update(expr);
+        return node.Update(target);
     }
 }

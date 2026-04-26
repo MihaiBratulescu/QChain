@@ -28,8 +28,7 @@ public sealed class SqliteFixture : IAsyncLifetime
                         new Account { AccountId = 3, Name = "Gamma", IsActive = false, CreatedDate = now.AddMonths(-2) },
                         new Account { AccountId = 4, Name = "Delta", IsActive = true, CreatedDate = now.AddDays(-10) },
                         new Account { AccountId = 5, Name = "Epsilon", IsActive = false, CreatedDate = now.AddDays(-1) },
-                        new Account { AccountId = 6, Name = null!, IsActive = true, CreatedDate = now },
-                        new Account { AccountId = 7, Name = "Epsilon", IsActive = true, CreatedDate = now });
+                        new Account { AccountId = 6, Name = null!, IsActive = true, CreatedDate = now });
 
                     db.Set<Order>().AddRange(
                         new Order { OrderId = 1, AccountId = 1, Total = 100, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddMonths(-2) },

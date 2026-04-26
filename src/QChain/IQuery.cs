@@ -18,7 +18,7 @@ public interface IQuery<T>
                                           Expression<Func<T, R>> elementSelector);
 
     IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
-                             Expression<Func<K, IEnumerable<T>, R>> resultSelector);
+                            Expression<Func<IGrouping<K, T>, R>> selector);
 
     IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
                                Expression<Func<T, E>> elementSelector,

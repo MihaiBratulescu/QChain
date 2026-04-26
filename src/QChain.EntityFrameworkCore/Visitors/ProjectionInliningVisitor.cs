@@ -14,7 +14,7 @@ internal sealed class ProjectionInliningVisitor(ParameterExpression from, Expres
         if (target is null)
             return base.VisitMember(node);
 
-        if (Helpers.TryInlineMemberAccess(target, node.Member, out var rewritten))
+        if (ProjectionReduction.TryInlineMemberAccess(target, node.Member, out var rewritten))
             return Visit(rewritten);
 
         return node.Update(target);
