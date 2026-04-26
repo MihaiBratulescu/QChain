@@ -12,6 +12,10 @@ public class UnitTest1 : IClassFixture<SqliteFixture>
     [Fact]
     public async Task Test1()
     {
-        var accounts = await _fixture.db.Query(q => q.Accounts).ToArrayAsync(default);
+        var accounts = await _fixture.db
+            .Query(q => q.Accounts)
+            .ToArrayAsync(default);
+
+        Assert.NotEmpty(accounts);
     }
 }

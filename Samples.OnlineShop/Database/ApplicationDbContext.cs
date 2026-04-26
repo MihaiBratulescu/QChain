@@ -22,8 +22,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         new QueryExecutor<T>(query(this));
 
     #region DbSets
-    private DbSet<Account> _accounts = null!;
-    private DbSet<Order> _orders = null!;
-    private DbSet<Transaction> _transactions = null!;
+    private DbSet<Account> _accounts { get; set; }
+    private DbSet<Order> _orders { get; set; }
+    private DbSet<Transaction> _transactions { get; set; }
     #endregion
 }
