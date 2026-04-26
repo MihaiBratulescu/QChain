@@ -95,7 +95,16 @@ public class GroupJoin(SqliteFixture fixture) : QChainIntegrationTestBench(fixtu
     }
 
     [Fact]
-    public async Task WithJoin()
+    public async Task WithJoin_Lambda()
+    {
+        var test = await Query(q =>
+            q.Accounts
+             .GroupBy3(a => a.Name, g => new { g.Key, total = g.Count() })
+             .Join(q.Accounts, g => g.Key, a => a.Name));
+    }
+
+    [Fact]
+    public async Task WithJoin_Tuple()
     {
         var test = await Query(q =>
             q.Accounts

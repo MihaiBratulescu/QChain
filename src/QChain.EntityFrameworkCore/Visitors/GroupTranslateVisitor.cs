@@ -3,93 +3,122 @@ using System.Reflection;
 
 namespace QChain.EntityFrameworkCore.Visitors;
 
-internal sealed class GroupTranslateVisitor<K, Q, T> : ExpressionVisitor
+internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
 {
-    private readonly ParameterExpression _targetGroup;
-    private readonly ParameterExpression _sourceGroup;
     private readonly Expression<Func<Q, T>> _shape;
+    private readonly ParameterExpression _groupQParam;
+    private readonly ParameterExpression _groupTParam;
 
-    public GroupTranslateVisitor(
-        ParameterExpression targetGroup,
-        ParameterExpression sourceGroup,
-        Expression<Func<Q, T>> shape)
+    public GroupTranslateVisitor(ParameterExpression groupQParam, ParameterExpression groupTParam, Expression<Func<Q, T>> shape)
     {
-        _targetGroup = targetGroup;
-        _sourceGroup = sourceGroup;
+        _groupQParam = groupQParam;
+        _groupTParam = groupTParam;
         _shape = shape;
     }
 
-    protected override Expression VisitParameter(ParameterExpression node)
+    protected override Expression VisitParameter(ParameterExpression node) =>
+        node == _groupTParam ? _groupQParam : base.VisitParameter(node);
+
+    protected override Expression VisitMethodCall(MethodCallExpression node)
     {
-        return node == _sourceGroup ? _targetGroup : base.VisitParameter(node);
+        var obj = Visit(node.Object);
+        var args = node.Arguments.Select(VisitMethodArgument).ToArray();
+        var method = RewriteMethod(node.Method);
+
+        return Expression.Call(obj, method, args);
     }
 
     protected override Expression VisitMember(MemberExpression node)
     {
-        if (node.Expression == _sourceGroup &&
-            node.Member.Name == nameof(IGrouping<K, T>.Key))
+        var expr = Visit(node.Expression);
+
+        if (node.Member.Name == nameof(IGrouping<int, int>.Key) &&
+            expr is not null &&
+            expr.Type.IsGenericType &&
+            expr.Type.GetGenericTypeDefinition() == typeof(IGrouping<,>))
         {
-            return Expression.Property(_targetGroup, nameof(IGrouping<K, Q>.Key));
+            return Expression.Property(expr, nameof(IGrouping<int, int>.Key));
         }
 
-        return base.VisitMember(node);
+        if (expr is not null && expr != node.Expression)
+        {
+            if (ProjectionReduction.TryInlineMemberAccess(expr, node.Member, out var rewritten))
+                return Visit(rewritten);
+
+            if (node.Member is PropertyInfo property)
+                return Expression.Property(expr, property.Name);
+
+            if (node.Member is FieldInfo field)
+                return Expression.Field(expr, field.Name);
+        }
+
+        return node.Update(expr);
     }
 
-    protected override Expression VisitMethodCall(MethodCallExpression node)
+    private Expression VisitMethodArgument(Expression arg)
     {
-        if (node.Arguments.Count > 0 && node.Arguments[0] == _sourceGroup)
+        var visited = Visit(arg)!;
+        var unquoted = StripQuotes(visited);
+
+        if (unquoted is LambdaExpression lambda &&
+            lambda.Parameters.Count == 1 &&
+            lambda.Parameters[0].Type == typeof(T))
         {
-            return RewriteGroupEnumerableMethod(node);
+            var translated = TranslateElementLambda(lambda);
+            return visited.NodeType == ExpressionType.Quote ? Expression.Quote(translated) : translated;
         }
 
-        return base.VisitMethodCall(node);
+        return visited;
     }
 
-    private Expression RewriteGroupEnumerableMethod(MethodCallExpression node)
+    private LambdaExpression TranslateElementLambda(LambdaExpression lambda)
     {
-        var args = node.Arguments.ToArray();
-        args[0] = _targetGroup;
+        var qParam = Expression.Parameter(typeof(Q), lambda.Parameters[0].Name);
+        var shapedBody = ReplaceExpressionVisitor.Replace(_shape.Body, _shape.Parameters[0], qParam);
+        var replacedBody = ReplaceExpressionVisitor.Replace(lambda.Body, lambda.Parameters[0], shapedBody);
+        var finalBody = Visit(replacedBody)!;
 
-        for (var i = 1; i < args.Length; i++)
-        {
-            args[i] = RewriteLambdaIfNeeded(args[i]);
-        }
-
-        return Expression.Call(node.Method.GetGenericMethodDefinition().MakeGenericMethod(
-            node.Method.GetGenericArguments().Select(t => t == typeof(T) ? typeof(Q) : t).ToArray()
-        ), args);
+        return Expression.Lambda(finalBody, qParam);
     }
 
-    private Expression RewriteLambdaIfNeeded(Expression arg)
+    private static MethodInfo RewriteMethod(MethodInfo method)
     {
-        if (arg is UnaryExpression { NodeType: ExpressionType.Quote } quote &&
-            quote.Operand is LambdaExpression quotedLambda)
-        {
-            return Expression.Quote(RewriteElementLambda(quotedLambda));
-        }
+        if (!method.IsGenericMethod)
+            return method;
 
-        if (arg is LambdaExpression lambda)
-        {
-            return RewriteElementLambda(lambda);
-        }
+        var definition = method.GetGenericMethodDefinition();
+        var rewrittenArguments = method
+            .GetGenericArguments()
+            .Select(RewriteType)
+            .ToArray();
 
-        return Visit(arg);
+        return definition.MakeGenericMethod(rewrittenArguments);
     }
 
-    private LambdaExpression RewriteElementLambda(LambdaExpression lambda)
+    private static Type RewriteType(Type type)
     {
-        var q = Expression.Parameter(typeof(Q), lambda.Parameters[0].Name ?? "q");
+        if (type == typeof(T))
+            return typeof(Q);
 
-        var shaped = ReplaceExpressionVisitor.Replace(
-            _shape.Body,
-            _shape.Parameters[0],
-            q);
+        if (type.IsByRef)
+            return RewriteType(type.GetElementType()!).MakeByRefType();
 
-        var body = ReplaceExpressionVisitor.Replace(
-            lambda.Body,
-            lambda.Parameters[0],
-            shaped);
+        if (type.IsArray)
+            return RewriteType(type.GetElementType()!).MakeArrayType(type.GetArrayRank());
 
-        return Expression.Lambda(body, q);
+        if (!type.IsGenericType)
+            return type;
+
+        var definition = type.GetGenericTypeDefinition();
+        var arguments = type.GetGenericArguments().Select(RewriteType).ToArray();
+        return definition.MakeGenericType(arguments);
+    }
+
+    private static Expression StripQuotes(Expression expression)
+    {
+        while (expression.NodeType == ExpressionType.Quote)
+            expression = ((UnaryExpression)expression).Operand;
+
+        return expression;
     }
 }
