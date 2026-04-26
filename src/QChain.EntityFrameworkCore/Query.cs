@@ -1,4 +1,5 @@
 ﻿using QChain.EntityFrameworkCore.Visitors;
+using System.Collections;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -34,21 +35,94 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     #endregion
 
     #region Grouping
-    public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
-        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
-            g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
-    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
-        new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
-
-    public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
+    public IQuery<IGrouping<K, T>> GroupBy<K>(Expression<Func<T, K>> key)
     {
-        Expression<Func<Q, K>> keySelector = Translate(key);
-        Expression<Func<Q, R>> elementSelector = Translate(selector);
+        return new Query<IGrouping<K, T>, IGrouping<K, Q>>(
+            Source.GroupBy(Translate(key)),
+            g => new Grouping<K, T>
+            {
+                Key = g.Key,
+                Items = g.AsQueryable().Select(Shape).ToArray(),
+            });
+    }
 
-        return new Query<IGrouping<K, R>, IGrouping<K, R>>(
-            Source.GroupBy(keySelector, elementSelector),
-            q => q);
+    public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key,
+                                                 Expression<Func<T, R>> elementSelector)
+    {
+        return new Query<IGrouping<K, R>, IGrouping<K, Q>>(
+            Source.GroupBy(Translate(key)),
+            g => new Grouping<K, R>
+            {
+                Key = g.Key,
+                Items = g.AsQueryable().Select(Translate(elementSelector)),
+            });
+    }
+
+    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key,
+                                   Expression<Func<K, IEnumerable<T>, R>> resultSelector)
+    {
+        var g = Expression.Parameter(typeof(IGrouping<K, Q>), "g");
+
+        var keyAccess = Expression.Property(g, nameof(IGrouping<K, Q>.Key));
+
+        var projectedItems = Expression.Call(
+                typeof(Enumerable),
+                nameof(Enumerable.Select),
+                [typeof(Q), typeof(T)],
+                g, Shape);
+
+        var body = new ReplaceExpressionVisitor(
+            new Dictionary<Expression, Expression>
+            {
+                [resultSelector.Parameters[0]] = keyAccess,
+                [resultSelector.Parameters[1]] = projectedItems
+            })
+            .Visit(resultSelector.Body)!;
+
+        var shape = Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, g);
+
+        return new Query<R, IGrouping<K, Q>>(Source.GroupBy(Translate(key)), shape);
+    }
+
+    public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
+                               Expression<Func<T, E>> elementSelector,
+                               Expression<Func<K, IEnumerable<E>, R>> resultSelector)
+    {
+        return null;
+    }
+
+
+    //public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
+    //    new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(Source.GroupBy(Translate(selector)),
+    //        g => ValueTuple.Create(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
+
+    //public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
+    //    new Query<R, R>(Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), x => x);
+
+    //public IQuery<IGrouping<K, R>> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<T, R>> selector)
+    //{
+    //    Expression<Func<Q, K>> keySelector = Translate(key);
+    //    Expression<Func<Q, R>> elementSelector = Translate(selector);
+
+    //    return new Query<IGrouping<K, R>, IGrouping<K, Q>>(
+
+    //        Source.GroupBy(keySelector),
+    //        g => new Grouping<K, R>
+    //        {
+    //            Key = g.Key,
+    //            Items = g.AsQueryable().Select(elementSelector)
+    //        });
+    //}
+
+    private class Grouping<K, T> : IGrouping<K, T>
+    {
+        public K Key { get; set; }
+        public IEnumerable<T> Items { get; set; }
+
+        public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     #endregion
