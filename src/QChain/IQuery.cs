@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using System.Xml.Linq;
 
 namespace QChain;
 
@@ -13,16 +14,12 @@ public interface IQuery<T>
     #endregion
 
     #region Grouping
+    //OK, danger!!!
     IQuery<IGrouping<K, T>> GroupBy1<K>(Expression<Func<T, K>> key);
-    IQuery<IGrouping<K, R>> GroupBy2<K, R>(Expression<Func<T, K>> key, 
-                                          Expression<Func<T, R>> elementSelector);
 
+    //GOAT
     IQuery<R> GroupBy3<K, R>(Expression<Func<T, K>> key,
-                            Expression<Func<IGrouping<K, T>, R>> selector);
-
-    IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key,
-                               Expression<Func<T, E>> elementSelector,
-                               Expression<Func<K, IEnumerable<E>, R>> resultSelector);
+                             Expression<Func<IGrouping<K, T>, R>> resultSelector);
     #endregion
 
     #region Projection

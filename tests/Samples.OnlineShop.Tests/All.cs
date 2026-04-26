@@ -79,7 +79,7 @@ public class All(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
         (CurrencyType, int activeCount, decimal sum, Currency currency)[] group2 = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .Map(x => new { x.Item1, x.Item2 })
-                .GroupBy3(a => new { a.Item1.CurrencyId, a.Item2.AccountId }, (g) => new
+                .GroupBy3(a => new { a.Item1.CurrencyId, a.Item2.AccountId }, g => new
                 {
                     Key = g.Key,
 
