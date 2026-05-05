@@ -46,11 +46,20 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
             x => x);
     #endregion
 
-    #region Sets
+    #region Set operations
     public IQuery<T> Union(IQuery<T> other) => new Query<T, Q>(Source.Union((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> UnionBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
+        new Query<T, Q>(Source.UnionBy((other as Query<T, Q>)!.Source, Translate(key)), Shape);
+
     public IQuery<T> Concat(IQuery<T> other) => new Query<T, Q>(Source.Concat((other as Query<T, Q>)!.Source), Shape);
+    
     public IQuery<T> Except(IQuery<T> other) => new Query<T, Q>(Source.Except((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> ExceptBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
+        new Query<T, Q>(Source.ExceptBy((other as Query<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
+    
     public IQuery<T> Intersect(IQuery<T> other) => new Query<T, Q>(Source.Intersect((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> IntersectBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
+        new Query<T, Q>(Source.IntersectBy((other as Query<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
     #endregion
 
     #region Filtering

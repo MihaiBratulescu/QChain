@@ -19,11 +19,17 @@ public interface IQuery<T>
     IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector);
     #endregion
 
-    #region Sets
-    IQuery<T> Union(IQuery<T> other); 
+    #region Set operations
+    IQuery<T> Union(IQuery<T> other);
+    IQuery<T> UnionBy<K>(IQuery<T> other, Expression<Func<T, K>> key);
+    
     IQuery<T> Concat(IQuery<T> other); 
+    
     IQuery<T> Except(IQuery<T> other); 
+    IQuery<T> ExceptBy<K>(IQuery<T> other, Expression<Func<T, K>> key); 
+    
     IQuery<T> Intersect(IQuery<T> other);
+    IQuery<T> IntersectBy<K>(IQuery<T> other, Expression<Func<T, K>> key);
     #endregion
 
     #region Filtering
