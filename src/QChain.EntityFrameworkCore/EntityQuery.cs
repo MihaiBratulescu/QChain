@@ -13,4 +13,10 @@ public class EntityQuery<T> : Query<T, T>, IEntityQuery<T>
 
     public IEntityQuery<T> Include<N>(Expression<Func<T, N>> include) =>
         new EntityQuery<T>(Source.Include(include));
+
+    public IEntityQuery<T> AsSingleQuery() =>
+        new EntityQuery<T>(Source.AsSingleQuery());
+
+    public IEntityQuery<T> AsSplitQuery() =>
+        new EntityQuery<T>(Source.AsSplitQuery());
 }

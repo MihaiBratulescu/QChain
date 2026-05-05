@@ -46,6 +46,13 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
             x => x);
     #endregion
 
+    #region Sets
+    public IQuery<T> Union(IQuery<T> other) => new Query<T, Q>(Source.Union((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Concat(IQuery<T> other) => new Query<T, Q>(Source.Concat((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Except(IQuery<T> other) => new Query<T, Q>(Source.Except((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Intersect(IQuery<T> other) => new Query<T, Q>(Source.Intersect((other as Query<T, Q>)!.Source), Shape);
+    #endregion
+
     #region Filtering
     public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>
         new Query<T, Q>(Source.Where(Translate(predicate)), Shape);
@@ -71,8 +78,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         new Query<T, Q>((Source as IOrderedQueryable<Q>)!.ThenByDescending(Translate(selector)), Shape);
 
     public IQuery<T> Reverse() => new Query<T, Q>(Source.Reverse(), Shape);
-
-
     #endregion
 
     #region Paging
