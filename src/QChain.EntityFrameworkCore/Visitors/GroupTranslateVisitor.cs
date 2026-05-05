@@ -46,16 +46,12 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
     private Expression VisitMethodArgument(Expression arg)
     {
         var visited = Visit(arg)!;
-        var unquoted = StripQuotes(visited);
 
-        if (unquoted is LambdaExpression lambda &&
+        if (visited is LambdaExpression lambda &&
             lambda.Parameters.Count == 1 &&
             lambda.Parameters[0].Type == typeof(T))
         {
-            var translated = TranslateElementLambda(lambda);
-            return visited.NodeType == ExpressionType.Quote 
-                ? Expression.Quote(translated) 
-                : translated;
+            return TranslateElementLambda(lambda);
         }
 
         return visited;
@@ -90,25 +86,11 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
         if (type == typeof(T))
             return typeof(Q);
 
-        if (type.IsByRef)
-            return RewriteType(type.GetElementType()!).MakeByRefType();
-
-        if (type.IsArray)
-            return RewriteType(type.GetElementType()!).MakeArrayType(type.GetArrayRank());
-
         if (!type.IsGenericType)
             return type;
 
         var definition = type.GetGenericTypeDefinition();
         var arguments = type.GetGenericArguments().Select(RewriteType).ToArray();
         return definition.MakeGenericType(arguments);
-    }
-
-    private static Expression StripQuotes(Expression expression)
-    {
-        while (expression.NodeType == ExpressionType.Quote)
-            expression = ((UnaryExpression)expression).Operand;
-
-        return expression;
     }
 }

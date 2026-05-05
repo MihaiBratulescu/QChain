@@ -7,18 +7,6 @@ internal static class ProjectionReduction
 {
     public static bool TryInlineMemberAccess(Expression target, MemberInfo accessedMember, out Expression rewritten)
     {
-        if (target is NewExpression e && e.Members is not null)
-        {
-            for (var i = 0; i < e.Members.Count; i++)
-            {
-                if (SameMember(e.Members[i], accessedMember))
-                {
-                    rewritten = e.Arguments[i];
-                    return true;
-                }
-            }
-        }
-
         if (TryRewriteTupleAccess(target, accessedMember.Name, out rewritten))
             return true;
 
@@ -33,17 +21,13 @@ internal static class ProjectionReduction
         if (!TryGetTupleIndex(memberName, out var index))
             return false;
 
-        if (tupleExpression is MethodCallExpression mc &&
-            IsValueTupleCreate(mc.Method) &&
-            index < mc.Arguments.Count)
+        if (tupleExpression is MethodCallExpression mc)
         {
             rewritten = mc.Arguments[index];
             return true;
         }
 
-        if (tupleExpression is NewExpression ne &&
-            IsValueTupleType(ne.Type) &&
-            index < ne.Arguments.Count)
+        if (tupleExpression is NewExpression ne)
         {
             rewritten = ne.Arguments[index];
             return true;
@@ -65,17 +49,4 @@ internal static class ProjectionReduction
         index = n - 1;
         return true;
     }
-
-    public static bool IsValueTupleType(Type type) =>
-        type.IsValueType &&
-        type.IsGenericType &&
-        type.FullName is not null &&
-        type.FullName.StartsWith("System.ValueTuple`", StringComparison.Ordinal);
-
-    public static bool IsValueTupleCreate(MethodInfo method) =>
-        method.DeclaringType == typeof(ValueTuple) &&
-        method.Name == nameof(ValueTuple.Create);
-
-    public static bool SameMember(MemberInfo left, MemberInfo right) =>
-        left == right || (left.MetadataToken == right.MetadataToken && left.Module == right.Module);
 }
