@@ -38,7 +38,8 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task SingleOrDefault()
     {
-        var item = await Entities.SingleOrDefault(a => a.AccountId == 1, default);
+        var item = await _fixture.db.Query(db => db.Accounts.Where(a => a.AccountId == 1))
+            .SingleOrDefault(default);
 
         Assert.NotNull(item);
     }

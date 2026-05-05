@@ -10,7 +10,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     protected IQueryable<Q> Source { get; }
     protected Expression<Func<Q, T>> Shape { get; }
 
-    public IQueryable UntypedSource => Source;
     public LambdaExpression UntypedShape => Shape;
     #endregion
 
@@ -131,7 +130,7 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         var call = translatedCollectionSelector.Body as MethodCallExpression;
 
         var sourceExpression = call.Arguments[0];
-        var selectorExpression = Unquote(call.Arguments[1]);
+        var selectorExpression = (LambdaExpression)call.Arguments[1];
 
         var internalCollectionType = typeof(IEnumerable<>).MakeGenericType(selectorExpression.Parameters[0].Type);
         var internalCollectionSelector = Expression.Lambda(
@@ -229,13 +228,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         });
 
         return Expression.Lambda<Func<Pair<Q, IEnumerable<QR>>, TOut>>(body, pairParam);
-    }
-
-    private static LambdaExpression Unquote(Expression expression)
-    {
-        return expression is UnaryExpression { NodeType: ExpressionType.Quote, Operand: LambdaExpression lambda }
-            ? lambda
-            : (LambdaExpression)expression;
     }
 
     private static readonly MethodInfo JoinInternalTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(JoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
