@@ -9,7 +9,6 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     #region Internal Query
     protected IQueryable<Q> Source { get; }
     protected Expression<Func<Q, T>> Shape { get; }
-
     public LambdaExpression UntypedShape => Shape;
     #endregion
 
@@ -21,15 +20,18 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     public IQueryable<T> AsQueryable() => Source.Select(Shape);
 
-    #region Filtering
-    public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>
-        new Query<T, Q>(Source.Where(Translate(predicate)), Shape);
+    #region Joins
+    public IQuery<(T, R)> Join<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
+        Join(right, lKey, rKey, (left, rightRow) => new ValueTuple<T, R>(left, rightRow));
 
-    public IQuery<T> Distinct() =>
-        new Query<T, T>(Source.Select(Shape).Distinct(), x => x);
+    public IQuery<TOut> Join<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result) =>
+        JoinInternal((right as IInternalQuery)!, lKey, rKey, result);
 
-    public IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector) =>
-        new Query<R, R>(Source.Select(Compose(selector, Shape)).Distinct(), x => x);
+    public IQuery<(T, IEnumerable<R>)> GroupJoin<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
+        GroupJoin(right, lKey, rKey, (t, items) => new ValueTuple<T, IEnumerable<R>>(t, items));
+
+    public IQuery<TOut> GroupJoin<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
+        GroupJoinInternal((right as IInternalQuery)!, lKey, rKey, result);
     #endregion
 
     #region Grouping
@@ -44,12 +46,15 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
             x => x);
     #endregion
 
-    #region Projection
-    public IQuery<R> Map<R>(Expression<Func<T, R>> mapping) =>
-        new Query<R, Q>(Source, Compose(mapping, Shape));
+    #region Filtering
+    public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>
+        new Query<T, Q>(Source.Where(Translate(predicate)), Shape);
 
-    public IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
-        FlattenPreservingShape<R>(Translate(collectionSelector));
+    public IQuery<T> Distinct() =>
+        new Query<T, T>(Source.Select(Shape).Distinct(), x => x);
+
+    public IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector) =>
+        new Query<R, R>(Source.Select(Compose(selector, Shape)).Distinct(), x => x);
     #endregion
 
     #region Sorting
@@ -64,20 +69,23 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     public IOrderedQuery<T> ThenByDescending<TKey>(Expression<Func<T, TKey>> selector) =>
         new Query<T, Q>((Source as IOrderedQueryable<Q>)!.ThenByDescending(Translate(selector)), Shape);
+
+    public IQuery<T> Reverse() => new Query<T, Q>(Source.Reverse(), Shape);
+
+
     #endregion
 
-    #region Joins
-    public IQuery<(T, R)> Join<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
-        Join(right, lKey, rKey, (left, rightRow) => new ValueTuple<T, R>(left, rightRow));
+    #region Paging
+    public IQuery<T> Skip(int count) => new Query<T, Q>(Source.Skip(count), Shape);
+    public IQuery<T> Take(int count) => new Query<T, Q>(Source.Take(count), Shape);
+    #endregion
 
-    public IQuery<TOut> Join<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result) =>
-        JoinInternal((right as IInternalQuery)!, lKey, rKey, result);
+    #region Projection
+    public IQuery<R> Map<R>(Expression<Func<T, R>> mapping) =>
+        new Query<R, Q>(Source, Compose(mapping, Shape));
 
-    public IQuery<(T, IEnumerable<R>)> GroupJoin<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
-        GroupJoin(right, lKey, rKey, (t, items) => new ValueTuple<T, IEnumerable<R>>(t, items));
-
-    public IQuery<TOut> GroupJoin<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
-        GroupJoinInternal((right as IInternalQuery)!, lKey, rKey, result);
+    public IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
+        FlattenPreservingShape<R>(Translate(collectionSelector));
     #endregion
 
     #region Caching
