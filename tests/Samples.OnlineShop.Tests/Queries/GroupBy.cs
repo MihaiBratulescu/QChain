@@ -71,4 +71,69 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
 
         Assert.NotEmpty(result);
     }
+
+    [Fact]
+    public async Task Join_GroupOnTupleKey()
+    {
+        ((CurrencyType currencyId, int accountId) Key, IEnumerable<(Order, Account)> Items)[] result =
+            await Query(q => q.Orders
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+                .GroupBy(x => ValueTuple.Create(x.Item1.CurrencyId, x.Item2.AccountId)));
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task Join_GroupOnTupleKey_ValueTuple()
+    {
+        ((CurrencyType currencyId, int accountId) Key, IEnumerable<(Order, Account)> Items)[] result =
+            await Query(q => q.Orders
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+                .GroupBy(x => new ValueTuple<CurrencyType, int>(x.Item1.CurrencyId, x.Item2.AccountId)));
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task Aggregate_ThenJoin()
+    {
+        (CurrencyType currencyId, int activeCount, Currency currency)[] result =
+            await Query(q => q.Orders
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+                .GroupBy(
+                    x => new { x.Item1.CurrencyId, x.Item2.AccountId },
+                    g => new
+                    {
+                        g.Key,
+                        ActiveCount = g.Count(x => x.Item2.IsActive)
+                    })
+                .Join(q.Currencies,
+                    g => g.Key.CurrencyId,
+                    c => c.CurrencyId,
+                    (g, c) => ValueTuple.Create(g.Key.CurrencyId, g.ActiveCount, c)));
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task TupleMap_AfterGroupJoin()
+    {
+        (CurrencyType currencyId, int activeCount, Currency currency)[] result =
+            await Query(q => q.Orders
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+                .GroupBy(
+                    x => new { x.Item1.CurrencyId },
+                    g => new
+                    {
+                        g.Key.CurrencyId,
+                        ActiveCount = g.Count(x => x.Item2.IsActive)
+                    })
+                .Join(q.Currencies,
+                    g => g.CurrencyId,
+                    c => c.CurrencyId,
+                    (g, c) => new { g.CurrencyId, g.ActiveCount, Currency = c })
+                .Map(x => ValueTuple.Create(x.CurrencyId, x.ActiveCount, x.Currency)));
+
+        Assert.NotEmpty(result);
+    }
 }
