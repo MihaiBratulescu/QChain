@@ -23,6 +23,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples.OnlineShop.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples.OnlineShop", "samples\Samples.OnlineShop\Samples.OnlineShop.csproj", "{B2ABA111-094F-1855-8EB1-C8D50C2B566E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "04. workflows", "04. workflows", "{58112C02-D1E3-40F9-86D2-67E71D8982F3}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\nuget.yml = .github\workflows\nuget.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
