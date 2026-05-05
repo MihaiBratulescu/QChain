@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-	<Version>0.1.1-alpha</Version>
+	<Version>0.1.2-alpha</Version>
 	  
     <Authors>Mihai Bratulescu</Authors>
     <RepositoryUrl>https://github.com/MihaiBratulescu/QChain</RepositoryUrl>
@@ -15,7 +15,7 @@
 	
 	<PackageTags>linq query composable efcore repository unitofwork</PackageTags>
 	  
-	<PackageIcon>logo.png</PackageIcon>
+	<PackageIcon>qchain_icon_128.png</PackageIcon>
 	  
 	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
@@ -23,6 +23,6 @@
   </PropertyGroup>
 	
   <ItemGroup>
-  	<None Include="..\..\resources\logo.png" Pack="true" PackagePath="\" Visible="false" />
+  	<None Include="..\..\resources\qchain_icon_128.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>
