@@ -1,7 +1,7 @@
 ﻿using QChain;
 using Samples.OnlineShop.DatabaseModels;
 
-namespace Samples.OnlineShop.Tests;
+namespace Samples.OnlineShop.Tests.Queries;
 
 public class All(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
 {

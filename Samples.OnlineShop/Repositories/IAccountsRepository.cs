@@ -20,8 +20,6 @@ public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account
     {
     }
 
-    public Task<Account?> Find(int key) => AsQueryable().FirstOrDefaultAsync(a => a.AccountId == key);
-
     public IAccountsRepository Active() =>
         new AccountsRepository(Where(a => a.IsActive));
 

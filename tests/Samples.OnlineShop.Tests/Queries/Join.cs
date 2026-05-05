@@ -1,6 +1,6 @@
 ﻿using Samples.OnlineShop.DatabaseModels;
 
-namespace Samples.OnlineShop.Tests;
+namespace Samples.OnlineShop.Tests.Queries;
 
 public class Join(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
 {

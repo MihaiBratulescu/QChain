@@ -1,4 +1,4 @@
-﻿namespace Samples.OnlineShop.Tests;
+﻿namespace Samples.OnlineShop.Tests.Queries;
 
 public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
 {
