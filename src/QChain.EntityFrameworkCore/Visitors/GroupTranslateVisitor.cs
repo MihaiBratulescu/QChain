@@ -40,18 +40,6 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
             return Expression.Property(expr, nameof(IGrouping<int, int>.Key));
         }
 
-        if (expr is not null && expr != node.Expression)
-        {
-            if (ProjectionReduction.TryInlineMemberAccess(expr, node.Member, out var rewritten))
-                return Visit(rewritten);
-
-            if (node.Member is PropertyInfo property)
-                return Expression.Property(expr, property.Name);
-
-            if (node.Member is FieldInfo field)
-                return Expression.Field(expr, field.Name);
-        }
-
         return node.Update(expr);
     }
 
