@@ -14,9 +14,6 @@ internal sealed class ReplaceExpressionVisitor : ExpressionVisitor
 
     public ReplaceExpressionVisitor(IReadOnlyDictionary<Expression, Expression> map)
     {
-        if (map.Count == 0)
-            throw new ArgumentException("Replacement map cannot be empty.", nameof(map));
-
         var normalized = new Dictionary<Expression, Expression>(map.Count, ReferenceEqualityComparer.Instance);
         foreach (var pair in map)
             normalized[pair.Key] = pair.Value;

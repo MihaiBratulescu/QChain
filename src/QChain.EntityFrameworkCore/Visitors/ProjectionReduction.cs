@@ -22,19 +22,6 @@ internal static class ProjectionReduction
         if (TryRewriteTupleAccess(target, accessedMember.Name, out rewritten))
             return true;
 
-        if (target is MemberInitExpression mie)
-        {
-            var binding = mie.Bindings
-                .OfType<MemberAssignment>()
-                .FirstOrDefault(x => SameMember(x.Member, accessedMember));
-
-            if (binding is not null)
-            {
-                rewritten = binding.Expression;
-                return true;
-            }
-        }
-
         rewritten = null!;
         return false;
     }

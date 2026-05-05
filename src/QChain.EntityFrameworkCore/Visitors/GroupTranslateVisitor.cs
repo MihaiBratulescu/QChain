@@ -65,7 +65,9 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
             lambda.Parameters[0].Type == typeof(T))
         {
             var translated = TranslateElementLambda(lambda);
-            return visited.NodeType == ExpressionType.Quote ? Expression.Quote(translated) : translated;
+            return visited.NodeType == ExpressionType.Quote 
+                ? Expression.Quote(translated) 
+                : translated;
         }
 
         return visited;
