@@ -1,5 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using QChain;
+﻿using QChain;
 using QChain.EntityFrameworkCore;
 using Samples.OnlineShop.DatabaseModels;
 
@@ -31,46 +30,4 @@ public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account
 
     public IQuery<(Account account, IEnumerable<Order> orders)> WithOrders(IQuery<Order> orders) =>
         GroupJoin(orders, a => a.AccountId, o => o.AccountId);
-}
-
-public interface IOrdersRepository : IQuery<Order>
-{
-    IOrdersRepository InLastMonth();
-    IOrdersRepository NewestFirst();
-    IOrdersRepository WithCurrencies(params CurrencyType[] currencies);
-    IQuery<(Order order, IEnumerable<Transaction> transactions)> WithTransactions(IQuery<Transaction> transactions);
-}
-
-public class OrdersRepository(IQueryable<Order> query) : EntityQuery<Order>(query), IOrdersRepository
-{
-    private OrdersRepository(IQuery<Order> query) : this(query.AsQueryable())
-    {
-    }
-
-    public IOrdersRepository InLastMonth() =>
-        new OrdersRepository(Where(o => o.CreatedDate >= DateTime.UtcNow.AddMonths(-1)));
-
-    public IOrdersRepository NewestFirst() =>
-        new OrdersRepository(OrderByDescending(o => o.CreatedDate));
-
-    public IOrdersRepository WithCurrencies(params CurrencyType[] currencies) =>
-        new OrdersRepository(Where(o => currencies.Contains(o.CurrencyId)));
-
-    public IQuery<(Order order, IEnumerable<Transaction> transactions)> WithTransactions(IQuery<Transaction> transactions) =>
-        GroupJoin(transactions, o => o.OrderId, t => t.TransactionId);
-}
-
-public interface ITransactionsRepository : IQuery<Transaction>
-{
-    ITransactionsRepository Settled();
-}
-
-public class TransactionsRepository(IQueryable<Transaction> query) : EntityQuery<Transaction>(query), ITransactionsRepository
-{
-    private TransactionsRepository(IQuery<Transaction> query) : this(query.AsQueryable())
-    {
-    }
-
-    public ITransactionsRepository Settled() =>
-        new TransactionsRepository(Where(t => t.Status == TransactionStatus.Settled));
 }

@@ -16,13 +16,13 @@ public sealed class SqliteFixture : IAsyncLifetime
 
         var builder = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseSqlite(connection)
-            .UseAsyncSeeding((db, seed, ct) =>
+            .UseAsyncSeeding(async (db, seed, _) =>
             {
                 if (seed)
                 {
                     DateTime now = DateTime.UtcNow;
 
-                    db.Set<Account>().AddRange(
+                    await db.Set<Account>().AddRangeAsync(
                         new Account { AccountId = 1, Name = "Alpha", IsActive = true, CreatedDate = now.AddYears(-1) },
                         new Account { AccountId = 2, Name = "Beta", IsActive = true, CreatedDate = now.AddMonths(-6) },
                         new Account { AccountId = 3, Name = "Gamma", IsActive = false, CreatedDate = now.AddMonths(-2) },
@@ -31,7 +31,7 @@ public sealed class SqliteFixture : IAsyncLifetime
                         new Account { AccountId = 6, Name = null!, IsActive = true, CreatedDate = now },
                         new Account { AccountId = 7, Name = "Epsilon", IsActive = true, CreatedDate = now });
 
-                    db.Set<Order>().AddRange(
+                    await db.Set<Order>().AddRangeAsync(
                         new Order { OrderId = 1, AccountId = 1, Total = 100, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddMonths(-2) },
                         new Order { OrderId = 2, AccountId = 1, Total = 200, CurrencyId = CurrencyType.USD, CreatedDate = now.AddDays(-5) },
                         new Order { OrderId = 3, AccountId = 2, Total = 50, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddDays(-2) },
@@ -42,7 +42,7 @@ public sealed class SqliteFixture : IAsyncLifetime
                         new Order { OrderId = 7, AccountId = 1, Total = 100, CurrencyId = CurrencyType.BTC, CreatedDate = now.AddDays(-1) }
                     );
 
-                    db.Set<Transaction>().AddRange(
+                    await db.Set<Transaction>().AddRangeAsync(
                         new Transaction { TransactionId = 1, OrderId = 1, Status = TransactionStatus.Settled, Amount = 100, CreatedDate = now.AddDays(-9) },
                         new Transaction { TransactionId = 2, OrderId = 1, Status = TransactionStatus.Refunded, Amount = -20, CreatedDate = now.AddDays(-8) },
 
@@ -60,13 +60,9 @@ public sealed class SqliteFixture : IAsyncLifetime
                         new Transaction { TransactionId = 8, OrderId = 7, Status = TransactionStatus.Pending, Amount = 100, CreatedDate = now.AddHours(-2) }
                     );
 
-                    db.Set<Currency>().AddRange(
-                        Enum.GetValues<CurrencyType>()
-                            .Select(t => new Currency { CurrencyId = t, Symbol = t.ToString()})
-                    );
+                    await db.Set<Currency>().AddRangeAsync(
+                        Enum.GetValues<CurrencyType>().Select(t => new Currency { CurrencyId = t, Symbol = t.ToString()}));
                 }
-
-                return Task.CompletedTask;
             });
 
         db = new ApplicationDbContext(builder.Options);
