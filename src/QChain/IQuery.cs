@@ -55,7 +55,7 @@ public interface IQuery<T>
     IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector);
     #endregion
 
-    #region Caching
-    ICachedQuery<T> WithCaching(string key, TimeSpan expiry);
-    #endregion
+    //#region Caching
+    //ICachedQuery<T> WithCaching(string key, TimeSpan expiry);
+    //#endregion
 }
