@@ -16,6 +16,7 @@
 	<PackageTags>linq query composable efcore repository unitofwork</PackageTags>
 	  
 	<PackageIcon>qchain_icon_128.png</PackageIcon>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
 	  
 	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
@@ -23,6 +24,7 @@
   </PropertyGroup>
 	
   <ItemGroup>
+    <None Include="..\..\README.md"                     Pack="true" PackagePath="\" Visible="false" />
   	<None Include="..\..\resources\qchain_icon_128.png" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 </Project>
