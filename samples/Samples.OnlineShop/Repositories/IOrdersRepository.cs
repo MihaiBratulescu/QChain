@@ -12,7 +12,7 @@ public interface IOrdersRepository : IQuery<Order>
     IQuery<(Order order, IEnumerable<Transaction> transactions)> WithTransactions(IQuery<Transaction> transactions);
 }
 
-public class OrdersRepository(IQueryable<Order> query) : EntityQuery<Order>(query), IOrdersRepository
+public class OrdersRepository(IQueryable<Order> query) : Query<Order>(query), IOrdersRepository
 {
     private OrdersRepository(IQuery<Order> query) : this(query.AsQueryable())
     {

@@ -9,7 +9,7 @@ public interface ITransactionsRepository : IQuery<Transaction>
     ITransactionsRepository Settled();
 }
 
-public class TransactionsRepository(IQueryable<Transaction> query) : EntityQuery<Transaction>(query), ITransactionsRepository
+public class TransactionsRepository(IQueryable<Transaction> query) : Query<Transaction>(query), ITransactionsRepository
 {
     private TransactionsRepository(IQuery<Transaction> query) : this(query.AsQueryable())
     {

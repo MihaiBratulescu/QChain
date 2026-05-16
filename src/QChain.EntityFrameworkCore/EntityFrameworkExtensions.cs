@@ -1,16 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
+using Microsoft.EntityFrameworkCore;
 
 namespace QChain.EntityFrameworkCore;
 
 public static class EntityFrameworkExtensions
 {
-    public static string ToQueryString<T>(this IQuery<T> query) => 
-        query.AsQueryable().ToQueryString();
-
-    public static Task<bool> ContainsAsync<T>(this IQuery<T> query, T item, CancellationToken ct = default) =>
-        Query(query, q => q.ContainsAsync(item, ct));
-
     #region Any/All
     public static Task<bool> AnyAsync<T>(this IQuery<T> query, CancellationToken ct = default) => 
         Query(query, q => q.AnyAsync(ct));
@@ -132,8 +126,38 @@ public static class EntityFrameworkExtensions
     public static Task<List<T>> ToListAsync<T>(this IQuery<T> query, CancellationToken ct = default) => Query(query, q => q.ToListAsync(ct));
     #endregion
 
+    #region Single/Split
+    public static IQuery<T> AsSingleQuery<T>(this IQuery<T> query) where T : class =>
+        new Query<T, T>(query.AsQueryable().AsSingleQuery(), q => q);
+
+    public static IQuery<T> AsSplitQuery<T>(this IQuery<T> query) where T : class =>
+        new Query<T, T>(query.AsQueryable().AsSplitQuery(), q => q);
+    #endregion
+
+    #region Tracking
+    public static IQuery<T> AsNoTracking<T>(this IQuery<T> query) where T : class =>
+        new Query<T, T>(query.AsQueryable().AsNoTracking(), q => q);
+
+    public static IQuery<T> AsNoTrackingWithIdentityResolution<T>(this IQuery<T> query) where T : class =>
+        new Query<T, T>(query.AsQueryable().AsNoTrackingWithIdentityResolution(), q => q);
+
+    public static IQuery<T> AsTracking<T>(this IQuery<T> query) where T : class =>
+        new Query<T, T>(query.AsQueryable().AsTracking(), q => q);
+    #endregion
+
+    public static IQuery<T> Include<T, E>(this IQuery<T> query, Expression<Func<T, E>> include) where T : class =>
+        new Query<T, T>(query.AsQueryable().Include(include), q => q);
+
+    public static string ToQueryString<T>(this IQuery<T> query) =>
+        query.AsQueryable().ToQueryString();
+
+    public static Task<bool> ContainsAsync<T>(this IQuery<T> query, T item, CancellationToken ct = default) =>
+        Query(query, q => q.ContainsAsync(item, ct));
+
+    #region Helpers
     private static Task<R> Query<T, R>(this IQuery<T> query, Expression<Func<T, bool>> predicate, Func<IQueryable<T>, Task<R>> executor) =>
         executor(query.Where(predicate).AsQueryable());
     private static Task<R> Query<T, R>(this IQuery<T> query, Func<IQueryable<T>, Task<R>> executor) =>
-        executor(query.AsQueryable());
+        executor(query.AsQueryable()); 
+    #endregion
 }

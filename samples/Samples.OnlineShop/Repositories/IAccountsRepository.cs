@@ -13,7 +13,7 @@ public interface IAccountsRepository : IQuery<Account>
     IQuery<(Account account, IEnumerable<Order> orders)> WithOrders(IQuery<Order> orders);
 }
 
-public class AccountsRepository(IQueryable<Account> query) : EntityQuery<Account>(query), IAccountsRepository
+public class AccountsRepository(IQueryable<Account> query) : Query<Account>(query), IAccountsRepository
 {
     private AccountsRepository(IQuery<Account> query) : this(query.AsQueryable())
     {

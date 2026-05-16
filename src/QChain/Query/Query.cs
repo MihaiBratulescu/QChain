@@ -6,6 +6,11 @@ using System.Reflection;
 
 namespace QChain;
 
+public class Query<T>(IQueryable<T> query) : Query<T, T>(query, q => q)
+    where T : class
+{
+}
+
 public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     #region Internal Query

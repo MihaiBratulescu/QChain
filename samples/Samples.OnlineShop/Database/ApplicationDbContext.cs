@@ -13,7 +13,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public IAccountsRepository Accounts => new AccountsRepository(Set<Account>());
     public IOrdersRepository Orders => new OrdersRepository(Set<Order>());
     public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
-    public IQuery<Currency> Currencies => new EntityQuery<Currency>(Set<Currency>());
+    public IQuery<Currency> Currencies => new Query<Currency>(Set<Currency>());
 
     public ApplicationDbContext(DbContextOptions options) : base(options)
     {
