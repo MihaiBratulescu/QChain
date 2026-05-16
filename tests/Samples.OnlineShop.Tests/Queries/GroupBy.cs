@@ -8,10 +8,10 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
     public async Task OnTable()
     {
         (string? name, IEnumerable<Account> accounts)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => a.Name));
+            q.Accounts.GroupBy(a => a.Email));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.name, a.Name)));
+        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.name, a.Email)));
     }
 
     [Fact]
@@ -19,7 +19,7 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
     {
         (string? name, IEnumerable<(string? name, bool isActive)> accounts)[] result = await Query(q =>
             q.Accounts
-             .Map(a => ValueTuple.Create(a.Name, a.IsActive))
+             .Map(a => ValueTuple.Create(a.Email, a.IsActive))
              .GroupBy(a => a.Item1));
 
         Assert.NotEmpty(result);
@@ -30,17 +30,17 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
     public async Task TupleKey()
     {
         ((string? name, bool isActive) key, IEnumerable<Account> accounts)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => ValueTuple.Create(a.Name, a.IsActive)));
+            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive)));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.key.name, a.Name)));
+        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.key.name, a.Email)));
     }
 
     [Fact]
     public async Task TupleKey_Projected()
     {
         ((string?, bool), int total)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => ValueTuple.Create(a.Name, a.IsActive),
+            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive),
                                g => ValueTuple.Create(g.Key, g.Count())));
 
         Assert.NotEmpty(result);
@@ -55,7 +55,7 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
         //    .Join(q.Accounts, g => g.Item1, a => a.Name));
 
         (string? name, int count)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => a.Name, a => ValueTuple.Create(a.Key, a.Count())));
+            q.Accounts.GroupBy(a => a.Email, a => ValueTuple.Create(a.Key, a.Count())));
 
         Assert.NotEmpty(result);
         Assert.All(result, q => Assert.True(q.count > 0) );
@@ -65,7 +65,7 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
     public async Task WithJoin()
     {
         var result = await Query(q =>
-            q.Accounts.GroupBy(a => ValueTuple.Create(a.Name, a.IsActive),
+            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive),
                                g => new { g.Key, total = g.Count(), first = g.Min(a => a.AccountId) })
                       .GroupJoin(q.Orders, g => g.first, o => o.AccountId));
 

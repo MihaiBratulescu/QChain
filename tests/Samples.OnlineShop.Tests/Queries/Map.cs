@@ -13,7 +13,7 @@ public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
     [Fact]
     public async Task SingleEntity()
     {
-        var accounts = await Query(q => q.Accounts.Map(a => new { a.AccountId, a.Name }));
+        var accounts = await Query(q => q.Accounts.Map(a => new { a.AccountId, a.Email }));
         Assert.NotEmpty(accounts);
         Assert.All(accounts, a => Assert.True(a.AccountId > 0));
     }

@@ -128,25 +128,25 @@ public static class EntityFrameworkExtensions
 
     #region Single/Split
     public static IQuery<T> AsSingleQuery<T>(this IQuery<T> query) where T : class =>
-        new Query<T, T>(query.AsQueryable().AsSingleQuery(), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().AsSingleQuery(), q => q);
 
     public static IQuery<T> AsSplitQuery<T>(this IQuery<T> query) where T : class =>
-        new Query<T, T>(query.AsQueryable().AsSplitQuery(), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().AsSplitQuery(), q => q);
     #endregion
 
     #region Tracking
     public static IQuery<T> AsNoTracking<T>(this IQuery<T> query) where T : class =>
-        new Query<T, T>(query.AsQueryable().AsNoTracking(), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().AsNoTracking(), q => q);
 
     public static IQuery<T> AsNoTrackingWithIdentityResolution<T>(this IQuery<T> query) where T : class =>
-        new Query<T, T>(query.AsQueryable().AsNoTrackingWithIdentityResolution(), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().AsNoTrackingWithIdentityResolution(), q => q);
 
     public static IQuery<T> AsTracking<T>(this IQuery<T> query) where T : class =>
-        new Query<T, T>(query.AsQueryable().AsTracking(), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().AsTracking(), q => q);
     #endregion
 
     public static IQuery<T> Include<T, E>(this IQuery<T> query, Expression<Func<T, E>> include) where T : class =>
-        new Query<T, T>(query.AsQueryable().Include(include), q => q);
+        new DeferredQuery<T, T>(query.AsQueryable().Include(include), q => q);
 
     public static string ToQueryString<T>(this IQuery<T> query) =>
         query.AsQueryable().ToQueryString();

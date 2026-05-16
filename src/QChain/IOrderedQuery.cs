@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace QChain.Query;
+namespace QChain;
 
 public interface IOrderedQuery<T> : IQuery<T>
 {

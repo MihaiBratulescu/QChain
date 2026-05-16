@@ -3,5 +3,5 @@
 public static class IQueryableHandlers
 {
     public static IQuery<T> AsQuery<T>(this IQueryable<T> query) =>
-        new Query<T, T>(query, q => q);
+        new DeferredQuery<T, T>(query, q => q);
 }

@@ -1,29 +1,25 @@
 ﻿using QChain.CachedQuery;
-using QChain.Query;
 using QChain.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace QChain;
 
-public class Query<T>(IQueryable<T> query) : Query<T, T>(query, q => q)
-    where T : class
-{
-}
-
-public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     #region Internal Query
     protected IQueryable<Q> Source { get; }
     protected Expression<Func<Q, T>> Shape { get; }
-    public LambdaExpression UntypedShape => Shape;
+    LambdaExpression IInternalQuery.UntypedShape => Shape;
     #endregion
 
-    internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
+    #region Constructors
+    internal DeferredQuery(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         (Source, Shape) = (source, shape);
 
-    protected Query(Query<T, Q> query) =>
-        (Source, Shape) = (query.Source, query.Shape);
+    protected DeferredQuery(DeferredQuery<T, Q> query) =>
+        (Source, Shape) = (query.Source, query.Shape); 
+    #endregion
 
     public IQueryable<T> AsQueryable() => Source.Select(Shape);
 
@@ -43,67 +39,67 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     #region Grouping
     public IQuery<(K Key, IEnumerable<T> Items)> GroupBy<K>(Expression<Func<T, K>> selector) =>
-        new Query<(K, IEnumerable<T>), IGrouping<K, Q>>(
+        new DeferredQuery<(K, IEnumerable<T>), IGrouping<K, Q>>(
             Source.GroupBy(Translate(selector)),
             g => new ValueTuple<K, IEnumerable<T>>(g.Key, g.AsQueryable().Select(Shape).AsEnumerable()));
 
     public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<IGrouping<K, T>, R>> selector) =>
-        new Query<R, R>(
+        new DeferredQuery<R, R>(
             Source.GroupBy(Translate(key)).Select(TranslateGroup(selector)), 
             x => x);
     #endregion
 
     #region Set operations
-    public IQuery<T> Union(IQuery<T> other) => new Query<T, Q>(Source.Union((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Union(IQuery<T> other) => new DeferredQuery<T, Q>(Source.Union((other as DeferredQuery<T, Q>)!.Source), Shape);
     public IQuery<T> UnionBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
-        new Query<T, Q>(Source.UnionBy((other as Query<T, Q>)!.Source, Translate(key)), Shape);
+        new DeferredQuery<T, Q>(Source.UnionBy((other as DeferredQuery<T, Q>)!.Source, Translate(key)), Shape);
 
-    public IQuery<T> Concat(IQuery<T> other) => new Query<T, Q>(Source.Concat((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Concat(IQuery<T> other) => new DeferredQuery<T, Q>(Source.Concat((other as DeferredQuery<T, Q>)!.Source), Shape);
     
-    public IQuery<T> Except(IQuery<T> other) => new Query<T, Q>(Source.Except((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Except(IQuery<T> other) => new DeferredQuery<T, Q>(Source.Except((other as DeferredQuery<T, Q>)!.Source), Shape);
     public IQuery<T> ExceptBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
-        new Query<T, Q>(Source.ExceptBy((other as Query<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
+        new DeferredQuery<T, Q>(Source.ExceptBy((other as DeferredQuery<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
     
-    public IQuery<T> Intersect(IQuery<T> other) => new Query<T, Q>(Source.Intersect((other as Query<T, Q>)!.Source), Shape);
+    public IQuery<T> Intersect(IQuery<T> other) => new DeferredQuery<T, Q>(Source.Intersect((other as DeferredQuery<T, Q>)!.Source), Shape);
     public IQuery<T> IntersectBy<K>(IQuery<T> other, Expression<Func<T, K>> key) => 
-        new Query<T, Q>(Source.IntersectBy((other as Query<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
+        new DeferredQuery<T, Q>(Source.IntersectBy((other as DeferredQuery<T, Q>)!.Source.Select(Translate(key)), Translate(key)), Shape);
     #endregion
 
     #region Filtering
     public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>
-        new Query<T, Q>(Source.Where(Translate(predicate)), Shape);
+        new DeferredQuery<T, Q>(Source.Where(Translate(predicate)), Shape);
 
     public IQuery<T> Distinct() =>
-        new Query<T, T>(Source.Select(Shape).Distinct(), x => x);
+        new DeferredQuery<T, T>(Source.Select(Shape).Distinct(), x => x);
 
     public IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector) =>
-        new Query<R, R>(Source.Select(Compose(selector, Shape)).Distinct(), x => x);
+        new DeferredQuery<R, R>(Source.Select(Compose(selector, Shape)).Distinct(), x => x);
     #endregion
 
     #region Sorting
     public IOrderedQuery<T> OrderBy<K>(Expression<Func<T, K>> selector) =>
-        new Query<T, Q>(Source.OrderBy(Translate(selector)), Shape);
+        new DeferredQuery<T, Q>(Source.OrderBy(Translate(selector)), Shape);
 
     public IOrderedQuery<T> OrderByDescending<K>(Expression<Func<T, K>> selector) =>
-        new Query<T, Q>(Source.OrderByDescending(Translate(selector)), Shape);
+        new DeferredQuery<T, Q>(Source.OrderByDescending(Translate(selector)), Shape);
 
     public IOrderedQuery<T> ThenBy<TKey>(Expression<Func<T, TKey>> selector) =>
-        new Query<T, Q>((Source as IOrderedQueryable<Q>)!.ThenBy(Translate(selector)), Shape);
+        new DeferredQuery<T, Q>((Source as IOrderedQueryable<Q>)!.ThenBy(Translate(selector)), Shape);
 
     public IOrderedQuery<T> ThenByDescending<TKey>(Expression<Func<T, TKey>> selector) =>
-        new Query<T, Q>((Source as IOrderedQueryable<Q>)!.ThenByDescending(Translate(selector)), Shape);
+        new DeferredQuery<T, Q>((Source as IOrderedQueryable<Q>)!.ThenByDescending(Translate(selector)), Shape);
 
-    public IQuery<T> Reverse() => new Query<T, Q>(Source.Reverse(), Shape);
+    public IQuery<T> Reverse() => new DeferredQuery<T, Q>(Source.Reverse(), Shape);
     #endregion
 
     #region Paging
-    public IQuery<T> Skip(int count) => new Query<T, Q>(Source.Skip(count), Shape);
-    public IQuery<T> Take(int count) => new Query<T, Q>(Source.Take(count), Shape);
+    public IQuery<T> Skip(int count) => new DeferredQuery<T, Q>(Source.Skip(count), Shape);
+    public IQuery<T> Take(int count) => new DeferredQuery<T, Q>(Source.Take(count), Shape);
     #endregion
 
     #region Projection
     public IQuery<R> Map<R>(Expression<Func<T, R>> mapping) =>
-        new Query<R, Q>(Source, Compose(mapping, Shape));
+        new DeferredQuery<R, Q>(Source, Compose(mapping, Shape));
 
     public IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         FlattenPreservingShape<R>(Translate(collectionSelector));
@@ -173,12 +169,12 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return (IQuery<R>)generic.Invoke(this, [internalCollectionSelector, selectorExpression])!;
     }
 
-    private Query<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression internalCollectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression internalCollectionSelectorUntyped, LambdaExpression itemShapeUntyped)
     {
         var internalCollectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)internalCollectionSelectorUntyped;
         var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;
 
-        return new Query<R, QR>(Source.SelectMany(internalCollectionSelector), itemShape);
+        return new DeferredQuery<R, QR>(Source.SelectMany(internalCollectionSelector), itemShape);
     }
 
     private IQuery<TOut> JoinInternal<R, K, TOut>(IInternalQuery right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result)
@@ -190,14 +186,14 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return (IQuery<TOut>)generic.Invoke(this, [right, lKey, rKey, result])!;
     }
 
-    private Query<TOut, Pair<Q, QR>> JoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result)
+    private DeferredQuery<TOut, Pair<Q, QR>> JoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result)
     {
-        var right = (Query<R, QR>)rightUntyped;
+        var right = (DeferredQuery<R, QR>)rightUntyped;
 
         var joined = Source.Join(right.Source, Translate(lKey), right.Translate(rKey),
             (l, r) => new Pair<Q, QR> { Left = l, Right = r });
 
-        return new Query<TOut, Pair<Q, QR>>(joined, BuildJoinShape(right.Shape, result));
+        return new DeferredQuery<TOut, Pair<Q, QR>>(joined, BuildJoinShape(right.Shape, result));
     }
 
     private Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(Expression<Func<QR, R>> rightShape, Expression<Func<T, R, TOut>> result)
@@ -229,14 +225,14 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return (IQuery<TOut>)generic.Invoke(this, [right, lKey, rKey, result])!;
     }
 
-    private Query<TOut, Pair<Q, IEnumerable<QR>>> GroupJoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result)
+    private DeferredQuery<TOut, Pair<Q, IEnumerable<QR>>> GroupJoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result)
     {
-        var right = (Query<R, QR>)rightUntyped;
+        var right = (DeferredQuery<R, QR>)rightUntyped;
 
         var grouped = Source.GroupJoin(right.Source, Translate(lKey), right.Translate(rKey),
             (l, r) => new Pair<Q, IEnumerable<QR>> { Left = l, Right = r });
 
-        return new Query<TOut, Pair<Q, IEnumerable<QR>>>(grouped, BuildGroupJoinShape(right.Shape, result));
+        return new DeferredQuery<TOut, Pair<Q, IEnumerable<QR>>>(grouped, BuildGroupJoinShape(right.Shape, result));
     }
 
     private Expression<Func<Pair<Q, IEnumerable<QR>>, TOut>> BuildGroupJoinShape<R, QR, TOut>(Expression<Func<QR, R>> rightShape, Expression<Func<T, IEnumerable<R>, TOut>> result)
@@ -259,9 +255,9 @@ public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         return Expression.Lambda<Func<Pair<Q, IEnumerable<QR>>, TOut>>(body, pairParam);
     }
 
-    private static readonly MethodInfo JoinInternalTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(JoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-    private static readonly MethodInfo GroupJoinInternalTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(GroupJoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo JoinInternalTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(JoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo GroupJoinInternalTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(GroupJoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
     private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
         .Single(m => m.Name == nameof(Enumerable.Select) &&
                      m.IsGenericMethodDefinition &&

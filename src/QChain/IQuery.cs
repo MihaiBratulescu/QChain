@@ -1,5 +1,4 @@
 ﻿using QChain.CachedQuery;
-using QChain.Query;
 using System.Linq.Expressions;
 
 namespace QChain;

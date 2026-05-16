@@ -1,16 +1,17 @@
 ﻿using QChain;
+using QChain.EntityFrameworkCore;
 using Samples.OnlineShop.DatabaseModels;
 
 namespace Samples.OnlineShop.Tests;
 
 public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
 {
-    protected IQueryExecutor<Account> Entities => _fixture.db.Query(db => db.Accounts);
+    protected IQuery<Account> Accounts => _fixture.db.Accounts;
 
     [Fact]
     public async Task ToArray()
     {
-        var array = await Entities.ToArrayAsync(default);        
+        var array = await Accounts.ToArrayAsync(default);        
 
         Assert.NotEmpty(array);
     }
@@ -18,8 +19,8 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task Count()
     {
-        var count = await Entities.CountAsync(default);
-        var count2 = await Entities.CountAsync(a => a.AccountId == 1, default);
+        var count = await Accounts.CountAsync(default);
+        var count2 = await Accounts.CountAsync(a => a.AccountId == 1, default);
 
         Assert.True(count > 0);
         Assert.Equal(1, count2);
@@ -28,8 +29,8 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task FirstOrDefault()
     {
-        var item = await Entities.FirstOrDefault(default);
-        var item2 = await Entities.FirstOrDefault(a => a.AccountId == 1, default);
+        var item = await Accounts.FirstOrDefaultAsync(default);
+        var item2 = await Accounts.FirstOrDefaultAsync(a => a.AccountId == 1, default);
 
         Assert.NotNull(item);
         Assert.NotNull(item2);
@@ -50,10 +51,38 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task Any()
     {
-        var check = await Entities.AnyAsync(default);
-        var check2 = await Entities.AnyAsync(a => a.AccountId == 1, default);
+        var check = await Accounts.AnyAsync(default);
+        var check2 = await Accounts.AnyAsync(a => a.AccountId == 1, default);
 
         Assert.True(check);
         Assert.True(check2);
+    }
+
+    [Fact]
+    public async Task NoTracking()
+    {
+        var items = await Accounts.AsNoTracking().ToArrayAsync(default);
+
+        Assert.NotEmpty(items);
+        Assert.False(_fixture.db.ChangeTracker.Entries().Any());
+    }
+
+    [Fact]
+    public async Task TrackedEntities()
+    {
+        var items = await Accounts.AsNoTracking().AsTracking().ToArrayAsync(default);
+
+        Assert.NotEmpty(items);
+        Assert.Equal(items.Length, _fixture.db.ChangeTracker.Entries().Count());
+    }
+
+    [Fact]
+    public async Task Include()
+    {
+        _fixture.db.ChangeTracker.Clear();
+        var items = await Accounts.Include(a => a.Profile).ToArrayAsync(default);
+
+        Assert.NotEmpty(items);
+        Assert.All(items, a => Assert.NotNull(a.Profile));
     }
 }

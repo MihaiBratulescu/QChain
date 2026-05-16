@@ -23,13 +23,22 @@ public sealed class SqliteFixture : IAsyncLifetime
                     DateTime now = DateTime.UtcNow;
 
                     await db.Set<Account>().AddRangeAsync(
-                        new Account { AccountId = 1, Name = "Alpha", IsActive = true, CreatedDate = now.AddYears(-1) },
-                        new Account { AccountId = 2, Name = "Beta", IsActive = true, CreatedDate = now.AddMonths(-6) },
-                        new Account { AccountId = 3, Name = "Gamma", IsActive = false, CreatedDate = now.AddMonths(-2) },
-                        new Account { AccountId = 4, Name = "Delta", IsActive = true, CreatedDate = now.AddDays(-10) },
-                        new Account { AccountId = 5, Name = "Epsilon", IsActive = false, CreatedDate = now.AddDays(-1) },
-                        new Account { AccountId = 6, Name = null!, IsActive = true, CreatedDate = now },
-                        new Account { AccountId = 7, Name = "Epsilon", IsActive = true, CreatedDate = now });
+                        new Account { AccountId = 1, Email = "Alpha", IsActive = true, CreatedDate = now.AddYears(-1) },
+                        new Account { AccountId = 2, Email = "Beta", IsActive = true, CreatedDate = now.AddMonths(-6) },
+                        new Account { AccountId = 3, Email = "Gamma", IsActive = false, CreatedDate = now.AddMonths(-2) },
+                        new Account { AccountId = 4, Email = "Delta", IsActive = true, CreatedDate = now.AddDays(-10) },
+                        new Account { AccountId = 5, Email = "Epsilon", IsActive = false, CreatedDate = now.AddDays(-1) },
+                        new Account { AccountId = 6, Email = null!, IsActive = true, CreatedDate = now },
+                        new Account { AccountId = 7, Email = "Epsilon", IsActive = true, CreatedDate = now });
+
+                    await db.Set<AccountProfile>().AddRangeAsync(
+                        new AccountProfile { AccountId = 1, AccountProfileId = 1, },
+                        new AccountProfile { AccountId = 2, AccountProfileId = 2, },
+                        new AccountProfile { AccountId = 3, AccountProfileId = 3, },
+                        new AccountProfile { AccountId = 4, AccountProfileId = 4, },
+                        new AccountProfile { AccountId = 5, AccountProfileId = 5, },
+                        new AccountProfile { AccountId = 6, AccountProfileId = 6, },
+                        new AccountProfile { AccountId = 7, AccountProfileId = 7, });
 
                     await db.Set<Order>().AddRangeAsync(
                         new Order { OrderId = 1, AccountId = 1, Total = 100, CurrencyId = CurrencyType.EUR, CreatedDate = now.AddMonths(-2) },
@@ -66,9 +75,10 @@ public sealed class SqliteFixture : IAsyncLifetime
             });
 
         db = new ApplicationDbContext(builder.Options);
-        
+
         await db.Database.EnsureCreatedAsync();
         await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
     }
 
     public Task DisposeAsync() => connection.CloseAsync();
