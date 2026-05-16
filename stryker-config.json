@@ -1,0 +1,13 @@
+{
+  "stryker-config": {
+    "solution": "QChain.sln",
+    "project": "src/QChain/QChain.csproj",
+    "test-projects": [
+      "tests/QChain.Tests/QChain.Tests.csproj"
+    ],
+    "mutate": [
+      "src/QChain/**/*.cs"
+    ],
+    "reporters": [ "html", "progress", "cleartext" ]
+  }
+}
