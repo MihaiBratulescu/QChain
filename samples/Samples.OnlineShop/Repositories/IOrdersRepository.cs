@@ -1,5 +1,4 @@
 ﻿using QChain;
-using QChain.EntityFrameworkCore;
 using Samples.OnlineShop.DatabaseModels;
 
 namespace Samples.OnlineShop.Repositories;

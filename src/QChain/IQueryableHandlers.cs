@@ -1,4 +1,4 @@
-﻿namespace QChain.EntityFrameworkCore;
+﻿namespace QChain;
 
 public static class IQueryableHandlers
 {

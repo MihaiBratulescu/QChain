@@ -1,5 +1,4 @@
 ﻿using QChain;
-using QChain.EntityFrameworkCore;
 
 using Microsoft.EntityFrameworkCore;
 
@@ -15,8 +14,7 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
     public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
     public IQuery<Currency> Currencies => new Query<Currency>(Set<Currency>());
 
-    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) =>
-        new QueryExecutor<T>(query(this));
+    public IQuery<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => query(this);
 
     #region DbSets
     private DbSet<Account> _accounts { get; set; }

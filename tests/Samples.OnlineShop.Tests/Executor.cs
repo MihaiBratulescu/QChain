@@ -1,5 +1,4 @@
 ﻿using QChain;
-using QChain.EntityFrameworkCore;
 using Samples.OnlineShop.DatabaseModels;
 
 namespace Samples.OnlineShop.Tests;
@@ -40,10 +39,10 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     public async Task SingleOrDefault()
     {
         var item = await _fixture.db.Query(db => db.Accounts.Where(a => a.AccountId == 1))
-            .SingleOrDefault(default);
+            .SingleOrDefaultAsync(default);
 
         var item2 = await _fixture.db.Query(db => db.Accounts)
-            .SingleOrDefault(a => a.AccountId == 1, default);
+            .SingleOrDefaultAsync(a => a.AccountId == 1, default);
 
         Assert.NotNull(item);
     }
@@ -61,6 +60,8 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task NoTracking()
     {
+        _fixture.db.ChangeTracker.Clear();
+
         var items = await Accounts.AsNoTracking().ToArrayAsync(default);
 
         Assert.NotEmpty(items);
@@ -70,6 +71,8 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     [Fact]
     public async Task TrackedEntities()
     {
+        _fixture.db.ChangeTracker.Clear();
+        
         var items = await Accounts.AsNoTracking().AsTracking().ToArrayAsync(default);
 
         Assert.NotEmpty(items);

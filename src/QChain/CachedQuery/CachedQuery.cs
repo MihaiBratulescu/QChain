@@ -11,3 +11,4 @@ public sealed class CachedQuery<T, Q> : DeferredQuery<T, Q>, ICachedQuery<T>
         Expiry = expiry;
     }
 }
+

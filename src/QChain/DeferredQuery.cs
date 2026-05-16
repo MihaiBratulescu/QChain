@@ -18,7 +18,7 @@ public class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         (Source, Shape) = (source, shape);
 
     protected DeferredQuery(DeferredQuery<T, Q> query) =>
-        (Source, Shape) = (query.Source, query.Shape); 
+        (Source, Shape) = (query.Source, query.Shape);
     #endregion
 
     public IQueryable<T> AsQueryable() => Source.Select(Shape);

@@ -78,7 +78,6 @@ public sealed class SqliteFixture : IAsyncLifetime
 
         await db.Database.EnsureCreatedAsync();
         await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
     }
 
     public Task DisposeAsync() => connection.CloseAsync();

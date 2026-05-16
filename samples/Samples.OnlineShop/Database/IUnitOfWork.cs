@@ -11,7 +11,7 @@ public interface IUnitOfWork
     public ITransactionsRepository Transactions { get; }
     public IQuery<Currency> Currencies { get; }
 
-    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query);
+    public IQuery<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query);
 
     Task<int> SaveChangesAsync(CancellationToken ct);
 }

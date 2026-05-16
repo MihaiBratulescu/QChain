@@ -1,7 +1,7 @@
 ﻿using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 
-namespace QChain.EntityFrameworkCore;
+namespace QChain;
 
 public static class EntityFrameworkExtensions
 {
@@ -155,9 +155,9 @@ public static class EntityFrameworkExtensions
         Query(query, q => q.ContainsAsync(item, ct));
 
     #region Helpers
-    private static Task<R> Query<T, R>(this IQuery<T> query, Expression<Func<T, bool>> predicate, Func<IQueryable<T>, Task<R>> executor) =>
+    internal static Task<R> Query<T, R>(this IQuery<T> query, Expression<Func<T, bool>> predicate, Func<IQueryable<T>, Task<R>> executor) =>
         executor(query.Where(predicate).AsQueryable());
-    private static Task<R> Query<T, R>(this IQuery<T> query, Func<IQueryable<T>, Task<R>> executor) =>
+    internal static Task<R> Query<T, R>(this IQuery<T> query, Func<IQueryable<T>, Task<R>> executor) =>
         executor(query.AsQueryable()); 
     #endregion
 }
