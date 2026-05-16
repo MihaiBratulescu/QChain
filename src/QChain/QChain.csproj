@@ -3,6 +3,33 @@
    <ItemGroup>
    	<InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
    </ItemGroup>
+
+   <ItemGroup>
+     <None Include="DeferredQuery.Filtering.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Grouping.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Joins.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Paging.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Projection.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Sets.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Sorting.cs">
+       <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+     <None Include="DeferredQuery.Caching.cs">
+	   <DependentUpon>DeferredQuery.cs</DependentUpon>
+     </None>
+   </ItemGroup>
 	
    <PropertyGroup>
      <PackageId>QChain</PackageId>
