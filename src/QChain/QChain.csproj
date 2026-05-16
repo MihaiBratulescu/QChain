@@ -1,6 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
+   <ItemGroup>
+   	<InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
+   </ItemGroup>
+	
    <PropertyGroup>
      <PackageId>QChain</PackageId>
      <Description>Composable query building library for .NET</Description>
    </PropertyGroup>
+	
 </Project>

@@ -1,4 +1,4 @@
-﻿namespace QChain.EntityFrameworkCore;
+﻿namespace QChain.CachedQuery;
 
 public sealed class CachedQuery<T, Q> : Query<T, Q>, ICachedQuery<T>
 {

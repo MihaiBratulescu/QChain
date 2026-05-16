@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 
-namespace QChain.EntityFrameworkCore.Visitors;
+namespace QChain.Visitors;
 
 internal sealed class ReplaceExpressionVisitor : ExpressionVisitor
 {

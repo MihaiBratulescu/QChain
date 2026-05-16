@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.EntityFrameworkCore.Visitors;
+namespace QChain.Visitors;
 
 internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
 {

@@ -1,8 +1,10 @@
-﻿using QChain.EntityFrameworkCore.Visitors;
+﻿using QChain.CachedQuery;
+using QChain.Query;
+using QChain.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.EntityFrameworkCore;
+namespace QChain;
 
 public class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
