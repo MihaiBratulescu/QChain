@@ -11,13 +11,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "00. props", "00. props", "{
 	ProjectSection(SolutionItems) = preProject
 		Directory.Build.props = Directory.Build.props
 		Directory.Packages.props = Directory.Packages.props
-		dotnet-tools.json = dotnet-tools.json
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "03. tests", "03. tests", "{132581BC-86CA-4C09-87F6-7D76847951AE}"
-	ProjectSection(SolutionItems) = preProject
-		stryker-config.json = stryker-config.json
-	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "02. samples", "02. samples", "{00CE4CEB-54B3-4927-AEC9-F6F364F43AC1}"
 EndProject
