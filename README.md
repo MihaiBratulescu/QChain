@@ -72,8 +72,8 @@ public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalance
     return db.Customers
         .Active()
         .FromEurope()
-        .WithOrders(o => o.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
-        .WithPayments();                        // Tuple<(Customer c, Order o, Payment p)>
+        .WithOrders(db.Orders.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
+        .WithPayments();                           // Tuple<(Customer c, Order o, Payment p)>
 }
 
 public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
@@ -81,8 +81,8 @@ public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(D
     return db.Customers
         .Active()
         .FromEurope()
-        .WithOrders(o => o.CreatedAfter(from))    // Tuple<(Customer c, Order o)>
-        .WithPayments(p => p.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
+        .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
+        .WithPayments(db.Payments.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
 }
 ```
 
