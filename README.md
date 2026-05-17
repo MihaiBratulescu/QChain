@@ -106,36 +106,31 @@ var risks = await unitOfWork.Query(db => db.Customers
 
 ---
 
-## 🧠 Key Concepts
-
-### Composable Queries
-
-Each method returns a query that can be further composed:
+## 🏗️ Basic Usage
 
 ```csharp
-public IOrdersQuery InLast30Days() =>
-    Where(o => o.CreatedAt >= DateTime.UtcNow.AddDays(-30));
+public interface IOrdersRepository : IQuery<Order>
+{
+    IOrdersQuery ForCustomer(int customerId);
+    IOrdersQuery InLast30Days();
+    IOrdersQuery WithPayments();
+}
 ```
 
-### Reusability
-
-Query fragments can be reused across:
-
-- repositories
-- services
-- endpoints
-
-### Domain-Oriented
-
-Queries can reflect your ubiquitous language:
-
 ```csharp
-Orders
-   .ForCustomer(id)
-   .InLastMonth()
-   .WithPayments(Payments
-        .BankTransfers()
-        .Settled())
+public class OrdersRepository : Query<Order>, IOrdersQuery
+{
+    public OrdersQuery(IQueryable<Order> source) : base(source) { }
+
+    public IOrdersQuery ForCustomer(int customerId) =>
+        new OrdersQuery(Where(o => o.CustomerId == customerId).AsQueryable());
+
+    public IOrdersQuery InLast30Days() =>
+        new OrdersQuery(Where(o => o.CreatedAt >= DateTime.UtcNow.AddDays(-30)).AsQueryable());
+
+    public IOrdersQuery WithPayments() =>
+        new OrdersQuery(Include(o => o.Payments).AsQueryable());
+}
 ```
 
 ---
@@ -159,43 +154,3 @@ For EF Core support:
 dotnet add package QChain.EntityFrameworkCore
 ```
 
----
-
-## 🏗️ Basic Usage
-
-```csharp
-public interface IOrdersQuery : IQuery<Order>
-{
-    IOrdersQuery ForCustomer(int customerId);
-    IOrdersQuery InLast30Days();
-    IOrdersQuery WithPayments();
-}
-```
-
-```csharp
-public class OrdersQuery : EntityQuery<Order>, IOrdersQuery
-{
-    public OrdersQuery(IQueryable<Order> source) : base(source) { }
-
-    public IOrdersQuery ForCustomer(int customerId) =>
-        new OrdersQuery(Where(o => o.CustomerId == customerId).AsQueryable());
-
-    public IOrdersQuery InLast30Days() =>
-        new OrdersQuery(Where(o => o.CreatedAt >= DateTime.UtcNow.AddDays(-30)).AsQueryable());
-
-    public IOrdersQuery WithPayments() =>
-        new OrdersQuery(Include(o => o.Payments).AsQueryable());
-}
-```
-
----
-
-## 🎯 Goals
-
-- Keep LINQ as the execution engine
-- Enable query reuse without duplication
-- Improve readability of complex queries
-- Align data access with domain language
-- Stay provider-agnostic
-
----
