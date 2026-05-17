@@ -1,6 +1,5 @@
 [![NuGet - QChain](https://img.shields.io/nuget/v/QChain?label=QChain)](https://www.nuget.org/packages/QChain)
 [![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/v/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
-[![NuGet Downloads](https://img.shields.io/nuget/dt/QChain?label=Downloads)](https://www.nuget.org/packages/QChain)
 [![License](https://img.shields.io/github/license/MihaiBratulescu/QChain?label=License)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
 
 # QChain
