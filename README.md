@@ -25,9 +25,8 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })            // anonymous<Customer, Order>
+        .Join(db.Orders.Where(o => o.CreatedAt >= from), c => c.Id, o => o.CustomerId, (c, o) => new { c, o })            // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })    // anonymous<Customer, Order, Payment>
-        .Where(x => x.o.CreatedAt >= from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))                // mapping baked in
         .ToListAsync(ct);                                                                 //no pagination support
 }
@@ -49,24 +48,25 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 ## 👍 With QChain
 
 ```csharp
-var balances = unitOfWork.Customers
+public Task<List<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
+{
+    return unitOfWork.Customers
         .Active()
         .FromEurope()
-        .WithOrders()
-        .WithPayments()
-        .CreatedAfter(from)
-        .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))
+        .WithOrders(o => .CreatedAfter(from)) // Tuple<(Customer c, Order o)>
+        .WithPayments()                       // Tuple<(Customer c, Order o, Payment p)>
         .ToListAsync(ct);
+}
 
-var risks = unitOfWork.Customers
+public Task<List<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
+{
+    return unitOfWork.Customers
         .Active()
         .FromEurope()
-        .WithOrders()
-        .WithPayments()
-        .CreatedAfter(from)
-        .WithPaymentAmountOver(10000)
-        .Map(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))
+        .WithOrders(o => o.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
+        .WithPayments(p => p.AmountOver(10000)) // (Customer c, Order o, Payment p)
         .ToListAsync(ct);
+}
 ```
 
 Readable, reusable, and aligned with your domain.
