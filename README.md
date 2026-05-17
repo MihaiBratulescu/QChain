@@ -2,6 +2,8 @@
 [![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/v/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
 [![License](https://img.shields.io/github/license/MihaiBratulescu/QChain?label=License)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
 
+---
+
 # QChain
 
 **LINQ specification pattern for building reusable and composable query pipelines**
@@ -11,13 +13,26 @@ Instead of duplicating query logic across repositories and services, you define 
 
 ---
 
+## ✨ Motivation
+
+LINQ is powerful, but in real-world applications it often leads to:
+
+- duplicated query logic
+- hard-to-read query chains
+- bloated repositories
+- weak or limited specification patterns
+
+QChain solves this by turning queries into **reusable, composable building blocks**.
+
+---
+
 ## 👎 Before QChain
 
 Large EF Core applications often end up with duplicated, tightly coupled query logic.
 
 Reuse is hard because joins produce anonymous intermediate types.
 Mapping is baked into repository methods, even when DTOs belong to upper layers.
-Pagination, sorting, or extra filters require more repository methods or a wider API surface.
+Pagination, sorting, or extra filters require more repository methods and a wider API surface.
 
 ```csharp
 public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
@@ -87,20 +102,6 @@ var risks = await unitOfWork.Query(db => db.Customers
 ```
 
 ---
-
-## ✨ Motivation
-
-LINQ is powerful, but in real-world applications it often leads to:
-
-- duplicated query logic
-- hard-to-read query chains
-- bloated repositories
-- weak or limited specification patterns
-
-QChain solves this by turning queries into **reusable, composable building blocks**.
-
----
-
 
 ## 🧠 Key Concepts
 
