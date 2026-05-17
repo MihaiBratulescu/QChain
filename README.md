@@ -11,6 +11,64 @@ Instead of duplicating query logic across repositories and services, you define 
 
 ---
 
+## 👎 Before QChain
+
+Large EF Core applications often end up with duplicated and tightly coupled query logic.
+
+```csharp
+public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
+{
+    return db.Customers
+        .Where(c => c.IsActive)
+        .Where(c => c.Region == "EU")
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })
+        .Where(x => x.o.CreatedAt >= from)
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))
+        .ToListAsync(ct);
+}
+
+public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
+{
+    return db.Customers
+        .Where(c => c.IsActive)
+        .Where(c => c.Region == "EU")
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })
+        .Where(x => x.o.CreatedAt >= from)
+        .Where(x => x.p.Amount >= 10000)
+        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))
+        .ToListAsync(ct);
+}
+```
+
+## 👍 With QChain
+
+```csharp
+var balances = unitOfWork.Customers
+        .Active()
+        .FromEurope()
+        .WithOrders()
+        .WithPayments()
+        .CreatedAfter(from)
+        .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))
+        .ToListAsync(ct);
+
+var risks = unitOfWork.Customers
+        .Active()
+        .FromEurope()
+        .WithOrders()
+        .WithPayments()
+        .CreatedAfter(from)
+        .WithPaymentAmountOver(10000)
+        .Map(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))
+        .ToListAsync(ct);
+```
+
+Readable, reusable, and aligned with your domain.
+
+---
+
 ## ✨ Motivation
 
 LINQ is powerful, but in real-world applications it often leads to:
@@ -24,31 +82,6 @@ QChain solves this by turning queries into **reusable, composable building block
 
 ---
 
-## 🚀 Example
-
-Instead of:
-
-```csharp
-var orders = db.Orders
-    .Where(o => o.CustomerId == customerId)
-    .Where(o => o.CreatedAt >= DateTime.UtcNow.AddDays(-30))
-    .Include(o => o.Payments)
-    .ToListAsync();
-```
-
-With QChain:
-
-```csharp
-var orders = repo.Query()
-    .ForCustomer(customerId)
-    .InLast30Days()
-    .WithPayments()
-    .ToListAsync();
-```
-
-Readable, reusable, and aligned with your domain.
-
----
 
 ## 🧠 Key Concepts
 
