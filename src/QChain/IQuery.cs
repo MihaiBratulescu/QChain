@@ -47,9 +47,11 @@ public interface IQuery<T>
 
     #region Paging
     IQuery<T> Skip(int count);
-    IQuery<T> Take(int count); 
-    #endregion
+    IQuery<T> Take(int count);
+    IQuery<T> Page(int index, int count);
     
+    #endregion
+
     #region Projection
     IQuery<R> Map<R>(Expression<Func<T, R>> mapping);
     IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector);
