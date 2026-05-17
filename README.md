@@ -32,7 +32,7 @@ What QChain Solves
 
 Large EF Core applications often end up with long methods, and duplicated, tightly coupled query logic.
 
-- Reuse becomes difficult because joins produce anonymous intermediate types.
+- Joins produce anonymous intermediate types, making query composition and reuse difficult.
 - Mapping is either baked in or deferred until after execution, requiring full entities to be loaded.
 - Pagination, sorting, or extra filters require more repository methods and a wider API surface.
 
@@ -64,6 +64,8 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 
 ## 👍 With QChain
 
+Readable, reusable, and aligned with your domain. Named tuples as intermediate types instead of anonymous types you can't reuse.
+
 ```csharp
 public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalances(DateTime from)
 {
@@ -80,13 +82,13 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerR
         .Active()
         .FromEurope()
         .WithOrders(o => o.CreatedAfter(from))    // Tuple<(Customer c, Order o)>
-        .WithPayments(p => p.AmountOver(10000));  // (Customer c, Order o, Payment p)
+        .WithPayments(p => p.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
 }
 ```
 
-Readable, reusable, and aligned with your domain.
+## 🔗 Calling End
 
-## ✨ Calling End
+Mapping and pagination compose externally. Query composition is reusable while execution concerns remain composable.
 
 ```csharp
 var balances = await unitOfWork.Query(db => db.Customers
@@ -102,8 +104,6 @@ var risks = await unitOfWork.Query(db => db.Customers
     .ToListAsync(ct);
 }
 ```
-
-Mapping and pagination compose externally. Query composition is reusable while execution concerns remain composable.
 
 ---
 
