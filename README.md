@@ -1,3 +1,9 @@
+[![build](https://img.shields.io/github/actions/workflow/status/MihaiBratulescu/QChain/build.yml?branch=master&style=for-the-badge)](https://github.com/MihaiBratulescu/QChain/actions)
+[![nuget](https://img.shields.io/nuget/v/QChain?style=for-the-badge)](https://www.nuget.org/packages/QChain)
+[![downloads](https://img.shields.io/nuget/dt/QChain?style=for-the-badge)](https://www.nuget.org/packages/QChain)
+[![license](https://img.shields.io/github/license/MihaiBratulescu/QChain?style=for-the-badge)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
+[![stars](https://img.shields.io/github/stars/MihaiBratulescu/QChain?style=for-the-badge)](https://github.com/MihaiBratulescu/QChain/stargazers)
+
 # QChain
 
 **Reusable, composable LINQ query pipelines**
