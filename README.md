@@ -25,10 +25,10 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders.Where(o => o.CreatedAt >= from), c => c.Id, o => o.CustomerId, (c, o) => new { c, o }) // anonymous<Customer, Order>
-        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })                         // anonymous<Customer, Order, Payment>
-        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))                                     // mapping baked in
-        .ToListAsync(ct);                                                                                      // no pagination support
+        .Join(db.Orders.Where(o => o.CreatedAt >= from), c => c.Id, o => o.CustomerId, (c, o) => new { c, o })  // anonymous<Customer, Order>
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })                          // anonymous<Customer, Order, Payment>
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping baked into DAL layer
+        .ToListAsync(ct);                                                   // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -36,12 +36,12 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })            // anonymous<Customer, Order>
-        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })    // anonymous<Customer, Order, Payment>
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
-        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))                 // mapping baked in
-        .ToListAsync(ct);                                                                 // no pagination support
+        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping baked into DAL layer
+        .ToListAsync(ct);                                                  // no pagination support
 }
 ```
 
@@ -53,9 +53,8 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerB
     return db.Customers
         .Active()
         .FromEurope()
-        .WithOrders(o => o.CreatedAfter(from)) // Tuple<(Customer c, Order o)>
-        .WithPayments()                        // Tuple<(Customer c, Order o, Payment p)>
-        .ToListAsync(ct);
+        .WithOrders(o => o.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
+        .WithPayments();                        // Tuple<(Customer c, Order o, Payment p)>
 }
 
 public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -63,13 +62,29 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerR
     return db.Customers
         .Active()
         .FromEurope()
-        .WithOrders(o => o.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
-        .WithPayments(p => p.AmountOver(10000)) // (Customer c, Order o, Payment p)
-        .ToListAsync(ct);
+        .WithOrders(o => o.CreatedAfter(from))    // Tuple<(Customer c, Order o)>
+        .WithPayments(p => p.AmountOver(10000));  // (Customer c, Order o, Payment p)
 }
 ```
 
 Readable, reusable, and aligned with your domain.
+
+## ✨ Calling End
+
+```csharp
+var balances = await unitOfWork.Query(db => db.Customers
+        .GetActiveEuropeanCustomerBalancesAsync(from, ct)
+        .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
+        .Page(page, size))                                               // pagination is applied as a query extension 
+    .ToListAsync(ct);
+
+var risks = await unitOfWork.Query(db => db.Customers
+        .GetRecentEuropeanCustomerRisks(from)
+        .Map(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
+        .Page(page, size))                                              // pagination is applied as a query extension 
+    .ToListAsync(ct);
+}
+```
 
 ---
 
