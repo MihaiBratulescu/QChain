@@ -1,10 +1,8 @@
-﻿
-
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
 
-internal class QueryExecutor<T> : IQueryExecutor<T>
+public class QueryExecutor<T> : IQueryExecutor<T>
 {
     public Task<bool> AllAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
        => query.AllAsync(predicate, ct);
@@ -63,6 +61,72 @@ internal class QueryExecutor<T> : IQueryExecutor<T>
     public Task<T?> SingleOrDefaultAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
         => query.SingleOrDefaultAsync(predicate, ct);
 
+    public Task<T> LastAsync(IQuery<T> query, CancellationToken ct = default)
+        => query.LastAsync(ct);
+
+    public Task<T> LastAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
+        => query.LastAsync(predicate, ct);
+
+    public Task<T?> LastOrDefaultAsync(IQuery<T> query, CancellationToken ct = default)
+        => query.LastOrDefaultAsync(ct);
+
+    public Task<T?> LastOrDefaultAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
+        => query.LastOrDefaultAsync(predicate, ct);
+
+    public Task<T> MinAsync(IQuery<T> query, CancellationToken ct = default)
+        => query.MinAsync(ct);
+
+    public Task<T> MaxAsync(IQuery<T> query, CancellationToken ct = default)
+        => query.MaxAsync(ct);
+
+    public Task<decimal> SumAsync(IQuery<T> query, Expression<Func<T, decimal>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<decimal?> SumAsync(IQuery<T> query, Expression<Func<T, decimal?>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<int> SumAsync(IQuery<T> query, Expression<Func<T, int>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<int?> SumAsync(IQuery<T> query, Expression<Func<T, int?>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<long> SumAsync(IQuery<T> query, Expression<Func<T, long>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<long?> SumAsync(IQuery<T> query, Expression<Func<T, long?>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<float> SumAsync(IQuery<T> query, Expression<Func<T, float>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<float?> SumAsync(IQuery<T> query, Expression<Func<T, float?>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<double> SumAsync(IQuery<T> query, Expression<Func<T, double>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<double?> SumAsync(IQuery<T> query, Expression<Func<T, double?>> selector, CancellationToken ct = default)
+        => query.SumAsync(selector, ct);
+
+    public Task<decimal> AverageAsync(IQuery<T> query, Expression<Func<T, decimal>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<decimal?> AverageAsync(IQuery<T> query, Expression<Func<T, decimal?>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<float> AverageAsync(IQuery<T> query, Expression<Func<T, float>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<float?> AverageAsync(IQuery<T> query, Expression<Func<T, float?>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<double> AverageAsync(IQuery<T> query, Expression<Func<T, double>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<double?> AverageAsync(IQuery<T> query, Expression<Func<T, double?>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
     public Task<T[]> ToArrayAsync(IQuery<T> query, CancellationToken ct = default)
         => query.ToArrayAsync(ct);
 
@@ -71,114 +135,4 @@ internal class QueryExecutor<T> : IQueryExecutor<T>
 
     public string ToQueryString(IQuery<T> query)
         => query.ToQueryString();
-
-    public Task<T> LastAsync(IQuery<T> query, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<T> LastAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<T?> LastOrDefaultAsync(IQuery<T> query, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<T?> LastOrDefaultAsync(IQuery<T> query, Expression<Func<T, bool>> predicate, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<T> MinAsync(IQuery<T> query, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<T> MaxAsync(IQuery<T> query, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<decimal> SumAsync(IQuery<T> query, Expression<Func<T, decimal>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<decimal?> SumAsync(IQuery<T> query, Expression<Func<T, decimal?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<int> SumAsync(IQuery<T> query, Expression<Func<T, int>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<int?> SumAsync(IQuery<T> query, Expression<Func<T, int?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<long> SumAsync(IQuery<T> query, Expression<Func<T, long>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<long?> SumAsync(IQuery<T> query, Expression<Func<T, long?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<float> SumAsync(IQuery<T> query, Expression<Func<T, float>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<float?> SumAsync(IQuery<T> query, Expression<Func<T, float?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<double> SumAsync(IQuery<T> query, Expression<Func<T, double>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<double?> SumAsync(IQuery<T> query, Expression<Func<T, double?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<decimal> AverageAsync(IQuery<T> query, Expression<Func<T, decimal>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<decimal?> AverageAsync(IQuery<T> query, Expression<Func<T, decimal?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<float> AverageAsync(IQuery<T> query, Expression<Func<T, float>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<float?> AverageAsync(IQuery<T> query, Expression<Func<T, float?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<double> AverageAsync(IQuery<T> query, Expression<Func<T, double>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<double?> AverageAsync(IQuery<T> query, Expression<Func<T, double?>> selector, CancellationToken ct = default)
-    {
-        throw new NotImplementedException();
-    }
 }
