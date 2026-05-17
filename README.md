@@ -28,7 +28,7 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
         .Join(db.Orders.Where(o => o.CreatedAt >= from), c => c.Id, o => o.CustomerId, (c, o) => new { c, o }) // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })                         // anonymous<Customer, Order, Payment>
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))                                     // mapping baked in
-        .ToListAsync(ct);                                                                                      //no pagination support
+        .ToListAsync(ct);                                                                                      // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -41,24 +41,24 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))                 // mapping baked in
-        .ToListAsync(ct);                                                                 //no pagination support
+        .ToListAsync(ct);                                                                 // no pagination support
 }
 ```
 
 ## 👍 With QChain
 
 ```csharp
-public Task<List<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
 {
     return db.Customers
         .Active()
         .FromEurope()
-        .WithOrders(o => .CreatedAfter(from)) // Tuple<(Customer c, Order o)>
-        .WithPayments()                       // Tuple<(Customer c, Order o, Payment p)>
+        .WithOrders(o => o.CreatedAfter(from)) // Tuple<(Customer c, Order o)>
+        .WithPayments()                        // Tuple<(Customer c, Order o, Payment p)>
         .ToListAsync(ct);
 }
 
-public Task<List<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
 {
     return db.Customers
         .Active()
