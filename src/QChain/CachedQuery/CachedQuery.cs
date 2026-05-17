@@ -1,6 +1,6 @@
 ﻿namespace QChain.CachedQuery;
 
-public sealed class CachedQuery<T, Q> : DeferredQuery<T, Q>, ICachedQuery<T>
+internal sealed class CachedQuery<T, Q> : DeferredQuery<T, Q>, ICachedQuery<T>
 {
     public string Key { get; }
     public TimeSpan Expiry { get; }
