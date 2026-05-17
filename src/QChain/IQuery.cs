@@ -49,7 +49,6 @@ public interface IQuery<T>
     IQuery<T> Skip(int count);
     IQuery<T> Take(int count);
     IQuery<T> Page(int index, int count);
-    
     #endregion
 
     #region Projection
