@@ -16,13 +16,15 @@ Instead of duplicating query logic across repositories and services, you define 
 ## ✨ Motivation
 
 LINQ is powerful, but in real-world applications it often leads to:
-
 - duplicated query logic
 - hard-to-read query chains
 - bloated repositories
 - weak or limited specification patterns
 
-QChain solves this by turning queries into **reusable, composable building blocks**.
+What QChain Solves
+- Reusable query composition
+- Composable query pipelines
+- Flexible query construction and execution
 
 ---
 
@@ -100,6 +102,8 @@ var risks = await unitOfWork.Query(db => db.Customers
     .ToListAsync(ct);
 }
 ```
+
+Mapping and pagination compose externally. Query composition is reusable while execution concerns remain composable.
 
 ---
 
