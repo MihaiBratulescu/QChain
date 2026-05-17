@@ -83,6 +83,7 @@ public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixtur
     public async Task Include()
     {
         _fixture.db.ChangeTracker.Clear();
+
         var items = await Accounts.Include(a => a.Profile).ToArrayAsync(default);
 
         Assert.NotEmpty(items);
