@@ -19,7 +19,7 @@ LINQ is powerful, but in real-world applications it often leads to:
 - duplicated query logic
 - hard-to-read query chains
 - bloated repositories
-- poor query specification reusability
+- poor support for reusable specifications
 
 ### What QChain Solves
 - Reusable composition
@@ -64,7 +64,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 
 ## 👍 With QChain
 
-Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes reusable through named tuples instead of anonymous types.
+Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes as named tuples instead of anonymous types.
 
 ```csharp
 public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
