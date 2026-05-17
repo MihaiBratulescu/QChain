@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Samples.OnlineShop.DatabaseModels;
 using Samples.OnlineShop.Repositories;
+using QChain.EntityFrameworkCore;
 
 namespace Samples.OnlineShop.Database;
 
@@ -14,7 +15,7 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
     public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
     public IQuery<Currency> Currencies => new Query<Currency>(Set<Currency>());
 
-    public IQuery<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => query(this);
+    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => new QueryExecutor<T>(query(this));
 
     #region DbSets
     private DbSet<Account> _accounts { get; set; }
