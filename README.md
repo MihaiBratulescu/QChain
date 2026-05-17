@@ -19,22 +19,22 @@ LINQ is powerful, but in real-world applications it often leads to:
 - duplicated query logic
 - hard-to-read query chains
 - bloated repositories
-- weak or limited specification patterns
+- poor query specification reusability
 
 What QChain Solves
-- Reusable query composition
-- Composable query pipelines
-- Flexible query construction and execution
+- Reusable composition
+- Composable pipelines
+- Flexible construction and execution
 
 ---
 
 ## 👎 Before QChain
 
-Large EF Core applications often end up with duplicated, tightly coupled query logic.
+Large EF Core applications often end up with long methods, and duplicated, tightly coupled query logic.
 
-Reuse becomes difficult because joins produce anonymous intermediate types.
-Mapping is either baked in or deferred until after execution, requiring full entities to be loaded.
-Pagination, sorting, or extra filters require more repository methods and a wider API surface.
+- Reuse becomes difficult because joins produce anonymous intermediate types.
+- Mapping is either baked in or deferred until after execution, requiring full entities to be loaded.
+- Pagination, sorting, or extra filters require more repository methods and a wider API surface.
 
 ```csharp
 public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
@@ -65,7 +65,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 ## 👍 With QChain
 
 ```csharp
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalances(DateTime from)
 {
     return db.Customers
         .Active()
@@ -74,7 +74,7 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerB
         .WithPayments();                        // Tuple<(Customer c, Order o, Payment p)>
 }
 
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisks(DateTime from)
 {
     return db.Customers
         .Active()
@@ -90,7 +90,7 @@ Readable, reusable, and aligned with your domain.
 
 ```csharp
 var balances = await unitOfWork.Query(db => db.Customers
-        .GetActiveEuropeanCustomerBalancesAsync(from)
+        .GetActiveEuropeanCustomerBalances(from)
         .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
         .Page(page, size))                                               // pagination is applied as a query extension 
     .ToListAsync(ct);
