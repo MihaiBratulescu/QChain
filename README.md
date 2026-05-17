@@ -42,10 +42,11 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders.Where(o => o.CreatedAt >= from), c => c.Id, o => o.CustomerId, (c, o) => new { c, o })  // anonymous<Customer, Order>
-        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })                          // anonymous<Customer, Order, Payment>
-        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping baked into DAL layer
-        .ToListAsync(ct);                                                   // no pagination support
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
+        .Where(x => x.o.CreatedAt >= from)
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))              // mapping baked into DAL layer
+        .ToListAsync(ct);                                                               // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
