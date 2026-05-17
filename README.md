@@ -50,7 +50,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 ```csharp
 public Task<List<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
 {
-    return unitOfWork.Customers
+    return db.Customers
         .Active()
         .FromEurope()
         .WithOrders(o => .CreatedAfter(from)) // Tuple<(Customer c, Order o)>
@@ -60,7 +60,7 @@ public Task<List<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBal
 
 public Task<List<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
 {
-    return unitOfWork.Customers
+    return db.Customers
         .Active()
         .FromEurope()
         .WithOrders(o => o.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
