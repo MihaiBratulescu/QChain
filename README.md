@@ -6,7 +6,7 @@
 
 # QChain
 
-**LINQ specification pattern for building reusable and composable query pipelines**
+**LINQ specification pattern for building reusable and composable query pipelines.**
 
 QChain lets you build reusable, composable, and expressive query pipelines on top of LINQ.  
 Instead of duplicating query logic across repositories and services, you define query fragments once and chain them together.
@@ -32,8 +32,8 @@ What QChain Solves
 
 Large EF Core applications often end up with duplicated, tightly coupled query logic.
 
-Reuse is hard because joins produce anonymous intermediate types.
-Mapping is baked into repository methods, even when DTOs belong to upper layers.
+Reuse becomes difficult because joins produce anonymous intermediate types.
+Mapping is either baked in or deferred until after execution, requiring full entities to be loaded.
 Pagination, sorting, or extra filters require more repository methods and a wider API surface.
 
 ```csharp
@@ -65,7 +65,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 ## 👍 With QChain
 
 ```csharp
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalancesAsync(DateTime from)
 {
     return db.Customers
         .Active()
@@ -74,7 +74,7 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerB
         .WithPayments();                        // Tuple<(Customer c, Order o, Payment p)>
 }
 
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
+public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisksAsync(DateTime from)
 {
     return db.Customers
         .Active()
@@ -90,7 +90,7 @@ Readable, reusable, and aligned with your domain.
 
 ```csharp
 var balances = await unitOfWork.Query(db => db.Customers
-        .GetActiveEuropeanCustomerBalancesAsync(from, ct)
+        .GetActiveEuropeanCustomerBalancesAsync(from)
         .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
         .Page(page, size))                                               // pagination is applied as a query extension 
     .ToListAsync(ct);
