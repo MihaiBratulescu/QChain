@@ -13,7 +13,11 @@ Instead of duplicating query logic across repositories and services, you define 
 
 ## 👎 Before QChain
 
-Large EF Core applications often end up with duplicated and tightly coupled query logic.
+Large EF Core applications often end up with duplicated, tightly coupled query logic.
+
+Reuse is hard because joins produce anonymous intermediate types.
+Mapping is baked into repository methods, even when DTOs belong to upper layers.
+Pagination, sorting, or extra filters require more repository methods or a wider API surface.
 
 ```csharp
 public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
@@ -21,11 +25,11 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })
-        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })            // anonymous<Customer, Order>
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })    // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
-        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))
-        .ToListAsync(ct);
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))                // mapping baked in
+        .ToListAsync(ct);                                                                 //no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -33,12 +37,12 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
     return db.Customers
         .Where(c => c.IsActive)
         .Where(c => c.Region == "EU")
-        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })
-        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })
+        .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })            // anonymous<Customer, Order>
+        .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })    // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
-        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))
-        .ToListAsync(ct);
+        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))                 // mapping baked in
+        .ToListAsync(ct);                                                                 //no pagination support
 }
 ```
 
