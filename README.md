@@ -21,7 +21,7 @@ LINQ is powerful, but in real-world applications it often leads to:
 - bloated repositories
 - poor query specification reusability
 
-What QChain Solves
+### What QChain Solves
 - Reusable composition
 - Composable pipelines
 - Flexible construction and execution
@@ -64,10 +64,10 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 
 ## 👍 With QChain
 
-Readable, reusable, and aligned with your domain. Named tuples as intermediate types instead of anonymous types you can't reuse.
+Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes reusable through named tuples instead of anonymous types.
 
 ```csharp
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerBalances(DateTime from)
+public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
 {
     return db.Customers
         .Active()
@@ -76,7 +76,7 @@ public Task<IQuery<(Customer c, Order o, Payment p)>> GetActiveEuropeanCustomerB
         .WithPayments();                        // Tuple<(Customer c, Order o, Payment p)>
 }
 
-public Task<IQuery<(Customer c, Order o, Payment p)>> GetRecentEuropeanCustomerRisks(DateTime from)
+public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
 {
     return db.Customers
         .Active()
@@ -102,7 +102,6 @@ var risks = await unitOfWork.Query(db => db.Customers
         .Map(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
         .Page(page, size))                                              // pagination is applied as a query extension 
     .ToListAsync(ct);
-}
 ```
 
 ---
