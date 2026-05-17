@@ -4,7 +4,7 @@
 
 # QChain
 
-**LINQ specification pattern used to build reusable and composable query pipelines**
+**LINQ specification pattern for building reusable and composable query pipelines**
 
 QChain lets you build reusable, composable, and expressive query pipelines on top of LINQ.  
 Instead of duplicating query logic across repositories and services, you define query fragments once and chain them together.
