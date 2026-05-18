@@ -138,29 +138,37 @@ public static class OrderPredicates
 }
 ```
 
-Use normal query composition.
+## Use normal query composition.
 
 ```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
         .Where(a => a.IsActive)                  // predicate reuse
-        .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>> predicate
+        .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>>
     .ToArrayAsync(ct);
+```
 
+## Predicates can also be composed together: 
+
+```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        //Overload (and extensions) that allows you to combine predicates
         .Where(a => a.IsActive().And(a.FromEurope()))) // Func<T, Predicate>
     .ToArrayAsync(ct);
 ```
 
-Predicates can also be composed across joins.
+## Reusable across joins.
 
 ```csharp
-var activeEuropeanAccounts = await unitOfWork.Query(db =>
+var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
     {
         IQuery<(Account account, Order order)> accountOrders = db.Accounts
-            .Join(db.Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o));
+            .Join(db.Orders,
+                a => a.AccountId,
+                o => o.AccountId,
+                (a, o) => ValueTuple.Create(a, o));
 
-        return accountOrders.Where(x => x.account.IsActive().And(x.order.InLastMonth()));
+        return accountOrders
+            .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
+            .Select(x => x.order);
     })
     .ToArrayAsync(ct);
 ```
