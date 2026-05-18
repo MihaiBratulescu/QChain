@@ -17,11 +17,13 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
 
     public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => new QueryExecutor<T>(query(this));
 
-    #region DbSets
-    private DbSet<Account> _accounts { get; set; }
-    private DbSet<AccountProfile> _accountProfiles { get; set; }
-    private DbSet<Order> _orders { get; set; }
-    private DbSet<Transaction> _transactions { get; set; }
-    private DbSet<Currency> _currencies { get; set; }
-    #endregion
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<Account>();
+        modelBuilder.Entity<AccountProfile>();
+        modelBuilder.Entity<Order>();
+        modelBuilder.Entity<Transaction>();
+        modelBuilder.Entity<Currency>();
+    }
 }
