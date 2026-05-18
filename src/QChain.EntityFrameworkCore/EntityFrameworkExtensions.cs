@@ -127,6 +127,7 @@ public static class EntityFrameworkExtensions
         #region ToList/Array
         public Task<T[]> ToArrayAsync(CancellationToken ct = default) => Query(query, q => q.ToArrayAsync(ct));
         public Task<List<T>> ToListAsync(CancellationToken ct = default) => Query(query, q => q.ToListAsync(ct));
+        #endregion
 
         public string ToQueryString() =>
             query.AsQueryable().ToQueryString();
@@ -139,34 +140,33 @@ public static class EntityFrameworkExtensions
             executor(query.Where(predicate).AsQueryable());
         internal Task<R> Query<R>(Func<IQueryable<T>, Task<R>> executor) =>
             executor(query.AsQueryable());
+        #endregion
     }
 
+    extension<T>(IQuery<T> query) where T : class
+    {
+        #region Single/Split
+        public IQuery<T> AsSingleQuery() =>
+            new Query<T>(query.AsQueryable().AsSingleQuery());
+
+        public IQuery<T> AsSplitQuery() =>
+            new Query<T>(query.AsQueryable().AsSplitQuery());
         #endregion
-    #region ToList/Array
-    #endregion
 
-    #region Single/Split
-    public static IQuery<T> AsSingleQuery<T>(this IQuery<T> query) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().AsSingleQuery(), q => q);
+        #region Tracking
+        public IQuery<T> AsNoTracking() =>
+            new Query<T>(query.AsQueryable().AsNoTracking());
 
-    public static IQuery<T> AsSplitQuery<T>(this IQuery<T> query) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().AsSplitQuery(), q => q);
-    #endregion
+        public IQuery<T> AsNoTrackingWithIdentityResolution() =>
+            new Query<T>(query.AsQueryable().AsNoTrackingWithIdentityResolution());
 
-    #region Tracking
-    public static IQuery<T> AsNoTracking<T>(this IQuery<T> query) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().AsNoTracking(), q => q);
+        public IQuery<T> AsTracking() =>
+            new Query<T>(query.AsQueryable().AsTracking());
+        #endregion
 
-    public static IQuery<T> AsNoTrackingWithIdentityResolution<T>(this IQuery<T> query) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().AsNoTrackingWithIdentityResolution(), q => q);
+        public IQuery<T> Include<E>(Expression<Func<T, E>> include) =>
+            new Query<T>(query.AsQueryable().Include(include));
+    }
 
-    public static IQuery<T> AsTracking<T>(this IQuery<T> query) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().AsTracking(), q => q);
-    #endregion
-
-    public static IQuery<T> Include<T, E>(this IQuery<T> query, Expression<Func<T, E>> include) where T : class =>
-        new DeferredQuery<T, T>(query.AsQueryable().Include(include), q => q);
-
-    #region Helpers
-    #endregion
+    
 }
