@@ -12,8 +12,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         var parameter = Expression.Parameter(typeof(T), "x");
 
-        var marker = default(T)!;
-        var tree = predicate(marker);
+        var tree = predicate(default(T)!);
 
         var body = PredicateCompiler.Compile(tree, parameter);
 

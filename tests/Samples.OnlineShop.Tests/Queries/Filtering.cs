@@ -76,4 +76,17 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
 
         Assert.NotEmpty(predicate);
     }
+
+    [Fact]
+    public async Task Where_InvalidPredicate_Throws()
+    {
+        Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
+        Expression<Func<Transaction, bool>> invalid = t => t.Amount > 100;
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Query(q => q.Accounts
+                .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+                .Where(x => inactive.And(invalid)))
+        );
+    }
 }

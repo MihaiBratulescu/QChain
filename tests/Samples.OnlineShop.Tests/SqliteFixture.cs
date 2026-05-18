@@ -96,5 +96,3 @@ public sealed class SqliteFixture() : IAsyncLifetime
 
     public Task DisposeAsync() => connection.CloseAsync();
 }
-
-
