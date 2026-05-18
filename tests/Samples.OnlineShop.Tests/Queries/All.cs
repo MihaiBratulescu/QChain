@@ -1,9 +1,10 @@
 ﻿using QChain;
 using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
 
-public class All(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
+public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
     public async Task Execute()

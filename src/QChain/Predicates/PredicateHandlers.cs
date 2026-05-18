@@ -17,7 +17,7 @@ public static class PredicateHandlers
                 new ConditionPredicate(next));
     }
 
-    extension<T>(Predicate predicate)
+    extension(Predicate predicate)
     {
         public Predicate And<N>(Expression<Func<N, bool>> next) => 
             new AndPredicate(predicate, new ConditionPredicate(next));
@@ -25,5 +25,4 @@ public static class PredicateHandlers
         public Predicate Or<N>(Expression<Func<N, bool>> next) =>
             new OrPredicate(predicate, new ConditionPredicate(next));
     }
-
 }

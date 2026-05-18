@@ -1,9 +1,10 @@
 ﻿using QChain;
 using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests;
 
-public class Executor(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
+public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     protected IQuery<Account> Accounts => _fixture.db.Accounts;
 

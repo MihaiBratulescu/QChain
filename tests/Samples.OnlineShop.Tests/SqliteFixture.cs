@@ -1,15 +1,28 @@
 ﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-
+using Microsoft.Extensions.Logging;
 using Samples.OnlineShop.Database;
 using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests;
 
-public sealed class SqliteFixture : IAsyncLifetime
+public sealed class SqliteFixture() : IAsyncLifetime
 {
     public ApplicationDbContext db = null!;
     private readonly SqliteConnection connection = new("Data Source=:memory:");
+
+    public ITestOutputHelper output
+    {
+        set
+        {
+            var builder = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connection)
+                .LogTo(value.WriteLine, LogLevel.Information);
+
+            db = new ApplicationDbContext(builder.Options);
+        }
+    }
 
     public async Task InitializeAsync()
     {
@@ -74,7 +87,7 @@ public sealed class SqliteFixture : IAsyncLifetime
                         Enum.GetValues<CurrencyType>().Select(t => new Currency { CurrencyId = t, Symbol = t.ToString()}));
                 }
             });
-
+            
         db = new ApplicationDbContext(builder.Options);
 
         await db.Database.EnsureCreatedAsync();
@@ -83,3 +96,5 @@ public sealed class SqliteFixture : IAsyncLifetime
 
     public Task DisposeAsync() => connection.CloseAsync();
 }
+
+

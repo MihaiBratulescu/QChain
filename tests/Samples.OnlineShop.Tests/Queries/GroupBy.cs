@@ -1,8 +1,9 @@
 ﻿using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
 
-public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
+public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
     public async Task OnTable()

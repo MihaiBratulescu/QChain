@@ -1,4 +1,5 @@
 ﻿using QChain.CachedQuery;
+using QChain.Predicates;
 using System.Linq.Expressions;
 
 namespace QChain;
@@ -35,6 +36,8 @@ public interface IQuery<T>
 
     #region Filtering
     IQuery<T> Where(Expression<Func<T, bool>> predicate);
+    IQuery<T> Where(Func<T, Predicate> predicate);
+
     IQuery<T> Distinct();
     IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector);
     #endregion
