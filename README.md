@@ -46,7 +46,7 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))              // mapping baked into DAL layer
-        .ToListAsync(ct);                                                               // no pagination support
+        .ToArrayAsync(ct);                                                              // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -59,7 +59,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping baked into DAL layer
-        .ToListAsync(ct);                                                  // no pagination support
+        .ToArrayAsync(ct);                                                // no pagination support
 }
 ```
 
@@ -96,42 +96,73 @@ var balances = await unitOfWork.Query(db => db.Customers
         .GetActiveEuropeanCustomerBalances(from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
         .Page(page, size))                                                  // pagination is applied as a query extension 
-    .ToListAsync(ct);
+    .ToArrayAsync(ct);
 
 var risks = await unitOfWork.Query(db => db.Customers
         .GetRecentEuropeanCustomerRisks(from)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
         .Page(page, size))                                                 // pagination is applied as a query extension 
-    .ToListAsync(ct);
+    .ToArrayAsync(ct);
 ```
 
 ---
 
 ## 🏗️ Basic Usage
 
+Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
+
 ```csharp
-public interface IOrdersRepository : IQuery<Order>
+IQuery<Account> accountQuery = new Query<Account>(db.Set<Account>());
+IQuery<Order> orderQuery = new Query<Order>(db.Set<Order>());
+```
+
+Define reusable predicates as extension methods over the entity type. 
+
+```csharp
+public static class AccountPredicates
 {
-    IOrdersQuery ForCustomer(int customerId);
-    IOrdersQuery InLast30Days();
-    IOrdersQuery WithPayments();
+    public static Expression<Func<Account, bool>> IsActive(this Account _)
+        => account => account.IsActive;
+
+    public static Expression<Func<Account, bool>> FromEurope(this Account _)
+        => account => account.Region == Region.Europe;
+}
+
+public static class OrderPredicates
+{
+    public static Expression<Func<Order, bool>> InLastMonth(this Order _)
+        => order => order.CreatedDate >= DateTime.UtcNow.AddMonths(-1);
+
+    public static Expression<Func<Order, bool>> InEuro(this Order _)
+        => order => order.CurrencyId == CurrencyType.EUR;
 }
 ```
 
+Use normal query composition.
+
 ```csharp
-public class OrdersRepository : Query<Order>, IOrdersQuery
-{
-    public OrdersQuery(IQueryable<Order> source) : base(source) { }
+var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
+        .Where(a => a.IsActive)                  // predicate reuse
+        .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>> predicate
+    .ToArrayAsync(ct);
 
-    public IOrdersQuery ForCustomer(int customerId) =>
-        new OrdersQuery(Where(o => o.CustomerId == customerId).AsQueryable());
+var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
+        //Overload (and extensions) that allows you to combine predicates
+        .Where(a => a.IsActive().And(a.FromEurope()))) // Func<T, Predicate>
+    .ToArrayAsync(ct);
+```
 
-    public IOrdersQuery InLast30Days() =>
-        new OrdersQuery(Where(o => o.CreatedAt >= DateTime.UtcNow.AddDays(-30)).AsQueryable());
+Predicates can also be composed across joins.
 
-    public IOrdersQuery WithPayments() =>
-        new OrdersQuery(Include(o => o.Payments).AsQueryable());
-}
+```csharp
+var activeEuropeanAccounts = await unitOfWork.Query(db =>
+    {
+        IQuery<(Account account, Order order)> accountOrders = db.Accounts
+            .Join(db.Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o));
+
+        return accountOrders.Where(x => x.account.IsActive().And(x.order.InLastMonth()));
+    })
+    .ToArrayAsync(ct);
 ```
 
 ---
