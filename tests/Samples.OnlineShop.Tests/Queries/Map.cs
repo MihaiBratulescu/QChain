@@ -5,7 +5,7 @@ public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
     [Fact]
     public async Task SingleColumn()
     {
-        var accounts = await Query(q => q.Accounts.Map(a => a.AccountId));
+        var accounts = await Query(q => q.Accounts.Select(a => a.AccountId));
         Assert.NotEmpty(accounts);
         Assert.All(accounts, a => Assert.True(a > 0));
     }
@@ -13,7 +13,7 @@ public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
     [Fact]
     public async Task SingleEntity()
     {
-        var accounts = await Query(q => q.Accounts.Map(a => new { a.AccountId, a.Email }));
+        var accounts = await Query(q => q.Accounts.Select(a => new { a.AccountId, a.Email }));
         Assert.NotEmpty(accounts);
         Assert.All(accounts, a => Assert.True(a.AccountId > 0));
     }
@@ -24,7 +24,7 @@ public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
         var results = await Query(q =>
             q.Accounts
              .Join(q.Orders, a => a.AccountId, o => o.AccountId)
-             .Map(j => new { j.Item1.AccountId, orderAccountId = j.Item2.AccountId, j.Item2.OrderId }));
+             .Select(j => new { j.Item1.AccountId, orderAccountId = j.Item2.AccountId, j.Item2.OrderId }));
 
         Assert.NotEmpty(results);
         Assert.All(results, q => Assert.Equal(q.AccountId, q.orderAccountId));
@@ -36,7 +36,7 @@ public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
         var results = await Query(q =>
             q.Accounts
              .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-             .Map(j => new 
+             .Select(j => new 
              { 
                  j.Item1.AccountId, 
                  orderIds = j.Item2.Select(o => ValueTuple.Create(o.OrderId, o.AccountId)) 

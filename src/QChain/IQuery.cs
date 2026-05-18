@@ -52,8 +52,8 @@ public interface IQuery<T>
     #endregion
 
     #region Projection
-    IQuery<R> Map<R>(Expression<Func<T, R>> mapping);
-    IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector);
+    IQuery<R> Select<R>(Expression<Func<T, R>> mapping);
+    IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector);
     #endregion
 
     //#region Caching

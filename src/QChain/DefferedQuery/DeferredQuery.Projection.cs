@@ -5,10 +5,10 @@ namespace QChain;
 
 public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
-    public IQuery<R> Map<R>(Expression<Func<T, R>> mapping) =>
+    public IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
        new DeferredQuery<R, Q>(Source, Compose(mapping, Shape));
 
-    public IQuery<R> Flatten<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
+    public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         FlattenPreservingShape<R>(Translate(collectionSelector));
 
     #region Helpers

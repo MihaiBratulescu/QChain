@@ -70,11 +70,11 @@ public static class EntityFrameworkExtensions
     public static Task<T> MinAsync<T>(this IQuery<T> query, CancellationToken ct = default) =>
         Query(query, q => q.MinAsync(ct));
     public static Task<R> MinAsync<T, R>(this IQuery<T> query, Expression<Func<T, R>> selector, CancellationToken ct = default) =>
-        Query(query.Map(selector), q => q.MinAsync(ct));
+        Query(query.Select(selector), q => q.MinAsync(ct));
     public static Task<T> MaxAsync<T>(this IQuery<T> query, CancellationToken ct = default) =>
         Query(query, q => q.MaxAsync(ct));
     public static Task<R> MaxAsync<T, R>(this IQuery<T> query, Expression<Func<T, R>> selector, CancellationToken ct = default) =>
-        Query(query.Map(selector), q => q.MaxAsync(ct));
+        Query(query.Select(selector), q => q.MaxAsync(ct));
     #endregion
 
     #region Sum

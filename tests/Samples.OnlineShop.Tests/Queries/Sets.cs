@@ -16,7 +16,7 @@ public class Sets(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
         var union = await active
             .Union(inactive)
             .OrderBy(a => a.AccountId)
-            .Map(a => a.AccountId)
+            .Select(a => a.AccountId)
             .ToArrayAsync(default);
 
         Assert.NotEmpty(union);
@@ -27,16 +27,16 @@ public class Sets(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
     {
         IQuery<(int accountId, string? email)> active = _fixture.db.Accounts
             .Where(a => a.IsActive)
-            .Map(a => ValueTuple.Create(a.AccountId, a.Email));
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email));
 
         IQuery<(int accountId, string? email)> inactive = _fixture.db.Accounts
             .Where(a => !a.IsActive)
-            .Map(a => ValueTuple.Create(a.AccountId, a.Email));
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email));
 
         var union = await active
             .Union(inactive)
             .OrderBy(a => a.accountId)
-            .Map(a => a.email)
+            .Select(a => a.email)
             .ToArrayAsync(default);
 
         Assert.NotEmpty(union);
@@ -47,11 +47,11 @@ public class Sets(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
     {
         var active = _fixture.db.Accounts
             .Where(a => a.IsActive)
-            .Map(a => a.AccountId);
+            .Select(a => a.AccountId);
 
         var inactive = _fixture.db.Accounts
             .Where(a => !a.IsActive)
-            .Map(a => a.AccountId);
+            .Select(a => a.AccountId);
 
         var concat = await active
             .Concat(inactive)

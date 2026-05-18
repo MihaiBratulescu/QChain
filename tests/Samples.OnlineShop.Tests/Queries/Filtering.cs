@@ -24,7 +24,7 @@ public class Filtering(SqliteFixture fixture) : QChainIntegrationTestBench(fixtu
     public async Task AfterMap_UsesProjectedShape()
     {
         var rows = await Query(
-            q => q.Accounts.Map(a => new
+            q => q.Accounts.Select(a => new
                 {
                     Id = a.AccountId,
                     Active = a.IsActive

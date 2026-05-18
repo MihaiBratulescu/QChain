@@ -94,13 +94,13 @@ Mapping and pagination compose externally. Query composition is reusable while e
 ```csharp
 var balances = await unitOfWork.Query(db => db.Customers
         .GetActiveEuropeanCustomerBalances(from)
-        .Map(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
         .Page(page, size))                                               // pagination is applied as a query extension 
     .ToListAsync(ct);
 
 var risks = await unitOfWork.Query(db => db.Customers
         .GetRecentEuropeanCustomerRisks(from)
-        .Map(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
+        .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
         .Page(page, size))                                              // pagination is applied as a query extension 
     .ToListAsync(ct);
 ```

@@ -19,7 +19,7 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
     {
         (string? name, IEnumerable<(string? name, bool isActive)> accounts)[] result = await Query(q =>
             q.Accounts
-             .Map(a => ValueTuple.Create(a.Email, a.IsActive))
+             .Select(a => ValueTuple.Create(a.Email, a.IsActive))
              .GroupBy(a => a.Item1));
 
         Assert.NotEmpty(result);
@@ -132,7 +132,7 @@ public class GroupBy(SqliteFixture fixture) : QChainIntegrationTestBench(fixture
                     g => g.CurrencyId,
                     c => c.CurrencyId,
                     (g, c) => new { g.CurrencyId, g.ActiveCount, Currency = c })
-                .Map(x => ValueTuple.Create(x.CurrencyId, x.ActiveCount, x.Currency)));
+                .Select(x => ValueTuple.Create(x.CurrencyId, x.ActiveCount, x.Currency)));
 
         Assert.NotEmpty(result);
     }
