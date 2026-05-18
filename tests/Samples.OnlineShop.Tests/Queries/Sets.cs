@@ -1,8 +1,9 @@
 ﻿using QChain;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
 
-public class Sets(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
+public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
     public async Task Union()

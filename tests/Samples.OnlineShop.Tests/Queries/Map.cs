@@ -1,6 +1,8 @@
-﻿namespace Samples.OnlineShop.Tests.Queries;
+﻿using Xunit.Abstractions;
 
-public class Map(SqliteFixture fixture) : QChainIntegrationTestBench(fixture)
+namespace Samples.OnlineShop.Tests.Queries;
+
+public class Map(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
     public async Task SingleColumn()

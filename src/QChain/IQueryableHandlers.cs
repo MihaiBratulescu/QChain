@@ -4,6 +4,8 @@ namespace QChain;
 
 public static class IQueryableHandlers
 {
-    public static IQuery<T> AsQuery<T>(this IQueryable<T> query) =>
-        new DeferredQuery<T, T>(query, q => q);
+    extension<T>(IQueryable<T> query)
+    {
+        public IQuery<T> AsQuery() => new DeferredQuery<T, T>(query, q => q);
+    }
 }
