@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace QChain;
+namespace QChain.Internal;
 
 internal interface IInternalQuery
 {

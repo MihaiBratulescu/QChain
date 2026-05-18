@@ -1,4 +1,6 @@
-﻿namespace QChain;
+﻿using QChain.Internal;
+
+namespace QChain;
 
 public static class IQueryableHandlers
 {

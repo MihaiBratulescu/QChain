@@ -1,4 +1,6 @@
-﻿namespace QChain.CachedQuery;
+﻿using QChain.Internal;
+
+namespace QChain.CachedQuery;
 
 internal sealed class CachedQuery<T, Q> : DeferredQuery<T, Q>, ICachedQuery<T>
 {
