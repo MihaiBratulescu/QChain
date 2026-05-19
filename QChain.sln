@@ -20,6 +20,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "04. workflows", "04. workflows", "{58112C02-D1E3-40F9-86D2-67E71D8982F3}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\nuget.yml = .github\workflows\nuget.yml
+		.github\workflows\tests.yml = .github\workflows\tests.yml
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QChain.EntityFrameworkCore", "src\QChain.EntityFrameworkCore\QChain.EntityFrameworkCore.csproj", "{0443F863-BFF4-8EBD-8D3D-D1DFFBACB213}"
