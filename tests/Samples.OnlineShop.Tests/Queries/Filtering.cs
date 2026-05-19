@@ -64,7 +64,7 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
-    public async Task Where_Predicates()
+    public async Task Where_Predicate()
     {
         Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
         Expression<Func<Account, bool>> even = a => a.AccountId % 2 == 0;
@@ -73,6 +73,21 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
         (Account a, Order p)[] predicate = await Query(q => q.Accounts
             .Join(q.Orders, a => a.AccountId, o => o.AccountId)
             .Where(x => inactive.And(even).Or(euro)));
+
+        Assert.NotEmpty(predicate);
+    }
+
+    [Fact]
+    public async Task Where_Predicate_ThenJoin()
+    {
+        Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
+        Expression<Func<Account, bool>> even = a => a.AccountId % 2 == 0;
+        Expression<Func<Order, bool>> euro = o => o.CurrencyId == CurrencyType.EUR;
+
+        var predicate = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Where(x => inactive.And(even).Or(euro))
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.TransactionId));
 
         Assert.NotEmpty(predicate);
     }
