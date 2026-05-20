@@ -111,8 +111,8 @@ var risks = await unitOfWork.Query(db => db.Customers
 Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
 
 ```csharp
-IQuery<Account> accountQuery = new Query<Account>(db.Set<Account>());
-IQuery<Order> orderQuery = new Query<Order>(db.Set<Order>());
+IQuery<Account> Accounts = new Query<Account>(db.Set<Account>());
+IQuery<Order> Orders = new Query<Order>(db.Set<Order>());
 ```
 
 Define reusable predicates as extension methods over the entity type. 
