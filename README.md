@@ -46,8 +46,8 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
-        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))              // mapping baked into DAL layer
-        .ToArrayAsync(ct);                                                              // no pagination support
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping baked into DAL layer
+        .ToArrayAsync(ct);                                                  // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -60,7 +60,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping baked into DAL layer
-        .ToArrayAsync(ct);                                                // no pagination support
+        .ToArrayAsync(ct);                                                 // no pagination support
 }
 ```
 
@@ -72,17 +72,15 @@ Readable, reusable, and aligned with your domain. QChain keeps intermediate quer
 public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
 {
     return db.Customers
-        .Active()
-        .FromEurope()
-        .WithOrders(db.Orders.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
-        .WithPayments();                           // Tuple<(Customer c, Order o, Payment p)>
+        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
+        .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
+        .WithPayments();                               // Tuple<(Customer c, Order o, Payment p)>
 }
 
 public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
 {
     return db.Customers
-        .Active()
-        .FromEurope()
+        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
         .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
         .WithPayments(db.Payments.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
 }
@@ -96,13 +94,13 @@ Mapping and pagination compose externally. Query composition is reusable while e
 var balances = await unitOfWork.Query(db => db.Customers
         .GetActiveEuropeanCustomerBalances(from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
-        .Page(page, size))                                                  // pagination is applied as a query extension 
+        .Page(index, size))                                                 // pagination is applied as a query extension 
     .ToArrayAsync(ct);
 
 var risks = await unitOfWork.Query(db => db.Customers
         .GetRecentEuropeanCustomerRisks(from)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
-        .Page(page, size))                                                 // pagination is applied as a query extension 
+        .Page(index, size))                                                // pagination is applied as a query extension 
     .ToArrayAsync(ct);
 ```
 
@@ -113,8 +111,8 @@ var risks = await unitOfWork.Query(db => db.Customers
 Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
 
 ```csharp
-IQuery<Account> accountQuery = new Query<Account>(db.Set<Account>());
-IQuery<Order> orderQuery = new Query<Order>(db.Set<Order>());
+IQuery<Account> Accounts = new Query<Account>(db.Set<Account>());
+IQuery<Order> Orders = new Query<Order>(db.Set<Order>());
 ```
 
 Define reusable predicates as extension methods over the entity type. 
@@ -143,7 +141,7 @@ public static class OrderPredicates
 
 ```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive)                  // predicate reuse
+        .Where(a => a.IsActive())                // predicate reuse
         .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>>
     .ToArrayAsync(ct);
 ```
@@ -162,10 +160,8 @@ var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
 var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
     {
         IQuery<(Account account, Order order)> accountOrders = db.Accounts
-            .Join(db.Orders,
-                a => a.AccountId,
-                o => o.AccountId,
-                (a, o) => ValueTuple.Create(a, o));
+            .Join(db.Orders, a => a.AccountId, o => o.AccountId,
+                 (a, o) => ValueTuple.Create(a, o));
 
         return accountOrders
             .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
