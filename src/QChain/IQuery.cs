@@ -42,6 +42,11 @@ public interface IQuery<T>
     IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector);
     #endregion
 
+    #region DefaultIfEmpty
+    IQuery<T?> DefaultIfEmpty();
+    IQuery<T> DefaultIfEmpty(T value);
+    #endregion
+
     #region Sorting
     IOrderedQuery<T> OrderBy<K>(Expression<Func<T, K>> selector);
     IOrderedQuery<T> OrderByDescending<K>(Expression<Func<T, K>> selector);
