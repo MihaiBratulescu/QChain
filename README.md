@@ -72,17 +72,15 @@ Readable, reusable, and aligned with your domain. QChain keeps intermediate quer
 public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
 {
     return db.Customers
-        .Active()
-        .FromEurope()
-        .WithOrders(db.Orders.CreatedAfter(from))  // Tuple<(Customer c, Order o)>
-        .WithPayments();                           // Tuple<(Customer c, Order o, Payment p)>
+        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
+        .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
+        .WithPayments();                               // Tuple<(Customer c, Order o, Payment p)>
 }
 
 public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
 {
     return db.Customers
-        .Active()
-        .FromEurope()
+        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
         .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
         .WithPayments(db.Payments.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
 }
@@ -143,7 +141,7 @@ public static class OrderPredicates
 
 ```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive)                  // predicate reuse
+        .Where(a => a.IsActive())                 // predicate reuse
         .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>>
     .ToArrayAsync(ct);
 ```
