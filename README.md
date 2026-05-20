@@ -46,8 +46,8 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
-        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))              // mapping baked into DAL layer
-        .ToArrayAsync(ct);                                                              // no pagination support
+        .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping baked into DAL layer
+        .ToArrayAsync(ct);                                                  // no pagination support
 }
 
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
@@ -60,7 +60,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
         .Where(x => x.o.CreatedAt >= from)
         .Where(x => x.p.Amount >= 10000)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping baked into DAL layer
-        .ToArrayAsync(ct);                                                // no pagination support
+        .ToArrayAsync(ct);                                                 // no pagination support
 }
 ```
 
@@ -94,13 +94,13 @@ Mapping and pagination compose externally. Query composition is reusable while e
 var balances = await unitOfWork.Query(db => db.Customers
         .GetActiveEuropeanCustomerBalances(from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
-        .Page(page, size))                                                  // pagination is applied as a query extension 
+        .Page(index, size))                                                 // pagination is applied as a query extension 
     .ToArrayAsync(ct);
 
 var risks = await unitOfWork.Query(db => db.Customers
         .GetRecentEuropeanCustomerRisks(from)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
-        .Page(page, size))                                                 // pagination is applied as a query extension 
+        .Page(index, size))                                                // pagination is applied as a query extension 
     .ToArrayAsync(ct);
 ```
 
