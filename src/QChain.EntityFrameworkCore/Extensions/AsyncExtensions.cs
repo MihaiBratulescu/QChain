@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace QChain;
 
-public static class AsyncExecution
+public static class AsyncExtensions
 {
     extension<T>(IQuery<T> query)
     {

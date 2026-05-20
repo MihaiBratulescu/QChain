@@ -2,7 +2,7 @@
 
 namespace QChain;
 
-public static class SyncExecution
+public static class SyncExtensions
 {
     extension<T>(IQuery<T> query)
     {
