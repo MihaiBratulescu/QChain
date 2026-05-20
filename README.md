@@ -141,7 +141,7 @@ public static class OrderPredicates
 
 ```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive())                 // predicate reuse
+        .Where(a => a.IsActive())                // predicate reuse
         .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>>
     .ToArrayAsync(ct);
 ```
