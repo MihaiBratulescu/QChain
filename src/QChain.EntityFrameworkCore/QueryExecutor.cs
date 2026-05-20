@@ -4,8 +4,9 @@ namespace QChain.EntityFrameworkCore;
 
 public class QueryExecutor<T>(IQuery<T> query) : IQueryExecutor<T>
 {
+    #region Async
     public Task<bool> AllAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
-       => query.AllAsync(predicate, ct);
+        => query.AllAsync(predicate, ct);
 
     public Task<bool> AnyAsync(CancellationToken ct = default)
         => query.AnyAsync(ct);
@@ -131,7 +132,215 @@ public class QueryExecutor<T>(IQuery<T> query) : IQueryExecutor<T>
         => query.ToArrayAsync(ct);
 
     public Task<List<T>> ToListAsync(CancellationToken ct = default)
-        => query.ToListAsync(ct);
+        => query.ToListAsync(ct); 
+    #endregion
+
+    #region Sync
+    public bool Any() 
+        => query.Any();
+
+    public bool Any(Expression<Func<T, bool>> predicate) 
+        => query.Any(predicate);
+
+    public bool All(Expression<Func<T, bool>> predicate) 
+        => query.All(predicate);
+
+    public int Count() 
+        => query.Count();
+
+    public int Count(Expression<Func<T, bool>> predicate) 
+        => query.Count(predicate);
+
+    public long LongCount()
+    {
+        throw new NotImplementedException();
+    }
+
+    public long LongCount(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T ElementAt(int index)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? ElementAtOrDefault(int index)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T First()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T First(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? FirstOrDefault()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? FirstOrDefault(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Last()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Last(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? LastOrDefault()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? LastOrDefault(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Single()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Single(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? SingleOrDefault()
+    {
+        throw new NotImplementedException();
+    }
+
+    public T? SingleOrDefault(Expression<Func<T, bool>> predicate)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Min()
+    {
+        throw new NotImplementedException();
+    }
+
+    public R Min<R>(Expression<Func<T, R>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T Max()
+    {
+        throw new NotImplementedException();
+    }
+
+    public R Max<R>(Expression<Func<T, R>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public decimal Sum(Expression<Func<T, decimal>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public decimal? Sum(Expression<Func<T, decimal?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public int Sum(Expression<Func<T, int>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public int? Sum(Expression<Func<T, int?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public long Sum(Expression<Func<T, long>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public long? Sum(Expression<Func<T, long?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public float Sum(Expression<Func<T, float>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public float? Sum(Expression<Func<T, float?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public double Sum(Expression<Func<T, double>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public double? Sum(Expression<Func<T, double?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public decimal Average(Expression<Func<T, decimal>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public decimal? Average(Expression<Func<T, decimal?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public float Average(Expression<Func<T, float>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public float? Average(Expression<Func<T, float?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public double Average(Expression<Func<T, double>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public double? Average(Expression<Func<T, double?>> selector)
+    {
+        throw new NotImplementedException();
+    }
+
+    public T[] ToArray()
+    {
+        throw new NotImplementedException();
+    }
+
+    public List<T> ToList()
+    {
+        throw new NotImplementedException();
+    } 
+    #endregion
 
     public string ToQueryString(IQuery<T> query)
         => query.ToQueryString();
