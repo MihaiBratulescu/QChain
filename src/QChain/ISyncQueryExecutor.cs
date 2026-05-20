@@ -44,10 +44,10 @@ public interface ISyncQueryExecutor<T>
     #endregion
 
     #region Min/Max
-    public T Min();
-    public R Min<R>(Expression<Func<T, R>> selector);
-    public T Max();
-    public R Max<R>(Expression<Func<T, R>> selector);
+    public T? Min();
+    public R? Min<R>(Expression<Func<T, R>> selector);
+    public T? Max();
+    public R? Max<R>(Expression<Func<T, R>> selector);
     #endregion
 
     #region Sum
