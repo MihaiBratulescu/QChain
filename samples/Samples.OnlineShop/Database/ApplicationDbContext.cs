@@ -15,6 +15,8 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
     public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
     public IQuery<Currency> Currencies => new Query<Currency>(Set<Currency>());
 
+    public T Query<T>(Func<IUnitOfWork, T> query) => query(this);
+    public Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query) => query(this);
     public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => new QueryExecutor<T>(query(this));
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
