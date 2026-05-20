@@ -160,10 +160,8 @@ var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
 var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
     {
         IQuery<(Account account, Order order)> accountOrders = db.Accounts
-            .Join(db.Orders,
-                a => a.AccountId,
-                o => o.AccountId,
-                (a, o) => ValueTuple.Create(a, o));
+            .Join(db.Orders, a => a.AccountId, o => o.AccountId,
+                 (a, o) => ValueTuple.Create(a, o));
 
         return accountOrders
             .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
