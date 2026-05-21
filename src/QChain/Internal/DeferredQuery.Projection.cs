@@ -111,9 +111,11 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
 
-        var publicShape = ReplaceExpressionVisitor.Replace(Shape.Body, Shape.Parameters[0], q);
+        var publicShape = ReplaceExpressionVisitor.Replace(
+            Shape.Body, Shape.Parameters[0], q);
 
-        var body = new ProjectionInliningVisitor(collectionSelector.Parameters[0], publicShape)
+        var body = new ProjectionInliningVisitor(
+                collectionSelector.Parameters[0], publicShape)
             .Visit(collectionSelector.Body)!;
 
         return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
@@ -126,13 +128,15 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
         var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
 
-        var outerShape = ReplaceExpressionVisitor.Replace(
+        var publicShape = ReplaceExpressionVisitor.Replace(
             Shape.Body, Shape.Parameters[0], outerQ);
 
-        var body = new ProjectionInliningVisitor(resultSelector.Parameters[0], outerShape)
+        var body = new ProjectionInliningVisitor(
+                resultSelector.Parameters[0], publicShape)
             .Visit(resultSelector.Body)!;
 
-        body = ReplaceExpressionVisitor.Replace(body, resultSelector.Parameters[1], innerC);
+        body = ReplaceExpressionVisitor.Replace(
+            body, resultSelector.Parameters[1], innerC);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
     }
