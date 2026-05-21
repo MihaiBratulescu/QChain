@@ -1,7 +1,6 @@
 ﻿using QChain.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
-using ReferenceEqualityComparer = QChain.Visitors.ReferenceEqualityComparer;
 
 namespace QChain.Internal;
 
@@ -24,84 +23,98 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     }
 
     #region Helpers
+    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
     private IQuery<R> FlattenPreservingShape<R>(LambdaExpression translatedCollectionSelector)
     {
         if (translatedCollectionSelector.Body is not MethodCallExpression call)
-            throw new NotSupportedException("SelectMany collection selector must be a method call.");
+            throw new NotSupportedException(
+                "SelectMany collection selector must be a method call.");
 
-        // x => x.Item2.DefaultIfEmpty()
-        if (call.Method.Name == nameof(Queryable.DefaultIfEmpty) ||
-            call.Method.Name == nameof(Enumerable.DefaultIfEmpty))
+        return call.Method.Name switch
         {
-            var sourceExpression = call.Arguments[0];
-            var elementType = sourceExpression.Type.GetGenericArguments()[0];
+            nameof(Queryable.DefaultIfEmpty) or nameof(Enumerable.DefaultIfEmpty)
+                => FlattenDefaultIfEmpty<R>(translatedCollectionSelector, call),
 
-            var internalCollectionType = typeof(IEnumerable<>).MakeGenericType(elementType);
+            _ when call.Arguments.Count >= 2
+                => FlattenSelect<R>(translatedCollectionSelector, call),
 
-            var internalCollectionSelector = Expression.Lambda(
-                typeof(Func<,>).MakeGenericType(
-                    translatedCollectionSelector.Parameters[0].Type,
-                    internalCollectionType),
-                sourceExpression,
-                translatedCollectionSelector.Parameters);
-
-            var identitySelectorParameter = Expression.Parameter(elementType, "x");
-
-            var selectorExpression = Expression.Lambda(
-                typeof(Func<,>).MakeGenericType(elementType, elementType),
-                identitySelectorParameter,
-                identitySelectorParameter);
-
-            var generic = FlattenPreservingShapeTypedMethod
-                .MakeGenericMethod(typeof(R), elementType);
-
-            return (IQuery<R>)generic.Invoke(
-                this,
-                [internalCollectionSelector, selectorExpression])!;
-        }
-
-        // x => x.Item2.Select(...)
-        if (call.Arguments.Count >= 2)
-        {
-            var sourceExpression = call.Arguments[0];
-            var selectorExpression = (LambdaExpression)StripQuote(call.Arguments[1]);
-
-            var internalCollectionType = typeof(IEnumerable<>)
-                .MakeGenericType(selectorExpression.Parameters[0].Type);
-
-            var internalCollectionSelector = Expression.Lambda(
-                typeof(Func<,>).MakeGenericType(
-                    translatedCollectionSelector.Parameters[0].Type,
-                    internalCollectionType),
-                sourceExpression,
-                translatedCollectionSelector.Parameters);
-
-            var generic = FlattenPreservingShapeTypedMethod
-                .MakeGenericMethod(typeof(R), selectorExpression.Parameters[0].Type);
-
-            return (IQuery<R>)generic.Invoke(
-                this,
-                [internalCollectionSelector, selectorExpression])!;
-        }
-
-        throw new NotSupportedException($"Unsupported SelectMany selector: {call}");
-    }
-    
-    private static Expression StripQuote(Expression expression)
-    {
-        return expression.NodeType == ExpressionType.Quote
-            ? ((UnaryExpression)expression).Operand
-            : expression;
+            _ => throw new NotSupportedException(
+                $"Unsupported SelectMany selector: {call}")
+        };
     }
 
-    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression internalCollectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    private IQuery<R> FlattenDefaultIfEmpty<R>(LambdaExpression selector, MethodCallExpression call)
     {
-        var internalCollectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)internalCollectionSelectorUntyped;
+        var source = call.Arguments[0];
+        var elementType = source.Type.GetGenericArguments()[0];
+
+        var collectionSelector = BuildCollectionSelector(
+            selector.Parameters[0].Type,
+            elementType,
+            source,
+            selector.Parameters);
+
+        var item = Expression.Parameter(elementType, "x");
+
+        var itemShape = Expression.Lambda(
+            typeof(Func<,>).MakeGenericType(elementType, elementType),
+            item,
+            item);
+
+        return InvokeFlatten<R>(elementType, collectionSelector, itemShape);
+    }
+
+    private IQuery<R> FlattenSelect<R>(LambdaExpression selector, MethodCallExpression call)
+    {
+        var source = call.Arguments[0];
+        var itemShape = (LambdaExpression)StripQuote(call.Arguments[1]);
+        var elementType = itemShape.Parameters[0].Type;
+
+        var collectionSelector = BuildCollectionSelector(
+            selector.Parameters[0].Type,
+            elementType,
+            source,
+            selector.Parameters);
+
+        return InvokeFlatten<R>(elementType, collectionSelector, itemShape);
+    }
+
+    private static LambdaExpression BuildCollectionSelector(Type sourceType, Type elementType, Expression body, IReadOnlyList<ParameterExpression> parameters)
+    {
+        return Expression.Lambda(typeof(Func<,>).MakeGenericType(
+            sourceType, typeof(IEnumerable<>).MakeGenericType(elementType)), body, parameters);
+    }
+
+    private IQuery<R> InvokeFlatten<R>(Type elementType, LambdaExpression collectionSelector, LambdaExpression itemShape)
+    {
+        var generic = FlattenPreservingShapeTypedMethod
+            .MakeGenericMethod(typeof(R), elementType);
+
+        return (IQuery<R>)generic.Invoke(this, [collectionSelector, itemShape])!;
+    }
+
+    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    {
+        var collectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)collectionSelectorUntyped;
+
         var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;
 
-        return new DeferredQuery<R, QR>(Source.SelectMany(internalCollectionSelector), itemShape);
+        return new DeferredQuery<R, QR>(Source.SelectMany(collectionSelector), itemShape);
+    }
+
+    private static Expression StripQuote(Expression expression) =>
+        expression.NodeType == ExpressionType.Quote
+            ? ((UnaryExpression)expression).Operand
+            : expression;
+
+    private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(Expression<Func<T, IEnumerable<C>>> collectionSelector)
+    {
+        var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
+
+        var body = new SelectManyCollectionVisitor(collectionSelector.Parameters[0], q)
+            .Visit(collectionSelector.Body)!;
+
+        return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
     }
 
     private Expression<Func<Pair<Q, C>, R>> BuildSelectManyShape<C, R>(Expression<Func<T, C, R>> resultSelector)
@@ -111,36 +124,13 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
         var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
 
-        var outerT = ReplaceExpressionVisitor.Replace(
-            Shape.Body,
-            Shape.Parameters[0],
-            outerQ);
-
-        var body = ReplaceExpressionVisitor.Replace(
-            resultSelector.Body,
+        var body = new SelectManyResultSelectorVisitor<T, Q, C>(
             resultSelector.Parameters[0],
-            outerT);
-
-        body = ReplaceExpressionVisitor.Replace(
-            body,
             resultSelector.Parameters[1],
-            innerC);
+            Shape, outerQ, innerC)
+            .Visit(resultSelector.Body)!;
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
-    }
-
-    private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(
-    Expression<Func<T, IEnumerable<C>>> collectionSelector)
-    {
-        var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
-
-        var body = new SelectManyCollectionVisitor(
-            collectionSelector.Parameters[0],
-            Shape.Parameters[0],
-            q)
-            .Visit(collectionSelector.Body)!;
-
-        return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
     }
     #endregion
 }
@@ -148,40 +138,90 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 internal sealed class SelectManyCollectionVisitor : ExpressionVisitor
 {
     private readonly ParameterExpression _publicParameter;
-    private readonly ParameterExpression _shapeParameter;
     private readonly ParameterExpression _internalParameter;
 
     public SelectManyCollectionVisitor(
         ParameterExpression publicParameter,
-        ParameterExpression shapeParameter,
         ParameterExpression internalParameter)
     {
         _publicParameter = publicParameter;
-        _shapeParameter = shapeParameter;
         _internalParameter = internalParameter;
     }
 
     protected override Expression VisitMember(MemberExpression node)
     {
-        // x.Item1 / x.Item2
         if (node.Expression == _publicParameter)
-        {
             return TranslateTupleMember(node.Member.Name);
-        }
 
         return base.VisitMember(node);
     }
 
     private Expression TranslateTupleMember(string name)
     {
-        // public tuple Item1 maps to Shape.Body.Item1
-        // Shape usually maps Pair.Left / Pair.Right internally.
-
         return name switch
         {
             "Item1" => Expression.PropertyOrField(_internalParameter, "Left"),
             "Item2" => Expression.PropertyOrField(_internalParameter, "Right"),
-            _ => throw new NotSupportedException($"Unsupported tuple member: {name}")
+            _ => throw new NotSupportedException(
+                $"Unsupported tuple member: {name}")
         };
+    }
+}
+
+internal sealed class SelectManyResultSelectorVisitor<T, Q, C> : ExpressionVisitor
+{
+    private readonly ParameterExpression _outerPublic;
+    private readonly ParameterExpression _innerPublic;
+    private readonly Expression<Func<Q, T>> _shape;
+    private readonly Expression _outerInternal;
+    private readonly Expression _innerInternal;
+
+    public SelectManyResultSelectorVisitor(
+        ParameterExpression outerPublic,
+        ParameterExpression innerPublic,
+        Expression<Func<Q, T>> shape,
+        Expression outerInternal,
+        Expression innerInternal)
+    {
+        _outerPublic = outerPublic;
+        _innerPublic = innerPublic;
+        _shape = shape;
+        _outerInternal = outerInternal;
+        _innerInternal = innerInternal;
+    }
+
+    protected override Expression VisitParameter(ParameterExpression node)
+    {
+        if (node == _innerPublic)
+            return _innerInternal;
+
+        return base.VisitParameter(node);
+    }
+
+    protected override Expression VisitMember(MemberExpression node)
+    {
+        if (node.Expression == _outerPublic)
+            return TranslateOuterMember(node.Member.Name);
+
+        return base.VisitMember(node);
+    }
+
+    private Expression TranslateOuterMember(string name)
+    {
+        if (_shape.Body is NewExpression @new)
+        {
+            for (var i = 0; i < @new.Members?.Count; i++)
+            {
+                if (@new.Members[i].Name == name)
+                {
+                    return ReplaceExpressionVisitor.Replace(
+                        @new.Arguments[i],
+                        _shape.Parameters[0],
+                        _outerInternal);
+                }
+            }
+        }
+
+        throw new NotSupportedException($"Cannot translate outer member '{name}'.");
     }
 }
