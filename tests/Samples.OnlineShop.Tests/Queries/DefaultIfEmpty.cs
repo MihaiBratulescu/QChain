@@ -77,7 +77,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
         var items = await Query(q => q.Accounts
             .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
             .SelectMany(x => x.Item2.DefaultIfEmpty(), 
-                        (x, order) => ValueTuple.Create(x.Item1, order)));
+                        (x, order) => new { x.Item1, order }));
     }
 
 }
