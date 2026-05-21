@@ -1,4 +1,5 @@
-﻿using Xunit.Abstractions;
+﻿using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
 public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
@@ -74,10 +75,13 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     [Fact]
     public async Task GroupJoin()
     {
-        var items = await Query(q => q.Accounts
-            .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+        (Account acc, Order? order)[] items = await Query(q => q.Accounts
+            .GroupJoin(q.Orders.Where(o => o.OrderId > 100), a => a.AccountId, o => o.AccountId)
             .SelectMany(x => x.Item2.DefaultIfEmpty(), 
-                        (x, order) => new { x.Item1, order }));
-    }
+                        (x, order) => ValueTuple.Create(x.Item1, order)));
 
+        Assert.NotEmpty(items);
+        Assert.All(items, i => Assert.NotNull(i.acc));
+        Assert.All(items, i => Assert.Null(i.order));
+    }
 }
