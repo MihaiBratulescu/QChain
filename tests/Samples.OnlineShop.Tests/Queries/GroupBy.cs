@@ -2,7 +2,6 @@
 using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
-
 public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
