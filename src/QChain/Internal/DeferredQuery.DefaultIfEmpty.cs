@@ -4,7 +4,4 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 {
     public IQuery<T?> DefaultIfEmpty() =>
         new Query<T?>(Source.Select(Shape).DefaultIfEmpty());
-
-    public IQuery<T> DefaultIfEmpty(T value) =>
-        new Query<T>(Source.Select(Shape).DefaultIfEmpty(value));
 }

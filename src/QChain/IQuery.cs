@@ -44,7 +44,6 @@ public interface IQuery<T>
 
     #region DefaultIfEmpty
     IQuery<T?> DefaultIfEmpty();
-    IQuery<T> DefaultIfEmpty(T value);
     #endregion
 
     #region Sorting
