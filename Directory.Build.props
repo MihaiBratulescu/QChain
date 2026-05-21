@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-	<Version>0.3.2-beta</Version>
+	<Version>0.4-rc</Version>
 	  
     <Authors>Mihai Bratulescu</Authors>
     <RepositoryUrl>https://github.com/MihaiBratulescu/QChain</RepositoryUrl>
