@@ -111,150 +111,37 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
 
-        var body = new SelectManyCollectionVisitor(collectionSelector.Parameters[0], q)
+        var publicShape = ReplaceExpressionVisitor.Replace(Shape.Body, Shape.Parameters[0], q);
+
+        var body = new ProjectionInliningVisitor(collectionSelector.Parameters[0], publicShape)
             .Visit(collectionSelector.Body)!;
 
         return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
     }
 
-    private Expression<Func<Pair<Q, C>, R>> BuildSelectManyShape<C, R>(
-    Expression<Func<T, C, R>> resultSelector)
+    private Expression<Func<Pair<Q, C>, R>> BuildSelectManyShape<C, R>(Expression<Func<T, C, R>> resultSelector)
     {
         var pair = Expression.Parameter(typeof(Pair<Q, C>), "p");
 
         var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
         var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
 
-        var body = new SelectManyResultSelectorVisitor(
-            resultSelector.Parameters[0],
-            resultSelector.Parameters[1],
-            Shape,
-            outerQ,
-            innerC)
+        var outerShape = ReplaceExpressionVisitor.Replace(
+            Shape.Body,
+            Shape.Parameters[0],
+            outerQ);
+
+        var body = new ProjectionInliningVisitor(
+                resultSelector.Parameters[0],
+                outerShape)
             .Visit(resultSelector.Body)!;
+
+        body = ReplaceExpressionVisitor.Replace(
+            body,
+            resultSelector.Parameters[1],
+            innerC);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
     }
     #endregion
-}
-
-internal sealed class SelectManyCollectionVisitor : ExpressionVisitor
-{
-    private readonly ParameterExpression _publicParameter;
-    private readonly ParameterExpression _internalParameter;
-
-    public SelectManyCollectionVisitor(
-        ParameterExpression publicParameter,
-        ParameterExpression internalParameter)
-    {
-        _publicParameter = publicParameter;
-        _internalParameter = internalParameter;
-    }
-
-    protected override Expression VisitMember(MemberExpression node)
-    {
-        if (node.Expression == _publicParameter)
-            return TranslateTupleMember(node.Member.Name);
-
-        return base.VisitMember(node);
-    }
-
-    private Expression TranslateTupleMember(string name)
-    {
-        return name switch
-        {
-            "Item1" => Expression.PropertyOrField(_internalParameter, "Left"),
-            "Item2" => Expression.PropertyOrField(_internalParameter, "Right"),
-            _ => throw new NotSupportedException(
-                $"Unsupported tuple member: {name}")
-        };
-    }
-}
-
-internal sealed class SelectManyResultSelectorVisitor : ExpressionVisitor
-{
-    private readonly ParameterExpression _outerPublic;
-    private readonly ParameterExpression _innerPublic;
-    private readonly LambdaExpression _shape;
-    private readonly Expression _outerInternal;
-    private readonly Expression _innerInternal;
-
-    public SelectManyResultSelectorVisitor(
-        ParameterExpression outerPublic,
-        ParameterExpression innerPublic,
-        LambdaExpression shape,
-        Expression outerInternal,
-        Expression innerInternal)
-    {
-        _outerPublic = outerPublic;
-        _innerPublic = innerPublic;
-        _shape = shape;
-        _outerInternal = outerInternal;
-        _innerInternal = innerInternal;
-    }
-
-    protected override Expression VisitParameter(ParameterExpression node)
-    {
-        return node == _innerPublic
-            ? _innerInternal
-            : base.VisitParameter(node);
-    }
-
-    protected override Expression VisitMember(MemberExpression node)
-    {
-        if (node.Expression == _outerPublic)
-            return TranslateOuterMember(node.Member.Name);
-
-        return base.VisitMember(node);
-    }
-
-    private Expression TranslateOuterMember(string name)
-    {
-        var argument = GetShapeArgument(name);
-
-        return ReplaceExpressionVisitor.Replace(
-            argument,
-            _shape.Parameters[0],
-            _outerInternal);
-    }
-
-    private Expression GetShapeArgument(string name)
-    {
-        if (_shape.Body is NewExpression @new)
-        {
-            var index = GetTupleIndex(name);
-
-            if (index >= 0)
-                return @new.Arguments[index];
-
-            if (@new.Members is not null)
-            {
-                for (var i = 0; i < @new.Members.Count; i++)
-                    if (@new.Members[i].Name == name)
-                        return @new.Arguments[i];
-            }
-        }
-
-        if (_shape.Body is MethodCallExpression call &&
-            call.Method.Name == nameof(ValueTuple.Create))
-        {
-            var index = GetTupleIndex(name);
-
-            if (index >= 0)
-                return call.Arguments[index];
-        }
-
-        throw new NotSupportedException($"Cannot translate outer member '{name}'.");
-    }
-
-    private static int GetTupleIndex(string name)
-    {
-        if (name.StartsWith("Item") &&
-            int.TryParse(name[4..], out var number))
-        {
-            return number - 1;
-        }
-
-        return -1;
-    }
 }
