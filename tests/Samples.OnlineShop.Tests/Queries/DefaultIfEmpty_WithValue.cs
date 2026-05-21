@@ -16,7 +16,7 @@ public class DefaultIfEmpty_WithValue(SqliteFixture fixture, ITestOutputHelper o
     }
 
     [Fact]
-    public async Task EmptySource_ReturnsSingleValue()
+    public async Task EmptySource_ReturnsProvidedValue()
     {
         DatabaseModels.Account value = new() { AccountId = 0 };
 
@@ -29,11 +29,11 @@ public class DefaultIfEmpty_WithValue(SqliteFixture fixture, ITestOutputHelper o
     }
 
     [Fact]
-    public async Task Mapping_Object_ReturnsSingleValue()
+    public async Task Mapping_Object_ReturnsProvidedValue()
     {
         var items = await Query(q => q.Accounts
              .Where(a => a.AccountId > 100)
-             .Select(a => a.Email)
+             .Select(a => a.Email!)
              .DefaultIfEmpty("@email"));
 
         Assert.Single(items);

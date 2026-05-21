@@ -38,7 +38,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     }
 
     [Fact]
-    public async Task Mapping_int_ReturnsSingleDefault()
+    public async Task Mapping_int_ReturnsProviderDefault()
     {
         int[] items = await Query(q => q.Accounts
             .Where(a => a.AccountId > 100)
@@ -50,7 +50,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     }
 
     [Fact]
-    public async Task Mapping_Nullable_ReturnsSingleNull()
+    public async Task Mapping_Nullable_ReturnsProviderDefault()
     {
         int?[] items = await Query(q => q.Accounts
             .Where(a => a.AccountId > 100)

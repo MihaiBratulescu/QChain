@@ -43,7 +43,7 @@ public interface IQuery<T>
     #endregion
 
     #region DefaultIfEmpty
-    IQuery<T?> DefaultIfEmpty();
+    IQuery<T> DefaultIfEmpty();
     #endregion
 
     #region Sorting
