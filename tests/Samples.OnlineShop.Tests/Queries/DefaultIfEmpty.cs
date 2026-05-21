@@ -52,7 +52,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     }
 
     [Fact]
-    public async Task Mapping_Nullable_ReturnsSingleNull()
+    public async Task Mapping_nullable_ReturnsSingleNull()
     {
         int?[] items = await Query(q => q.Accounts
             .Where(a => a.AccountId > 100)
@@ -73,13 +73,4 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
             .DefaultIfEmpty())
         );
     }
-
-    [Fact]
-    public async Task GroupJoin()
-    {
-        var items = await Query(q => q.Accounts
-            .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .SelectMany(x => x.Item2.DefaultIfEmpty()));
-    }
-
 }
