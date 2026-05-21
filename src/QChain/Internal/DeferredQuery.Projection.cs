@@ -127,19 +127,12 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
 
         var outerShape = ReplaceExpressionVisitor.Replace(
-            Shape.Body,
-            Shape.Parameters[0],
-            outerQ);
+            Shape.Body, Shape.Parameters[0], outerQ);
 
-        var body = new ProjectionInliningVisitor(
-                resultSelector.Parameters[0],
-                outerShape)
+        var body = new ProjectionInliningVisitor(resultSelector.Parameters[0], outerShape)
             .Visit(resultSelector.Body)!;
 
-        body = ReplaceExpressionVisitor.Replace(
-            body,
-            resultSelector.Parameters[1],
-            innerC);
+        body = ReplaceExpressionVisitor.Replace(body, resultSelector.Parameters[1], innerC);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
     }
