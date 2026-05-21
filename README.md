@@ -1,5 +1,5 @@
-[![NuGet - QChain](https://img.shields.io/nuget/v/QChain?label=QChain)](https://www.nuget.org/packages/QChain)
-[![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/v/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
+[![NuGet - QChain](https://img.shields.io/nuget/vpre/QChain?label=QChain)](https://www.nuget.org/packages/QChain)
+[![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/vpre/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
 [![Tests](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml/badge.svg)](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/MihaiBratulescu/QChain?label=License)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
 
