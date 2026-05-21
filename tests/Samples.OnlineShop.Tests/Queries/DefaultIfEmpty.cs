@@ -58,6 +58,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
             .DefaultIfEmpty());
 
         Assert.Single(items);
+        // SQLite/EF compensates nullable scalar defaults as 0 here.
         Assert.Equal(0, items[0]);
     }
 

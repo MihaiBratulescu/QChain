@@ -19,7 +19,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             TranslateSelectManyCollection(collectionSelector),
             (q, c) => new Pair<Q, C> { Left = q, Right = c });
 
-        return new DeferredQuery<R, Pair<Q, C>>(source, BuildSelectManyShape(resultSelector));
+        return new DeferredQuery<R, Pair<Q, C>>(source, TranslateSelectManyResult(resultSelector));
     }
 
     #region Helpers
@@ -48,41 +48,27 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var source = call.Arguments[0];
         var elementType = source.Type.GetGenericArguments()[0];
 
-        var collectionSelector = BuildCollectionSelector(
-            selector.Parameters[0].Type,
+        return InvokeFlatten<R>(
             elementType,
-            source,
-            selector.Parameters);
-
-        var item = Expression.Parameter(elementType, "x");
-
-        var itemShape = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(elementType, elementType),
-            item,
-            item);
-
-        return InvokeFlatten<R>(elementType, collectionSelector, itemShape);
+            BuildCollectionSelector(selector, elementType, source),
+            Identity(elementType));
     }
 
     private IQuery<R> FlattenSelect<R>(LambdaExpression selector, MethodCallExpression call)
     {
         var source = call.Arguments[0];
-        var itemShape = (LambdaExpression)StripQuote(call.Arguments[1]);
+        var itemShape = (LambdaExpression)call.Arguments[1];
         var elementType = itemShape.Parameters[0].Type;
 
-        var collectionSelector = BuildCollectionSelector(
-            selector.Parameters[0].Type,
-            elementType,
-            source,
-            selector.Parameters);
-
-        return InvokeFlatten<R>(elementType, collectionSelector, itemShape);
+        return InvokeFlatten<R>(elementType, 
+            BuildCollectionSelector(selector, elementType, source), itemShape);
     }
 
-    private static LambdaExpression BuildCollectionSelector(Type sourceType, Type elementType, Expression body, IReadOnlyList<ParameterExpression> parameters)
+    private static LambdaExpression BuildCollectionSelector(LambdaExpression selector, Type elementType, Expression body)
     {
-        return Expression.Lambda(typeof(Func<,>).MakeGenericType(
-            sourceType, typeof(IEnumerable<>).MakeGenericType(elementType)), body, parameters);
+        return Expression.Lambda(
+            typeof(Func<,>).MakeGenericType(selector.Parameters[0].Type, typeof(IEnumerable<>).MakeGenericType(elementType)),
+            body, selector.Parameters);
     }
 
     private IQuery<R> InvokeFlatten<R>(Type elementType, LambdaExpression collectionSelector, LambdaExpression itemShape)
@@ -102,11 +88,6 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         return new DeferredQuery<R, QR>(Source.SelectMany(collectionSelector), itemShape);
     }
 
-    private static Expression StripQuote(Expression expression) =>
-        expression.NodeType == ExpressionType.Quote
-            ? ((UnaryExpression)expression).Operand
-            : expression;
-
     private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(Expression<Func<T, IEnumerable<C>>> collectionSelector)
     {
         var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
@@ -121,7 +102,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
     }
 
-    private Expression<Func<Pair<Q, C>, R>> BuildSelectManyShape<C, R>(Expression<Func<T, C, R>> resultSelector)
+    private Expression<Func<Pair<Q, C>, R>> TranslateSelectManyResult<C, R>(Expression<Func<T, C, R>> resultSelector)
     {
         var pair = Expression.Parameter(typeof(Pair<Q, C>), "p");
 
@@ -139,6 +120,13 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             body, resultSelector.Parameters[1], innerC);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
+    }
+
+    private static LambdaExpression Identity(Type type)
+    {
+        var x = Expression.Parameter(type, "x");
+
+        return Expression.Lambda(typeof(Func<,>).MakeGenericType(type, type), x, x);
     }
     #endregion
 }
