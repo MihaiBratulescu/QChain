@@ -42,6 +42,10 @@ public interface IQuery<T>
     IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector);
     #endregion
 
+    #region DefaultIfEmpty
+    IQuery<T> DefaultIfEmpty();
+    #endregion
+
     #region Sorting
     IOrderedQuery<T> OrderBy<K>(Expression<Func<T, K>> selector);
     IOrderedQuery<T> OrderByDescending<K>(Expression<Func<T, K>> selector);
@@ -57,6 +61,8 @@ public interface IQuery<T>
     #region Projection
     IQuery<R> Select<R>(Expression<Func<T, R>> mapping);
     IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector);
+    IQuery<R> SelectMany<C, R>(Expression<Func<T, IEnumerable<C>>> collectionSelector,
+                               Expression<Func<T, C, R>> resultSelector);
     #endregion
 
     //#region Caching

@@ -7,6 +7,7 @@ public class Account
     public string? Email { get; set; }
 
     public bool IsActive { get; set; }
+    public int? ClearanceLevel { get; set; }
 
     public DateTime CreatedDate { get; set; }
 

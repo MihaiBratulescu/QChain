@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+﻿using QChain.Visitors;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace QChain.Internal;
@@ -11,34 +12,121 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         FlattenPreservingShape<R>(Translate(collectionSelector));
 
-    #region Helpers
-    private IQuery<R> FlattenPreservingShape<R>(LambdaExpression translatedCollectionSelector)
+    public IQuery<R> SelectMany<C, R>(Expression<Func<T, IEnumerable<C>>> collectionSelector,
+                                      Expression<Func<T, C, R>> resultSelector)
     {
-        var call = translatedCollectionSelector.Body as MethodCallExpression;
+        var source = Source.SelectMany(
+            TranslateSelectManyCollection(collectionSelector),
+            (q, c) => new Pair<Q, C> { Left = q, Right = c });
 
-        var sourceExpression = call.Arguments[0];
-        var selectorExpression = (LambdaExpression)call.Arguments[1];
-
-        var internalCollectionType = typeof(IEnumerable<>).MakeGenericType(selectorExpression.Parameters[0].Type);
-        var internalCollectionSelector = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(translatedCollectionSelector.Parameters[0].Type, internalCollectionType),
-            sourceExpression,
-            translatedCollectionSelector.Parameters);
-
-
-        var generic = FlattenPreservingShapeTypedMethod.MakeGenericMethod(typeof(R), selectorExpression.Parameters[0].Type);
-
-        return (IQuery<R>)generic.Invoke(this, [internalCollectionSelector, selectorExpression])!;
+        return new DeferredQuery<R, Pair<Q, C>>(source, TranslateSelectManyResult(resultSelector));
     }
 
+    #region Helpers
     private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression internalCollectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    private IQuery<R> FlattenPreservingShape<R>(LambdaExpression translatedCollectionSelector)
     {
-        var internalCollectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)internalCollectionSelectorUntyped;
+        if (translatedCollectionSelector.Body is not MethodCallExpression call)
+            throw new NotSupportedException(
+                "SelectMany collection selector must be a method call.");
+
+        return call.Method.Name switch
+        {
+            nameof(Queryable.DefaultIfEmpty) or nameof(Enumerable.DefaultIfEmpty)
+                => FlattenDefaultIfEmpty<R>(translatedCollectionSelector, call),
+
+            _ when call.Arguments.Count >= 2
+                => FlattenSelect<R>(translatedCollectionSelector, call),
+
+            _ => throw new NotSupportedException(
+                $"Unsupported SelectMany selector: {call}")
+        };
+    }
+
+    private IQuery<R> FlattenDefaultIfEmpty<R>(LambdaExpression selector, MethodCallExpression call)
+    {
+        var source = call.Arguments[0];
+        var elementType = source.Type.GetGenericArguments()[0];
+
+        return InvokeFlatten<R>(
+            elementType,
+            BuildCollectionSelector(selector, elementType, source),
+            Identity(elementType));
+    }
+
+    private IQuery<R> FlattenSelect<R>(LambdaExpression selector, MethodCallExpression call)
+    {
+        var source = call.Arguments[0];
+        var itemShape = (LambdaExpression)call.Arguments[1];
+        var elementType = itemShape.Parameters[0].Type;
+
+        return InvokeFlatten<R>(elementType, 
+            BuildCollectionSelector(selector, elementType, source), itemShape);
+    }
+
+    private static LambdaExpression BuildCollectionSelector(LambdaExpression selector, Type elementType, Expression body)
+    {
+        return Expression.Lambda(
+            typeof(Func<,>).MakeGenericType(selector.Parameters[0].Type, typeof(IEnumerable<>).MakeGenericType(elementType)),
+            body, selector.Parameters);
+    }
+
+    private IQuery<R> InvokeFlatten<R>(Type elementType, LambdaExpression collectionSelector, LambdaExpression itemShape)
+    {
+        var generic = FlattenPreservingShapeTypedMethod
+            .MakeGenericMethod(typeof(R), elementType);
+
+        return (IQuery<R>)generic.Invoke(this, [collectionSelector, itemShape])!;
+    }
+
+    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    {
+        var collectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)collectionSelectorUntyped;
+
         var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;
 
-        return new DeferredQuery<R, QR>(Source.SelectMany(internalCollectionSelector), itemShape);
+        return new DeferredQuery<R, QR>(Source.SelectMany(collectionSelector), itemShape);
+    }
+
+    private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(Expression<Func<T, IEnumerable<C>>> collectionSelector)
+    {
+        var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
+
+        var publicShape = ReplaceExpressionVisitor.Replace(
+            Shape.Body, Shape.Parameters[0], q);
+
+        var body = new ProjectionInliningVisitor(
+                collectionSelector.Parameters[0], publicShape)
+            .Visit(collectionSelector.Body)!;
+
+        return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
+    }
+
+    private Expression<Func<Pair<Q, C>, R>> TranslateSelectManyResult<C, R>(Expression<Func<T, C, R>> resultSelector)
+    {
+        var pair = Expression.Parameter(typeof(Pair<Q, C>), "p");
+
+        var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
+        var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
+
+        var publicShape = ReplaceExpressionVisitor.Replace(
+            Shape.Body, Shape.Parameters[0], outerQ);
+
+        var body = new ProjectionInliningVisitor(
+                resultSelector.Parameters[0], publicShape)
+            .Visit(resultSelector.Body)!;
+
+        body = ReplaceExpressionVisitor.Replace(
+            body, resultSelector.Parameters[1], innerC);
+
+        return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
+    }
+
+    private static LambdaExpression Identity(Type type)
+    {
+        var x = Expression.Parameter(type, "x");
+
+        return Expression.Lambda(typeof(Func<,>).MakeGenericType(type, type), x, x);
     }
     #endregion
 }
