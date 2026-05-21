@@ -14,6 +14,12 @@ public interface IQuery<T>
 
     IQuery<(T, IEnumerable<R>)> GroupJoin<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey);
     IQuery<TOut> GroupJoin<R, K, TOut>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result);
+
+#if NET10_0_OR_GREATER
+    IQuery<(T, R?)> LeftJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey);
+    IQuery<(T?, R)> RightJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey);
+#endif
+
     #endregion
 
     #region Grouping

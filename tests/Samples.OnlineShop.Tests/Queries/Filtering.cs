@@ -4,7 +4,6 @@ using System.Linq.Expressions;
 using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
-
 public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
