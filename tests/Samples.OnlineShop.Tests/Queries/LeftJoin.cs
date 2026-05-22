@@ -124,4 +124,38 @@ public class LeftJoin(SqliteFixture fixture, ITestOutputHelper output) : QChainI
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.Null(x.Item1));
     }
+
+    [Fact]
+    public async Task LeftJoin_LeftJoin()
+    {
+        var rows = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .LeftJoin(
+                q.Currencies,
+                x => x.Item2 == null ? null : (int?)x.Item2.CurrencyId,
+                c => (int?)c.CurrencyId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2 == null ? null : (int?)x.Item1.Item2.CurrencyId,
+                x.Item2 == null ? null : (int?)x.Item2.CurrencyId)));
+
+        Assert.NotEmpty(rows);
+
+        Assert.All(
+            rows.Where(x => x.Item1.HasValue && x.Item2.HasValue),
+            x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task LeftJoin_RightJoin()
+    {
+        var rows = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .RightJoin(q.Transactions, x => x.Item2!.OrderId, t => t.OrderId)
+            .Select(x => ValueTuple.Create(
+                x.Item1!.Item2!.OrderId,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
 }

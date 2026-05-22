@@ -105,4 +105,140 @@ public class Join(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
             Assert.All(orders, o => Assert.Equal(account.AccountId, o.AccountId));
         }
     }
+
+    [Fact]
+    public async Task Join_Join()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2.OrderId,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task Join_Join_Join()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .Join(q.Currencies, x => x.Item1.Item2.CurrencyId, c => c.CurrencyId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item1.Item2.CurrencyId,
+                x.Item2.CurrencyId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task Join_Then_Filter_On_Nested_Left()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Where(x => x.Item1.AccountId == x.Item2.AccountId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.AccountId,
+                x.Item2.AccountId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task Join_Join_Then_Filter_On_Nested_Key()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .Where(x => x.Item1.Item2.OrderId == x.Item2.OrderId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2.OrderId,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task Join_Join_Then_OrderBy_Nested_Key()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .OrderBy(x => x.Item1.Item2.OrderId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2.OrderId,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+
+        Assert.Equal(
+            rows.Select(x => x.Item1).OrderBy(x => x),
+            rows.Select(x => x.Item1));
+    }
+
+    [Fact]
+    public async Task Join_Join_Then_GroupBy_Nested_Key()
+    {
+        var joined = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .GroupBy(x => x.Item1.Item2.OrderId)
+            .Select(g => g.Key));
+
+        var direct = await Query(q => q.Transactions
+            .GroupBy(t => t.OrderId)
+            .Select(g => g.Key));
+
+        Assert.Equal(
+            direct.OrderBy(x => x),
+            joined.OrderBy(x => x));
+    }
+
+    [Fact]
+    public async Task Join_With_ResultSelector_Then_Join()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(
+                q.Orders,
+                a => a.AccountId,
+                o => o.AccountId,
+                (a, o) => ValueTuple.Create(a.AccountId, o.OrderId, o.CurrencyId))
+            .Join(q.Transactions, x => x.Item2, t => t.OrderId)
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task Join_With_ResultSelector_Join_With_ResultSelector()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(
+                q.Orders,
+                a => a.AccountId,
+                o => o.AccountId,
+                (a, o) => ValueTuple.Create(a.AccountId, o.OrderId, o.CurrencyId))
+            .Join(
+                q.Currencies,
+                x => x.Item3,
+                c => c.CurrencyId,
+                (x, c) => ValueTuple.Create(
+                    x.Item1,
+                    x.Item2,
+                    x.Item3,
+                    c.CurrencyId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item3, x.Item4));
+    }
 }

@@ -44,6 +44,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 
         return Expression.Lambda<Func<TSource, TResult>>(body, inner.Parameters);
     }
+
     #endregion
 
     private readonly struct Pair<T1, T2>

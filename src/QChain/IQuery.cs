@@ -17,7 +17,10 @@ public interface IQuery<T>
 
 #if NET10_0_OR_GREATER
     IQuery<(T, R?)> LeftJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey);
+    IQuery<TResult> LeftJoin<R, K, TResult>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, R?, TResult>> resultSelector);
+
     IQuery<(T?, R)> RightJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey);
+    IQuery<TResult> RightJoin<R, K, TResult>(IQuery<R> other, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T?, R, TResult>> resultSelector);
 #endif
 
     #endregion
