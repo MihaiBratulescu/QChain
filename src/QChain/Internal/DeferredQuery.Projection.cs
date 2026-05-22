@@ -26,32 +26,9 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
     private IQuery<R> FlattenPreservingShape<R>(LambdaExpression translatedCollectionSelector)
     {
-        if (translatedCollectionSelector.Body is not MethodCallExpression call)
-            throw new NotSupportedException(
-                "SelectMany collection selector must be a method call.");
+        var call = (MethodCallExpression)translatedCollectionSelector.Body;
 
-        return call.Method.Name switch
-        {
-            nameof(Queryable.DefaultIfEmpty) or nameof(Enumerable.DefaultIfEmpty)
-                => FlattenDefaultIfEmpty<R>(translatedCollectionSelector, call),
-
-            _ when call.Arguments.Count >= 2
-                => FlattenSelect<R>(translatedCollectionSelector, call),
-
-            _ => throw new NotSupportedException(
-                $"Unsupported SelectMany selector: {call}")
-        };
-    }
-
-    private IQuery<R> FlattenDefaultIfEmpty<R>(LambdaExpression selector, MethodCallExpression call)
-    {
-        var source = call.Arguments[0];
-        var elementType = source.Type.GetGenericArguments()[0];
-
-        return InvokeFlatten<R>(
-            elementType,
-            BuildCollectionSelector(selector, elementType, source),
-            Identity(elementType));
+        return FlattenSelect<R>(translatedCollectionSelector, call);
     }
 
     private IQuery<R> FlattenSelect<R>(LambdaExpression selector, MethodCallExpression call)
@@ -120,13 +97,6 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             body, resultSelector.Parameters[1], innerC);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
-    }
-
-    private static LambdaExpression Identity(Type type)
-    {
-        var x = Expression.Parameter(type, "x");
-
-        return Expression.Lambda(typeof(Func<,>).MakeGenericType(type, type), x, x);
     }
     #endregion
 }
