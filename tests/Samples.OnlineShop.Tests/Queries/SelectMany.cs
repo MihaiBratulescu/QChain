@@ -46,4 +46,47 @@ public class SelectMany(SqliteFixture fixture, ITestOutputHelper output) : QChai
 
         Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], rows.Select(x => x.transactionId));
     }
+
+    [Fact]
+    public async Task Flattens_GroupJoin_Results()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+                .SelectMany(x => x.Item2)
+                .OrderBy(o => o.OrderId));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, o => Assert.True(o.AccountId > 0));
+        Assert.Equal(rows.Length, rows.Select(o => o.OrderId).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Flattens_GroupJoin_With_ResultSelector()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+                .SelectMany(
+                    x => x.Item2,
+                    (x, o) => ValueTuple.Create(x.Item1.AccountId, o.AccountId, o.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+        Assert.Equal(rows.Length, rows.Select(x => x.Item3).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Can_Join_After_SelectMany()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+                .SelectMany(x => x.Item2)
+                .Join(q.Transactions, o => o.OrderId, t => t.OrderId)
+                .Select(x => ValueTuple.Create(x.Item1.OrderId, x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
 }
