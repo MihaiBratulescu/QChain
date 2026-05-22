@@ -28,6 +28,9 @@ public static class EntityFrameworkExtensions
 
         public IQuery<T> Include<E>(Expression<Func<T, E>> include) =>
             new Query<T>(query.AsQueryable().Include(include));
+
+        public IQuery<R> OfType<R>() => 
+            new Query<R>(query.AsQueryable().OfType<R>());
     }
 
     extension<T>(IQuery<T> query)
