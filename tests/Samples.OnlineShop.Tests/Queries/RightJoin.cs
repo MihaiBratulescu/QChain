@@ -154,4 +154,20 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
             rows.Where(x => x.Item2.HasValue),
             x => Assert.Equal(x.Item1, x.Item2));
     }
+
+    [Fact]
+    public async Task RightJoin_With_Projected_Right_Side()
+    {
+        var rows = await Query(q => q.Accounts
+            .RightJoin(
+                q.Orders.Select(o => ValueTuple.Create(o.AccountId, o.OrderId)),
+                a => a.AccountId,
+                o => o.Item1,
+                (a, o) => ValueTuple.Create(
+                    a == null ? null : (int?)a.AccountId,
+                    o.Item1)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows.Where(x => x.Item1.HasValue), x => Assert.Equal(x.Item1, x.Item2));
+    }
 }

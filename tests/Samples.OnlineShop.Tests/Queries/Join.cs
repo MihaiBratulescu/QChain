@@ -241,4 +241,18 @@ public class Join(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
         Assert.NotEmpty(rows);
         Assert.All(rows, x => Assert.Equal(x.Item3, x.Item4));
     }
+
+    [Fact]
+    public async Task Join_With_Projected_Right_Side()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(
+                q.Orders.Select(o => ValueTuple.Create(o.AccountId, o.OrderId)),
+                a => a.AccountId,
+                o => o.Item1,
+                (a, o) => ValueTuple.Create(a.AccountId, o.Item1, o.Item2)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
 }
