@@ -1,18 +1,23 @@
+# .github/workflows/publish.yml
+
 name: NuGet
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    permissions:
+      contents: read
 
-      - uses: actions/setup-dotnet@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             8.0.x
@@ -20,42 +25,35 @@ jobs:
             10.0.x
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore QChain.sln
 
       - name: Build
-        run: dotnet build -c Release --no-restore
+        run: dotnet build QChain.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test -c Release --no-build
+        run: >
+          dotnet test QChain.sln
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory TestResults
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
 
       - name: Pack
-        run: |
-          dotnet pack src/QChain/QChain.csproj -c Release --no-build -o ./artifacts
-          dotnet pack src/QChain.EntityFrameworkCore/QChain.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts
+        run: >
+          dotnet pack QChain.sln
+          --configuration Release
+          --no-build
+          --output artifacts
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: nuget-packages
-          path: ./artifacts/*
-
-  publish:
-    if: github.event_name == 'workflow_dispatch'
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: nuget-packages
-          path: ./artifacts
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Push package
-        run: |
-          dotnet nuget push "./artifacts/*.nupkg" \
-            --source "https://api.nuget.org/v3/index.json" \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
-            --skip-duplicate
+      - name: Publish
+        run: dotnet nuget push "artifacts/*.nupkg"
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate

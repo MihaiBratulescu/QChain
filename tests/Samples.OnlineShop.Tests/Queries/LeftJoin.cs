@@ -174,4 +174,10 @@ public class LeftJoin(SqliteFixture fixture, ITestOutputHelper output) : QChainI
         Assert.NotEmpty(rows);
         Assert.All(rows.Where(x => x.Item2.HasValue), x => Assert.Equal(x.Item1, x.Item2));
     }
+
+    [Fact]
+    public void Fail()
+    {
+        Assert.True(false);
+    }
 }
