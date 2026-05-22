@@ -29,15 +29,14 @@ public interface IQuery<T>
 
     #region Set operations
     IQuery<T> Union(IQuery<T> other);
-    IQuery<T> UnionBy<K>(IQuery<T> other, Expression<Func<T, K>> key);
     
     IQuery<T> Concat(IQuery<T> other); 
     
     IQuery<T> Except(IQuery<T> other); 
-    IQuery<T> ExceptBy<K>(IQuery<T> other, Expression<Func<T, K>> key); 
+    IQuery<T> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector); 
     
     IQuery<T> Intersect(IQuery<T> other);
-    IQuery<T> IntersectBy<K>(IQuery<T> other, Expression<Func<T, K>> key);
+    IQuery<T> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector);
     #endregion
 
     #region Filtering

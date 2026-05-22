@@ -76,4 +76,59 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
         Assert.NotEmpty(except);
         Assert.All(except, a => Assert.True(a.IsActive));
     }
+
+    [Fact]
+    public async Task ExceptBy()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .ExceptBy([1, 2, 3], a => a.AccountId)
+                .OrderBy(a => a.AccountId));
+
+        Assert.DoesNotContain(items, a => a.AccountId is 1 or 2 or 3);
+    }
+
+    [Fact]
+    public async Task Intersect()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Intersect(q.Accounts.Where(a => a.IsActive))
+                .OrderBy(a => a.AccountId));
+
+        Assert.Equal([1, 2, 4, 6, 7], items.Select(a => a.AccountId));
+        Assert.All(items, a => Assert.True(a.IsActive));
+    }
+
+    [Fact]
+    public async Task IntersectBy()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .IntersectBy([1, 2, 3], a => a.AccountId)
+                .OrderBy(a => a.AccountId));
+
+        Assert.Equal([1, 2, 3], items.Select(a => a.AccountId));
+    }
+
+    [Fact]
+    public async Task Concat_Tuple()
+    {
+        IQuery<(int accountId, string? email)> active =
+            _fixture.db.Accounts
+                .Where(a => a.IsActive)
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email));
+
+        IQuery<(int accountId, string? email)> inactive =
+            _fixture.db.Accounts
+                .Where(a => !a.IsActive)
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email));
+
+        var items = await active
+            .Concat(inactive)
+            .OrderBy(x => x.accountId)
+            .ToArrayAsync();
+
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7], items.Select(x => x.accountId));
+    }
 }

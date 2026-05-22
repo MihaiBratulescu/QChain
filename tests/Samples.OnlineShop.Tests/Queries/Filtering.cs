@@ -103,4 +103,32 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
                 .Where(x => inactive.And(invalid)))
         );
     }
+
+    [Fact]
+    public async Task And_ComposesPredicates()
+    {
+        Expression<Func<Account, bool>> active = a => a.IsActive;
+        Expression<Func<Account, bool>> evenId = a => a.AccountId % 2 == 0;
+
+        Account[] accounts = await Query(q =>
+            q.Accounts
+                .Where(x => active.And(evenId))
+                .OrderBy(a => a.AccountId));
+
+        Assert.Equal([2, 4, 6], accounts.Select(a => a.AccountId));
+    }
+
+    [Fact]
+    public async Task Or_ComposesPredicates()
+    {
+        Expression<Func<Account, bool>> inactive = a => !a.IsActive;
+        Expression<Func<Account, bool>> nullEmail = a => a.Email == null;
+
+        Account[] accounts = await Query(q =>
+            q.Accounts
+                .Where(x => inactive.Or(nullEmail))
+                .OrderBy(a => a.AccountId));
+
+        Assert.Equal([3, 5, 6], accounts.Select(a => a.AccountId));
+    }
 }
