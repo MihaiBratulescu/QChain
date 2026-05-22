@@ -41,8 +41,8 @@ public interface IQuery<T>
     #endregion
 
     #region Filtering
-    IQuery<T> Where(Expression<Func<T, bool>> predicate);
     IQuery<T> Where(Func<T, Predicate> predicate);
+    IQuery<T> Where(Expression<Func<T, bool>> predicate);
 
     IQuery<T> Distinct();
     IQuery<R> DistinctBy<R>(Expression<Func<T, R>> selector);

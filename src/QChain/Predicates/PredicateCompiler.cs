@@ -1,5 +1,4 @@
-﻿using QChain.Predicates;
-using QChain.Visitors;
+﻿using QChain.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -7,6 +6,18 @@ namespace QChain.Predicates;
 
 public static class PredicateCompiler
 {
+    public static Expression<Func<T, bool>> Compile<T>(Func<T, Predicate> predicate)
+    {
+        var parameter = Expression.Parameter(typeof(T), "x");
+
+        var tree = predicate(default(T)!);
+
+        var body = Compile(tree, parameter);
+
+        return Expression.Lambda<Func<T, bool>>(body, parameter);
+    }    
+
+
     public static Expression Compile(Predicate predicate, ParameterExpression root)
     {
         return predicate switch
