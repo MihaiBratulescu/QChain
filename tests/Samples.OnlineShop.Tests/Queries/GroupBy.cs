@@ -51,10 +51,6 @@ public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIn
     [Fact]
     public async Task WithProjection()
     {
-        //var test = await Query(q =>
-        //    q.Accounts.GroupBy(a => a.Name, a => ValueTuple.Create(a.Key, a.Count()))
-        //    .Join(q.Accounts, g => g.Item1, a => a.Name));
-
         (string? name, int count)[] result = await Query(q =>
             q.Accounts.GroupBy(a => a.Email, a => ValueTuple.Create(a.Key, a.Count())));
 

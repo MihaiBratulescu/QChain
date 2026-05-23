@@ -1,5 +1,5 @@
 ﻿using QChain.Visitors;
-
+using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain.Internal;
@@ -51,5 +51,16 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         public required T1 Left { get; init; }
         public required T2 Right { get; init; }
+    }
+
+    private readonly struct Group<K, I> : IGrouping<K, I>
+    {
+        public required K Key { get; init; }
+
+        public required IEnumerable<I> Items { get; init; }
+
+        public IEnumerator<I> GetEnumerator() => Items.GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
