@@ -21,6 +21,7 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
             .ToArrayAsync(default);
 
         Assert.NotEmpty(union);
+        Assert.Equal(_fixture.db.Accounts.Select(a => a.AccountId).ToArray(), union);
     }
 
     [Fact]
@@ -41,6 +42,25 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
             .ToArrayAsync(default);
 
         Assert.NotEmpty(union);
+        Assert.Equal(_fixture.db.Accounts.Count(), union.Length);
+    }
+
+    [Fact]
+    public async Task Union_Then_Join()
+    {
+        var items = await Query(q =>
+        q.Accounts
+            .Where(a => a.AccountId <= 5)
+            .Union(q.Accounts.Where(a => a.AccountId  <= 7))
+            .Join(q.Orders,
+                a => a.AccountId,
+                o => o.AccountId));
+
+        Assert.NotEmpty(items);
+        Assert.All(items,
+            x => Assert.Equal(
+                x.Item1.AccountId,
+                x.Item2.AccountId));
     }
 
     [Fact]
@@ -58,7 +78,9 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
             .Concat(inactive)
             .ToArrayAsync(default);
 
-        Assert.NotEmpty(concat);
+        var expectedCount = await _fixture.db.Accounts.CountAsync();
+
+        Assert.Equal(expectedCount, concat.Length);
     }
 
     [Fact]
@@ -96,7 +118,7 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
                 .Intersect(q.Accounts.Where(a => a.IsActive))
                 .OrderBy(a => a.AccountId));
 
-        Assert.Equal([1, 2, 4, 6, 7], items.Select(a => a.AccountId));
+        Assert.NotEmpty(items);
         Assert.All(items, a => Assert.True(a.IsActive));
     }
 

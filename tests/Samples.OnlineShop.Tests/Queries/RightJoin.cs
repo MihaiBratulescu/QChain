@@ -63,6 +63,11 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
             .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId));
 
         Assert.NotEmpty(items);
+        Assert.All(items, x =>
+        {
+            Assert.NotNull(x.Item2);
+            Assert.Equal(x.Item1.Item2.CurrencyId, x.Item2.CurrencyId);
+        });
     }
 
     [Fact]
@@ -116,12 +121,24 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     [Fact]
     public async Task RightJoin_RightJoin_LeftJoin()
     {
-        var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId)
-            .LeftJoin(q.Transactions, x => x.Item1.Item2!.OrderId, t => t.OrderId));
+        (Account? account, Order order, Currency currency, Transaction? transaction)[] items =
+            await Query(q => q.Accounts
+                .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+                .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId)
+                .LeftJoin(q.Transactions, x => x.Item1.Item2.OrderId, t => t.OrderId)
+                .Select(x => ValueTuple.Create(x.Item1.Item1.Item1, x.Item1.Item1.Item2, x.Item1.Item2, x.Item2)));
 
         Assert.NotEmpty(items);
+        Assert.All(items, x =>
+        {
+            if (x.account is not null)
+                Assert.Equal(x.account.AccountId, x.order.AccountId);
+
+            Assert.Equal(x.order.CurrencyId, x.currency.CurrencyId);
+
+            if (x.transaction is not null)
+                Assert.Equal(x.order.OrderId, x.transaction.OrderId);
+        });
     }
 
     [Fact]

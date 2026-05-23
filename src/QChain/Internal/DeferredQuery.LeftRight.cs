@@ -1,9 +1,9 @@
-﻿using System.Linq.Expressions;
+﻿#if NET10_0_OR_GREATER
+using System.Linq.Expressions;
 using QChain.Visitors;
 
 namespace QChain.Internal;
 
-#if NET10_0_OR_GREATER
 public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     public IQuery<(T, R?)> LeftJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>

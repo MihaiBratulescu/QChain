@@ -69,8 +69,6 @@ public sealed class SqliteFixture() : IAsyncLifetime
                         new Transaction { TransactionId = 1, OrderId = 1, Status = TransactionStatus.Settled, Amount = 100, CreatedDate = now.AddDays(-9) },
                         new Transaction { TransactionId = 2, OrderId = 1, Status = TransactionStatus.Refunded, Amount = -20, CreatedDate = now.AddDays(-8) },
 
-                        new Transaction { TransactionId = 3, OrderId = 2, Status = TransactionStatus.Pending, Amount = 200, CreatedDate = now.AddDays(-1) },
-
                         new Transaction { TransactionId = 4, OrderId = 3, Status = TransactionStatus.Settled, Amount = 50, CreatedDate = now.AddDays(-1) },
                         new Transaction { TransactionId = 5, OrderId = 3, Status = TransactionStatus.Settled, Amount = 50, CreatedDate = now.AddHours(-10) },
 

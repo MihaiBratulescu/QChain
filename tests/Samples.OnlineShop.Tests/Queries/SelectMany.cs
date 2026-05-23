@@ -44,7 +44,7 @@ public class SelectMany(SqliteFixture fixture, ITestOutputHelper output) : QChai
                 .Select(x => ValueTuple.Create(x.Item1.OrderId, x.Item2.TransactionId))
                 .OrderBy(x => x.Item2));
 
-        Assert.Equal([1, 2, 3, 4, 5, 6, 7, 8], rows.Select(x => x.transactionId));
+        Assert.Equal(await Query(q => q.Transactions.Select(t => t.TransactionId)), rows.Select(x => x.transactionId));
     }
 
     [Fact]
