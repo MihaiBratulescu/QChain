@@ -133,4 +133,49 @@ public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIn
 
         Assert.NotEmpty(result);
     }
+
+    [Fact]
+    public async Task Projection_WithSum()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(
+                o => o.CurrencyId,
+                g => ValueTuple.Create(
+                    g.Key,
+                    g.Sum(o => o.Total),
+                    g.Min(o => o.Total),
+                    g.Max(o => o.Total))));
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task TupleKey_Project_ThenJoin_OnKeyMember()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(
+                o => ValueTuple.Create(o.CurrencyId, o.AccountId),
+                g => ValueTuple.Create(g.Key, g.Count()))
+            .Join(
+                q.Currencies,
+                x => x.Item1.Item1,
+                c => c.CurrencyId));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, x => Assert.Equal(x.Item1.Item1.Item1, x.Item2.CurrencyId));
+    }
+
+    [Fact]
+    public async Task Projection_WithFilteredCount()
+    {
+        var result = await Query(q => q.Accounts
+            .GroupBy(
+                a => a.IsActive,
+                g => ValueTuple.Create(
+                    g.Key,
+                    g.Count(a => a.Email != null))));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, x => Assert.True(x.Item2 >= 0));
+    }
 }
