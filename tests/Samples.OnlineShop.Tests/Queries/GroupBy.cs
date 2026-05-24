@@ -92,6 +92,34 @@ public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIn
     }
 
     [Fact]
+    public async Task GroupBy_ThenJoin_OnKey()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.CurrencyId)
+            .Join(
+                q.Currencies,
+                x => x.Key,
+                c => c.CurrencyId));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, x => Assert.Equal(x.Item1.Key, x.Item2.CurrencyId));
+    }
+
+    [Fact]
+    public async Task TupleKey_GroupBy_ThenJoin_OnKeyMember()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => ValueTuple.Create(o.CurrencyId, o.AccountId))
+            .Join(
+                q.Currencies,
+                x => x.Key.Item1,
+                c => c.CurrencyId));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, x => Assert.Equal(x.Item1.Key.Item1, x.Item2.CurrencyId));
+    }
+
+    [Fact]
     public async Task Aggregate_ThenJoin()
     {
         (CurrencyType currencyId, int activeCount, Currency currency)[] result =
