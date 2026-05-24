@@ -38,6 +38,48 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
+    public async Task ElementSelector_OnTuple()
+    {
+        var result = await Query(q =>
+            q.Orders.GroupBy(
+                o => o.CurrencyId,
+                o => ValueTuple.Create(o.OrderId, o.Total)));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, q => Assert.All(q, o => Assert.True(o.Item1 > 0)));
+    }
+
+    [Fact]
+    public async Task TupleKey_ElementSelector_OnTuple()
+    {
+        var result = await Query(q =>
+            q.Orders.GroupBy(
+                o => ValueTuple.Create(o.CurrencyId, o.AccountId),
+                o => ValueTuple.Create(o.OrderId, o.Total)));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, q => Assert.All(q, o => Assert.True(o.Item1 > 0)));
+    }
+
+    [Fact]
+    public async Task ElementSelector_Select_ToArray()
+    {
+        (CurrencyType key, (int orderId, decimal total)[] items)[] result = await Query(q =>
+            q.Orders
+                .GroupBy(
+                    o => o.CurrencyId,
+                    o => ValueTuple.Create(o.OrderId, o.Total))
+                .Select(g => ValueTuple.Create(g.Key, g.ToArray())));
+
+        Assert.NotEmpty(result);
+        Assert.All(result, q =>
+        {
+            Assert.NotEmpty(q.items);
+            Assert.All(q.items, o => Assert.True(o.orderId > 0));
+        });
+    }
+
+    [Fact]
     public async Task TupleKey_Projected()
     {
         ((string?, bool), int total)[] result = await Query(q =>
@@ -94,27 +136,31 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     {
         var result = await Query(q => q.Orders
             .GroupBy(o => o.CurrencyId)
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
             .Join(
                 q.Currencies,
-                x => x.Key,
+                x => x.Item1,
                 c => c.CurrencyId));
 
         Assert.NotEmpty(result);
-        Assert.All(result, x => Assert.Equal(x.Item1.Key, x.Item2.CurrencyId));
+        Assert.All(result, x => Assert.Equal(x.Item1.Item1, x.Item2.CurrencyId));
+        Assert.All(result, x => Assert.True(x.Item1.Item2 > 0));
     }
 
     [Fact]
     public async Task TupleKey_GroupBy_ThenJoin_OnKeyMember()
     {
-        var result = await Query(q => q.Orders
+        (((CurrencyType, int), int), Currency)[] result = await Query(q => q.Orders
             .GroupBy(o => ValueTuple.Create(o.CurrencyId, o.AccountId))
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
             .Join(
                 q.Currencies,
-                x => x.Key.Item1,
+                x => x.Item1.Item1,
                 c => c.CurrencyId));
 
         Assert.NotEmpty(result);
-        Assert.All(result, x => Assert.Equal(x.Item1.Key.Item1, x.Item2.CurrencyId));
+        Assert.All(result, x => Assert.Equal(x.Item1.Item1.Item1, x.Item2.CurrencyId));
+        Assert.All(result, x => Assert.True(x.Item1.Item2 > 0));
     }
 
     [Fact]

@@ -14,9 +14,21 @@ internal sealed class ProjectionInliningVisitor(ParameterExpression from, Expres
         if (target is null)
             return base.VisitMember(node);
 
-        if (ProjectionReduction.TryInlineMemberAccess(target, node.Member, out var rewritten))
+        if (ProjectionReduction.TryInlineMemberAccess(UnwrapSafeConversion(target), node.Member, out var rewritten))
             return Visit(rewritten);
 
         return node.Update(target);
+    }
+
+    private static Expression UnwrapSafeConversion(Expression expression)
+    {
+        if (expression is not UnaryExpression unary ||
+            unary.NodeType is not (ExpressionType.Convert or ExpressionType.ConvertChecked) ||
+            !expression.Type.IsAssignableFrom(unary.Operand.Type))
+        {
+            return expression;
+        }
+
+        return unary.Operand;
     }
 }
