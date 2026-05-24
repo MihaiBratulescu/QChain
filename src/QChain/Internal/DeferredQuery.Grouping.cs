@@ -179,28 +179,26 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         public static Expression Lower(Expression expression)
         {
-            if (!TryGetValueTuple2(expression.Type, out var leftType, out var rightType))
+            if (!TryGetValueTupleItems(expression.Type, out var itemTypes))
                 return expression;
 
-            var left = Lower(GetTupleItem(expression, 1));
-            var right = Lower(GetTupleItem(expression, 2));
-            var projectionType = MakeProjectionType(left.Type, right.Type);
+            var items = itemTypes
+                .Select((_, index) => Lower(GetTupleItem(expression, index + 1)))
+                .ToArray();
 
-            return Expression.MemberInit(
-                Expression.New(projectionType),
-                Expression.Bind(projectionType.GetProperty(nameof(Projection<int, int>.Item1))!, left),
-                Expression.Bind(projectionType.GetProperty(nameof(Projection<int, int>.Item2))!, right));
+            return BuildProjectionTree(items);
         }
 
         public static Expression Rebuild(Expression expression, Type targetType)
         {
-            if (!TryGetValueTuple2(targetType, out var leftType, out var rightType))
+            if (!TryGetValueTupleItems(targetType, out var itemTypes))
                 return expression;
 
-            var left = Rebuild(Expression.PropertyOrField(expression, nameof(Projection<int, int>.Item1)), leftType);
-            var right = Rebuild(Expression.PropertyOrField(expression, nameof(Projection<int, int>.Item2)), rightType);
+            var items = ReadProjectionTree(expression, itemTypes.Length)
+                .Select((item, index) => Rebuild(item, itemTypes[index]))
+                .ToArray();
 
-            return Expression.New(targetType.GetConstructor([leftType, rightType])!, left, right);
+            return Expression.New(targetType.GetConstructor(itemTypes)!, items);
         }
 
         private static Expression GetTupleItem(Expression tuple, int item)
@@ -211,19 +209,58 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             return value;
         }
 
-        private static bool TryGetValueTuple2(Type type, out Type left, out Type right)
+        private static bool TryGetValueTupleItems(Type type, out Type[] items)
         {
-            if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(ValueTuple<,>))
+            if (type.IsGenericType &&
+                type.FullName?.StartsWith("System.ValueTuple`", StringComparison.Ordinal) == true)
             {
                 var args = type.GetGenericArguments();
-                left = args[0];
-                right = args[1];
+                if (args.Length > 7)
+                    throw new NotSupportedException("ValueTuple arity > 7 not supported yet.");
+
+                items = args;
                 return true;
             }
 
-            left = null!;
-            right = null!;
+            items = [];
             return false;
+        }
+
+        private static Expression BuildProjectionTree(IReadOnlyList<Expression> items)
+        {
+            if (items.Count == 2)
+                return CreateProjection(items[0], items[1]);
+
+            return CreateProjection(
+                BuildProjectionTree(items.Take(items.Count - 1).ToArray()),
+                items[^1]);
+        }
+
+        private static Expression[] ReadProjectionTree(Expression projection, int count)
+        {
+            if (count == 2)
+            {
+                return
+                [
+                    Expression.PropertyOrField(projection, nameof(Projection<int, int>.Item1)),
+                    Expression.PropertyOrField(projection, nameof(Projection<int, int>.Item2))
+                ];
+            }
+
+            var left = Expression.PropertyOrField(projection, nameof(Projection<int, int>.Item1));
+            var right = Expression.PropertyOrField(projection, nameof(Projection<int, int>.Item2));
+
+            return [.. ReadProjectionTree(left, count - 1), right];
+        }
+
+        private static Expression CreateProjection(Expression left, Expression right)
+        {
+            var projectionType = MakeProjectionType(left.Type, right.Type);
+
+            return Expression.MemberInit(
+                Expression.New(projectionType),
+                Expression.Bind(projectionType.GetProperty(nameof(Projection<int, int>.Item1))!, left),
+                Expression.Bind(projectionType.GetProperty(nameof(Projection<int, int>.Item2))!, right));
         }
 
         private static Type MakeProjectionType(Type left, Type right)

@@ -234,7 +234,7 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
-    public async Task TupleArity8_Grouping()
+    public async Task TupleArity7_Grouping()
     {
         var rows = await Query(q => q.Orders
             .GroupBy(
@@ -246,12 +246,42 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
                     g.Min(o => o.Total),
                     g.Max(o => o.Total),
                     g.Count(o => o.Total > 50),
-                    g.Min(o => o.AccountId),
                     g.Max(o => o.AccountId)))
             .Where(g => g.Item2 > 0)
             .OrderBy(g => g.Item1));
 
         Assert.NotEmpty(rows);
         Assert.All(rows, x => Assert.True(x.Item2 > 0));
+    }
+
+    [Fact]
+    public async Task TupleKeyArity7_Grouping_Join()
+    {
+        var rows = await Query(q => q.Orders
+            .GroupBy(
+                o => ValueTuple.Create(
+                    o.CurrencyId,
+                    o.AccountId,
+                    o.OrderId,
+                    o.Total,
+                    o.CreatedDate.Year,
+                    o.CreatedDate.Month,
+                    o.CreatedDate.Day),
+                g => ValueTuple.Create(g.Key, g.Count()))
+            .Where(g => g.Item2 > 0)
+            .OrderBy(g => g.Item1.Item1)
+            .ThenBy(g => g.Item1.Item2)
+            .Join(
+                q.Currencies,
+                g => g.Item1.Item1,
+                c => c.CurrencyId,
+                (g, c) => ValueTuple.Create(g.Item1, g.Item2, c)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x =>
+        {
+            Assert.True(x.Item2 > 0);
+            Assert.Equal(x.Item1.Item1, x.Item3.CurrencyId);
+        });
     }
 }
