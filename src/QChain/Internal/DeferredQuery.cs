@@ -53,6 +53,12 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         public required T2 Right { get; init; }
     }
 
+    private readonly struct Projection<T1, T2>
+    {
+        public required T1 Item1 { get; init; }
+        public required T2 Item2 { get; init; }
+    }
+
     private readonly struct Group<K, I> : IGrouping<K, I>
     {
         public required K Key { get; init; }

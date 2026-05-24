@@ -63,6 +63,8 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
         var shapedBody = ReplaceExpressionVisitor.Replace(_shape.Body, _shape.Parameters[0], qParam);
         var replacedBody = ReplaceExpressionVisitor.Replace(lambda.Body, lambda.Parameters[0], shapedBody);
         var finalBody = Visit(replacedBody)!;
+        finalBody = new ValueTupleCreateToCtorVisitor().Visit(finalBody)!;
+        finalBody = new TupleAccessSimplifyingVisitor().Visit(finalBody)!;
 
         return Expression.Lambda(finalBody, qParam);
     }
