@@ -14,7 +14,7 @@ Instead of duplicating query logic across repositories and services, you define 
 
 ---
 
-## ✨ Motivation
+## &#x2728; Motivation
 
 LINQ is powerful, but in real-world applications it often leads to:
 - duplicated query logic
@@ -29,7 +29,7 @@ LINQ is powerful, but in real-world applications it often leads to:
 
 ---
 
-## 👎 Before QChain
+## &#x1F44E; Before QChain
 
 Large EF Core applications often end up with long methods, and duplicated, tightly coupled query logic.
 
@@ -64,7 +64,7 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 }
 ```
 
-## 👍 With QChain
+## &#x1F44D; With QChain
 
 Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes as named tuples instead of anonymous types.
 
@@ -86,7 +86,7 @@ public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(D
 }
 ```
 
-## 🔗 Calling End
+## &#x1F517; Calling End
 
 Mapping and pagination compose externally. Query composition is reusable while execution concerns remain composable.
 
@@ -106,7 +106,7 @@ var risks = await unitOfWork.Query(db => db.Customers
 
 ---
 
-## 🏗️ Basic Usage
+## &#x1F3D7;&#xFE0F; Basic Usage
 
 Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
 
@@ -172,14 +172,14 @@ var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
 
 ---
 
-## 📦 Packages
+## &#x1F4E6; Packages
 
-- **QChain** – Core abstractions and query pipeline
-- **QChain.EntityFrameworkCore** – EF Core integration
+- **QChain** - Core abstractions and query pipeline
+- **QChain.EntityFrameworkCore** - EF Core integration
 
 ---
 
-## 🔧 Installation
+## &#x1F527; Installation
 
 ```bash
 dotnet add package QChain
