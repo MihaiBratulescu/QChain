@@ -34,8 +34,16 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     }
 
     //IQueryable<TResult> GroupBy<TSource, TKey, TResult>
-    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<K, IEnumerable<T>, R>> resultsSelector) =>
-        GroupBy(key, x => x, resultsSelector);
+    public IQuery<R> GroupBy<K, R>(Expression<Func<T, K>> key, Expression<Func<K, IEnumerable<T>, R>> resultsSelector)
+    {
+        Expression<Func<Q, Q>> element = q => q;
+
+        return ProjectedGroupQueryBuilder.Create(
+            Source,
+            Translate(key),
+            element,
+            TranslateInternalElementGroup(resultsSelector));
+    }
 
     //IQueryable<TResult> GroupBy<TSource, TKey, TElement, TResult>
     public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key, Expression<Func<T, E>> elementSelector, Expression<Func<K, IEnumerable<E>, R>> resultsSelector)
@@ -72,6 +80,20 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         body = new TupleAccessSimplifyingVisitor().Visit(body)!;
 
         return Expression.Lambda<Func<IGrouping<K, E>, R>>(body, group);
+    }
+
+    private Expression<Func<IGrouping<K, Q>, R>> TranslateInternalElementGroup<K, R>(Expression<Func<K, IEnumerable<T>, R>> selector)
+    {
+        var group = Expression.Parameter(typeof(IGrouping<K, Q>), "g");
+
+        var body = new ReplaceExpressionVisitor(selector.Parameters[0], Expression.Property(group, nameof(IGrouping<K, Q>.Key)))
+            .Visit(selector.Body)!;
+
+        body = new ReplaceExpressionVisitor(selector.Parameters[1], ComposeEnumerable(Shape, group)).Visit(body)!;
+        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
+        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
+
+        return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, group);
     }
     #endregion
 
