@@ -26,7 +26,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         Expression<Func<Q, Q>> element = q => q;
 
-        return CreateProjectedGroupQuery(
+        return ProjectedGroupQueryBuilder.Create(
             Source,
             Translate(key),
             element,
@@ -44,24 +44,10 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var translatedElement = Translate(elementSelector);
         var shape = TranslateElementGroup(resultsSelector);
 
-        return CreateProjectedGroupQuery(Source, translatedKey, translatedElement, shape);
+        return ProjectedGroupQueryBuilder.Create(Source, translatedKey, translatedElement, shape);
     }
 
     #region Helpers
-
-    private static Expression<Func<K, IEnumerable<T>, R>> TranslateGroupSelector<K, R>(Expression<Func<IGrouping<K, T>, R>> selector)
-    {
-        var key = Expression.Parameter(typeof(K), "key");
-        var items = Expression.Parameter(typeof(IEnumerable<T>), selector.Parameters[0].Name);
-
-        var body = new GroupSelectorToResultsSelectorVisitor<K, T>(selector.Parameters[0], key, items)
-            .Visit(selector.Body)!;
-
-        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
-        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
-
-        return Expression.Lambda<Func<K, IEnumerable<T>, R>>(body, key, items);
-    }
 
     private Expression<Func<IGrouping<K, Q>, R>> TranslateGroup<K, R>(Expression<Func<IGrouping<K, T>, R>> selector)
     {
@@ -87,99 +73,83 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 
         return Expression.Lambda<Func<IGrouping<K, E>, R>>(body, group);
     }
+    #endregion
 
-    private sealed class GroupSelectorToResultsSelectorVisitor<K, E>(
-        ParameterExpression group,
-        ParameterExpression key,
-        ParameterExpression items) : ExpressionVisitor
+    private static class ProjectedGroupQueryBuilder
     {
-        protected override Expression VisitParameter(ParameterExpression node) =>
-            node == group ? items : base.VisitParameter(node);
-
-        protected override Expression VisitMember(MemberExpression node)
+        public static IQuery<R> Create<K, E, R>(
+            IQueryable<Q> source,
+            Expression<Func<Q, K>> key,
+            Expression<Func<Q, E>> element,
+            Expression<Func<IGrouping<K, E>, R>> shape)
         {
-            if (node.Member.Name == nameof(IGrouping<K, E>.Key) &&
-                node.Expression == group)
-            {
-                return key;
-            }
+            var loweredKey = TupleProjection.Lower(key.Body);
+            var keyLambda = Expression.Lambda(
+                typeof(Func<,>).MakeGenericType(typeof(Q), loweredKey.Type),
+                loweredKey,
+                key.Parameters);
 
-            return base.VisitMember(node);
+            var group = Expression.Parameter(typeof(IGrouping<,>).MakeGenericType(loweredKey.Type, typeof(E)), shape.Parameters[0].Name);
+            var keyShape = TupleProjection.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
+            var publicShapeBody = new GroupKeyProjectionVisitor(shape.Parameters[0], group, keyShape).Visit(shape.Body)!;
+
+            publicShapeBody = new ValueTupleCreateToCtorVisitor().Visit(publicShapeBody)!;
+            publicShapeBody = new TupleAccessSimplifyingVisitor().Visit(publicShapeBody)!;
+
+            var loweredResult = TupleProjection.Lower(publicShapeBody);
+            var projectionLambda = Expression.Lambda(
+                typeof(Func<,>).MakeGenericType(group.Type, loweredResult.Type),
+                loweredResult,
+                group);
+
+            var carrier = Expression.Parameter(loweredResult.Type, "p");
+            var rebuilt = TupleProjection.Rebuild(carrier, typeof(R));
+            var shapeLambda = Expression.Lambda(
+                typeof(Func<,>).MakeGenericType(loweredResult.Type, typeof(R)),
+                rebuilt,
+                carrier);
+
+            return (IQuery<R>)CreateProjectedGroupQueryMethod
+                .MakeGenericMethod(loweredKey.Type, typeof(E), typeof(R), loweredResult.Type)
+                .Invoke(null, [source, keyLambda, element, projectionLambda, shapeLambda])!;
         }
-    }
 
-    private static IQuery<R> CreateProjectedGroupQuery<K, E, R>(
-        IQueryable<Q> source,
-        Expression<Func<Q, K>> key,
-        Expression<Func<Q, E>> element,
-        Expression<Func<IGrouping<K, E>, R>> shape)
-    {
-        var loweredKey = TupleProjection.Lower(key.Body);
-        var keyLambda = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(typeof(Q), loweredKey.Type),
-            loweredKey,
-            key.Parameters);
-
-        var group = Expression.Parameter(typeof(IGrouping<,>).MakeGenericType(loweredKey.Type, typeof(E)), shape.Parameters[0].Name);
-        var keyShape = TupleProjection.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
-        var publicShapeBody = new GroupKeyProjectionVisitor(shape.Parameters[0], group, keyShape).Visit(shape.Body)!;
-
-        publicShapeBody = new ValueTupleCreateToCtorVisitor().Visit(publicShapeBody)!;
-        publicShapeBody = new TupleAccessSimplifyingVisitor().Visit(publicShapeBody)!;
-
-        var loweredResult = TupleProjection.Lower(publicShapeBody);
-        var projectionLambda = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(group.Type, loweredResult.Type),
-            loweredResult,
-            group);
-
-        var carrier = Expression.Parameter(loweredResult.Type, "p");
-        var rebuilt = TupleProjection.Rebuild(carrier, typeof(R));
-        var shapeLambda = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(loweredResult.Type, typeof(R)),
-            rebuilt,
-            carrier);
-
-        return (IQuery<R>)CreateProjectedGroupQueryMethod
-            .MakeGenericMethod(loweredKey.Type, typeof(E), typeof(R), loweredResult.Type)
-            .Invoke(null, [source, keyLambda, element, projectionLambda, shapeLambda])!;
-    }
-
-    private static DeferredQuery<R, C> CreateProjectedGroupQuery<KInternal, E, R, C>(
-        IQueryable<Q> source,
-        LambdaExpression key,
-        Expression<Func<Q, E>> element,
-        LambdaExpression projection,
-        LambdaExpression shape)
-    {
-        return new DeferredQuery<R, C>(
-            source
-                .GroupBy((Expression<Func<Q, KInternal>>)key, element)
-                .Select((Expression<Func<IGrouping<KInternal, E>, C>>)projection),
-            (Expression<Func<C, R>>)shape);
-    }
-
-    private static readonly MethodInfo CreateProjectedGroupQueryMethod =
-        typeof(DeferredQuery<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(m => m.Name == nameof(CreateProjectedGroupQuery) && m.GetGenericArguments().Length == 4);
-
-    private sealed class GroupKeyProjectionVisitor(
-        ParameterExpression publicGroup,
-        ParameterExpression internalGroup,
-        Expression keyShape) : ExpressionVisitor
-    {
-        protected override Expression VisitParameter(ParameterExpression node) =>
-            node == publicGroup ? internalGroup : base.VisitParameter(node);
-
-        protected override Expression VisitMember(MemberExpression node)
+        private static DeferredQuery<R, C> CreateProjectedGroupQuery<KInternal, E, R, C>(
+            IQueryable<Q> source,
+            LambdaExpression key,
+            Expression<Func<Q, E>> element,
+            LambdaExpression projection,
+            LambdaExpression shape)
         {
-            if (node.Expression == publicGroup &&
-                node.Member.Name == nameof(IGrouping<int, int>.Key))
-            {
-                return keyShape;
-            }
+            return new DeferredQuery<R, C>(
+                source
+                    .GroupBy((Expression<Func<Q, KInternal>>)key, element)
+                    .Select((Expression<Func<IGrouping<KInternal, E>, C>>)projection),
+                (Expression<Func<C, R>>)shape);
+        }
 
-            return base.VisitMember(node);
+        private static readonly MethodInfo CreateProjectedGroupQueryMethod =
+            typeof(ProjectedGroupQueryBuilder).GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
+                .Single(m => m.Name == nameof(CreateProjectedGroupQuery) && m.GetGenericArguments().Length == 4);
+
+        private sealed class GroupKeyProjectionVisitor(
+            ParameterExpression publicGroup,
+            ParameterExpression internalGroup,
+            Expression keyShape) : ExpressionVisitor
+        {
+            protected override Expression VisitParameter(ParameterExpression node) =>
+                node == publicGroup ? internalGroup : base.VisitParameter(node);
+
+            protected override Expression VisitMember(MemberExpression node)
+            {
+                if (node.Expression == publicGroup &&
+                    node.Member.Name == nameof(IGrouping<int, int>.Key))
+                {
+                    return keyShape;
+                }
+
+                return base.VisitMember(node);
+            }
         }
     }
 
@@ -244,5 +214,4 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             return definition.MakeGenericType(arguments);
         }
     }
-    #endregion
 }
