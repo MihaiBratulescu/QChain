@@ -248,10 +248,16 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
                     g.Count(o => o.Total > 50),
                     g.Max(o => o.AccountId)))
             .Where(g => g.Item2 > 0)
-            .OrderBy(g => g.Item1));
+            .OrderBy(g => g.Item1)
+            .ThenBy(g => g.Item7));
 
         Assert.NotEmpty(rows);
-        Assert.All(rows, x => Assert.True(x.Item2 > 0));
+        Assert.All(rows, x =>
+        {
+            Assert.True(x.Item2 > 0);
+            Assert.True(x.Item6 >= 0);
+            Assert.True(x.Item7 > 0);
+        });
     }
 
     [Fact]
@@ -271,6 +277,7 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
             .Where(g => g.Item2 > 0)
             .OrderBy(g => g.Item1.Item1)
             .ThenBy(g => g.Item1.Item2)
+            .ThenBy(g => g.Item1.Item7)
             .Join(
                 q.Currencies,
                 g => g.Item1.Item1,
@@ -283,5 +290,60 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
             Assert.True(x.Item2 > 0);
             Assert.Equal(x.Item1.Item1, x.Item3.CurrencyId);
         });
+    }
+
+    [Fact]
+    public async Task TupleArity8_Grouping_Throws()
+    {
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(() => Query(q => q.Orders
+            .GroupBy(
+                o => o.CurrencyId,
+                g => ValueTuple.Create(
+                    g.Key,
+                    g.Count(),
+                    g.Sum(o => o.Total),
+                    g.Min(o => o.Total),
+                    g.Max(o => o.Total),
+                    g.Count(o => o.Total > 50),
+                    g.Max(o => o.AccountId),
+                    g.Min(o => o.AccountId)))));
+
+        Assert.Equal("ValueTuple arity > 7 not supported yet.", exception.Message);
+    }
+
+    [Fact]
+    public async Task NestedTuple_Grouping_Select()
+    {
+        var rows = await Query(q => q.Orders
+            .GroupBy(
+                o => ValueTuple.Create(o.CurrencyId, o.AccountId),
+                g => ValueTuple.Create(
+                    ValueTuple.Create(g.Key.Item1, g.Key.Item2),
+                    ValueTuple.Create(g.Count(), g.Sum(o => o.Total))))
+            .Where(g => g.Item2.Item1 > 0)
+            .OrderBy(g => g.Item1.Item1)
+            .Select(g => ValueTuple.Create(g.Item1.Item1, g.Item1.Item2, g.Item2.Item1, g.Item2.Item2)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.True(x.Item3 > 0));
+    }
+
+    [Fact]
+    public async Task ObjectContainingTuple_Grouping_Select()
+    {
+        var rows = await Query(q => q.Orders
+            .GroupBy(
+                o => o.CurrencyId,
+                g => new
+                {
+                    Key = ValueTuple.Create(g.Key, g.Max(o => o.AccountId)),
+                    Count = g.Count()
+                })
+            .Where(g => g.Count > 0)
+            .OrderBy(g => g.Key.Item1)
+            .Select(g => ValueTuple.Create(g.Key.Item1, g.Key.Item2, g.Count)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.True(x.Item3 > 0));
     }
 }

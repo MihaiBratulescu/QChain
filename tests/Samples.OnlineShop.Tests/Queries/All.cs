@@ -71,11 +71,11 @@ public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
                 .Distinct()
                 .Join(db.Orders, x => x, o => o.AccountId));
 
-        (CurrencyType ct, int accountId, IEnumerable<(Order, Account)>)[] group = 
+        (CurrencyType ct, int accountId, (Order, Account)[])[] group = 
             await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .GroupBy(a => ValueTuple.Create(a.Item1.CurrencyId, a.Item2.AccountId))
-                .Select(j => ValueTuple.Create(j.Key.Item1, j.Key.Item2, j.Items)));
+                .Select(j => ValueTuple.Create(j.Key.Item1, j.Key.Item2, j.ToArray())));
         //.Join(db.Currencies, j => j.Item1, c => c.CurrencyId, (j, c) =>
         //ValueTuple.Create(j.Item1, j.Item2, j.Item3, c))
 

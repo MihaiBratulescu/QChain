@@ -22,8 +22,7 @@ internal static class ProjectedGroupQueryBuilder<T, Q>
         var keyShape = TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
         var publicShapeBody = new GroupKeyProjectionVisitor(shape.Parameters[0], group, keyShape).Visit(shape.Body)!;
 
-        publicShapeBody = new ValueTupleCreateToCtorVisitor().Visit(publicShapeBody)!;
-        publicShapeBody = new TupleAccessSimplifyingVisitor().Visit(publicShapeBody)!;
+        publicShapeBody = TupleExpressionNormalizer.Normalize(publicShapeBody);
 
         var loweredResult = TupleProjection<T, Q>.Lower(publicShapeBody);
         var projectionLambda = Expression.Lambda(

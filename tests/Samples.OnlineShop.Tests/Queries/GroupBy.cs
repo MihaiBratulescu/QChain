@@ -3,38 +3,38 @@ using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
 
-public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
     public async Task OnTable()
     {
-        (string? name, IEnumerable<Account> accounts)[] result = await Query(q =>
+        var result = await Query(q =>
             q.Accounts.GroupBy(a => a.Email));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.name, a.Email)));
+        Assert.All(result, q => Assert.All(q, a => Assert.Equal(q.Key, a.Email)));
     }
 
     [Fact]
     public async Task OnTuple()
     {
-        (string? name, IEnumerable<(string? name, bool isActive)> accounts)[] result = await Query(q =>
+        var result = await Query(q =>
             q.Accounts
              .Select(a => ValueTuple.Create(a.Email, a.IsActive))
              .GroupBy(a => a.Item1));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.name, a.name)));
+        Assert.All(result, q => Assert.All(q, a => Assert.Equal(q.Key, a.Item1)));
     }
 
     [Fact]
     public async Task TupleKey()
     {
-        ((string? name, bool isActive) key, IEnumerable<Account> accounts)[] result = await Query(q =>
+        var result = await Query(q =>
             q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive)));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.All(q.accounts, a => Assert.Equal(q.key.name, a.Email)));
+        Assert.All(result, q => Assert.All(q, a => Assert.Equal(q.Key.Item1, a.Email)));
     }
 
     [Fact]
@@ -72,10 +72,9 @@ public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIn
     [Fact]
     public async Task Join_GroupOnTupleKey()
     {
-        ((CurrencyType currencyId, int accountId) Key, IEnumerable<(Order, Account)> Items)[] result =
-            await Query(q => q.Orders
-                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
-                .GroupBy(x => ValueTuple.Create(x.Item1.CurrencyId, x.Item2.AccountId)));
+        var result = await Query(q => q.Orders
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+            .GroupBy(x => ValueTuple.Create(x.Item1.CurrencyId, x.Item2.AccountId)));
 
         Assert.NotEmpty(result);
     }
@@ -83,10 +82,9 @@ public class GroupBy(SqliteFixture fixture, ITestOutputHelper output) : QChainIn
     [Fact]
     public async Task Join_GroupOnTupleKey_ValueTuple()
     {
-        ((CurrencyType currencyId, int accountId) Key, IEnumerable<(Order, Account)> Items)[] result =
-            await Query(q => q.Orders
-                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
-                .GroupBy(x => new ValueTuple<CurrencyType, int>(x.Item1.CurrencyId, x.Item2.AccountId)));
+        var result = await Query(q => q.Orders
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+            .GroupBy(x => new ValueTuple<CurrencyType, int>(x.Item1.CurrencyId, x.Item2.AccountId)));
 
         Assert.NotEmpty(result);
     }

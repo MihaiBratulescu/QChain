@@ -27,8 +27,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         var body = new ProjectionInliningVisitor(expression.Parameters[0], Shape.Body).Visit(expression.Body)!;
 
-        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
-        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
+        body = TupleExpressionNormalizer.Normalize(body);
 
         return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
     }
@@ -38,8 +37,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         var body = ReplaceExpressionVisitor.Replace(outer.Body, outer.Parameters[0], inner.Body);
 
-        body = new ValueTupleCreateToCtorVisitor().Visit(body)!;
-        body = new TupleAccessSimplifyingVisitor().Visit(body)!;
+        body = TupleExpressionNormalizer.Normalize(body);
 
         return Expression.Lambda<Func<TSource, TResult>>(body, inner.Parameters);
     }

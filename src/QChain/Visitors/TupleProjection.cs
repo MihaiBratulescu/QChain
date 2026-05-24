@@ -1,5 +1,6 @@
 using QChain.Internal;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace QChain.Visitors;
 
@@ -8,7 +9,7 @@ internal static class TupleProjection<T, Q>
     public static Expression Lower(Expression expression)
     {
         if (!TryGetValueTupleItems(expression.Type, out var itemTypes))
-            return expression;
+            return LowerObjectProjection(expression);
 
         var items = itemTypes
             .Select((_, index) => Lower(GetTupleItem(expression, index + 1)))
@@ -20,13 +21,43 @@ internal static class TupleProjection<T, Q>
     public static Expression Rebuild(Expression expression, Type targetType)
     {
         if (!TryGetValueTupleItems(targetType, out var itemTypes))
-            return expression;
+            return RebuildObjectProjection(expression, targetType);
 
         var items = ReadProjectionTree(expression, itemTypes.Length)
             .Select((item, index) => Rebuild(item, itemTypes[index]))
             .ToArray();
 
         return Expression.New(targetType.GetConstructor(itemTypes)!, items);
+    }
+
+    private static Expression LowerObjectProjection(Expression expression)
+    {
+        if (expression is not NewExpression { Members: not null } ne ||
+            ne.Arguments.Count < 2)
+        {
+            return expression;
+        }
+
+        var items = ne.Arguments.Select(Lower).ToArray();
+        if (!items.Where((item, index) => item.Type != ne.Arguments[index].Type).Any())
+            return expression;
+
+        return BuildProjectionTree(items);
+    }
+
+    private static Expression RebuildObjectProjection(Expression expression, Type targetType)
+    {
+        if (!TryGetConstructorProjection(targetType, out var constructor, out var members) ||
+            !IsProjectionType(expression.Type))
+        {
+            return expression;
+        }
+
+        var items = ReadProjectionTree(expression, members.Length)
+            .Select((item, index) => Rebuild(item, GetMemberType(members[index])))
+            .ToArray();
+
+        return Expression.New(constructor, items, members);
     }
 
     private static Expression GetTupleItem(Expression tuple, int item)
@@ -93,11 +124,60 @@ internal static class TupleProjection<T, Q>
 
     private static Type MakeProjectionType(Type left, Type right)
     {
-        var definition = typeof(Projection<int, int>).GetGenericTypeDefinition();
-        var arguments = definition.GetGenericArguments().Length == 2
-            ? [left, right]
-            : new[] { typeof(T), typeof(Q), left, right };
-
-        return definition.MakeGenericType(arguments);
+        return typeof(Projection<,>).MakeGenericType(left, right);
     }
+
+    private static bool IsProjectionType(Type type) =>
+        type.IsGenericType &&
+        type.GetGenericTypeDefinition() == typeof(Projection<,>);
+
+    private static bool TryGetConstructorProjection(Type type, out ConstructorInfo constructor, out MemberInfo[] members)
+    {
+        constructor = null!;
+        members = [];
+
+        var properties = type
+            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+            .Where(p => p.GetMethod is not null)
+            .ToDictionary(p => p.Name, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var candidate in type.GetConstructors())
+        {
+            var parameters = candidate.GetParameters();
+            if (parameters.Length < 2)
+                continue;
+
+            var candidateMembers = new MemberInfo[parameters.Length];
+            var matches = true;
+
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                if (!properties.TryGetValue(parameters[i].Name!, out var property) ||
+                    property.PropertyType != parameters[i].ParameterType)
+                {
+                    matches = false;
+                    break;
+                }
+
+                candidateMembers[i] = property;
+            }
+
+            if (!matches)
+                continue;
+
+            constructor = candidate;
+            members = candidateMembers;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static Type GetMemberType(MemberInfo member) =>
+        member switch
+        {
+            PropertyInfo property => property.PropertyType,
+            FieldInfo field => field.FieldType,
+            _ => throw new NotSupportedException($"Unsupported projection member '{member.Name}'.")
+        };
 }
