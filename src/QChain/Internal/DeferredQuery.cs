@@ -1,5 +1,4 @@
 ﻿using QChain.Visitors;
-using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain.Internal;
@@ -47,15 +46,17 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 
     #endregion
 
-    private readonly struct Pair<T1, T2>
-    {
-        public required T1 Left { get; init; }
-        public required T2 Right { get; init; }
-    }
+    
+}
 
-    private readonly struct Projection<T1, T2>
-    {
-        public required T1 Item1 { get; init; }
-        public required T2 Item2 { get; init; }
-    }
+internal readonly struct Pair<T1, T2>
+{
+    public required T1 Left { get; init; }
+    public required T2 Right { get; init; }
+}
+
+internal readonly struct Projection<T1, T2>
+{
+    public required T1 Item1 { get; init; }
+    public required T2 Item2 { get; init; }
 }
