@@ -44,8 +44,6 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     }
 
     #endregion
-
-    
 }
 
 internal readonly struct Pair<T1, T2>
@@ -58,15 +56,6 @@ internal readonly struct Projection<T1, T2>
 {
     public required T1 Item1 { get; init; }
     public required T2 Item2 { get; init; }
-}
-
-internal sealed class GroupingValue<K, E> : IGrouping<K, E>
-{
-    public required K Key { get; init; }
-    public required IEnumerable<E> Items { get; init; }
-
-    public IEnumerator<E> GetEnumerator() => Items.GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
 internal sealed class ShapedGroupingValue<KInternal, K, EInternal, E> : IGrouping<K, E>

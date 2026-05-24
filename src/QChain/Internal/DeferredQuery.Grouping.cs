@@ -11,21 +11,18 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     {
         Expression<Func<Q, Q>> element = q => q;
 
-        return RawGroupedQueryBuilder<T, Q>.Create(
-            Source,
-            TranslateGroupingKey(selector),
-            element,
-            Shape);
+        return CreateRawGroup(TranslateGroupingKey(selector), element, Shape);
     }
 
     //IQueryable<IGrouping<TKey, TElement>> GroupBy<TSource, TKey, TElement>
     public IQuery<IGrouping<K, E>> GroupBy<K, E>(Expression<Func<T, K>> selector, Expression<Func<T, E>> elementSelector)
     {
-        return RawGroupedQueryBuilder<T, Q>.Create(
-            Source,
+        Expression<Func<E, E>> elementShape = e => e;
+
+        return CreateRawGroup(
             TranslateGroupingKey(selector),
             TranslateGroupingElement(elementSelector),
-            e => e);
+            elementShape);
     }
 
     //NEW
@@ -114,109 +111,63 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 
         return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, group);
     }
-    #endregion
-}
 
-
-
-internal sealed class GroupedQueryResult<K, KInternal, E, EInternal, T, Q>
-    : DeferredQuery<IGrouping<K, E>, Pair<KInternal, EInternal[]>>
-{
-    private readonly IQueryable<Q> _source;
-    private readonly Expression<Func<Q, K>> _key;
-    private readonly Expression<Func<Q, EInternal>> _element;
-    private readonly Expression<Func<EInternal, E>> _elementShape;
-
-    internal GroupedQueryResult(
-        IQueryable<Pair<KInternal, EInternal[]>> source,
-        IQueryable<Q> originalSource,
+    private IQuery<IGrouping<K, E>> CreateRawGroup<K, E, QG>(
         Expression<Func<Q, K>> key,
-        Expression<Func<Q, EInternal>> element,
-        Expression<Func<EInternal, E>> elementShape,
-        Expression<Func<Pair<KInternal, EInternal[]>, IGrouping<K, E>>> shape) : base(source, shape)
+        Expression<Func<Q, QG>> element,
+        Expression<Func<QG, E>> elementShape)
     {
-        _source = originalSource;
-        _key = key;
-        _element = element;
-        _elementShape = elementShape;
-    }
-
-    public override IQuery<R> Select<R>(Expression<Func<IGrouping<K, E>, R>> mapping)
-    {
-        var group = Expression.Parameter(typeof(IGrouping<K, EInternal>), mapping.Parameters[0].Name);
-        var body = new GroupTranslateVisitor<K, EInternal, E>(group, mapping.Parameters[0], _elementShape)
-            .Visit(mapping.Body);
-        body = TupleExpressionNormalizer.Normalize(body!);
-
-        var shape = Expression.Lambda<Func<IGrouping<K, EInternal>, R>>(body, group);
-
-        return ProjectedGroupQueryBuilder<T, Q>.Create(_source, _key, _element, shape);
-    }
-}
-
-internal static class RawGroupedQueryBuilder<T, Q>
-{
-    public static IQuery<IGrouping<K, E>> Create<K, E, EInternal>(
-        IQueryable<Q> source,
-        Expression<Func<Q, K>> key,
-        Expression<Func<Q, EInternal>> element,
-        Expression<Func<EInternal, E>> elementShape)
-    {
-        var loweredKey = TupleProjection<T, Q>.Lower(key.Body);
-        var keyLambda = Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(typeof(Q), loweredKey.Type),
-            loweredKey,
+        var keyQ = TupleProjection<T, Q>.Lower(key.Body);
+        var keyQLambda = Expression.Lambda(
+            typeof(Func<,>).MakeGenericType(typeof(Q), keyQ.Type),
+            keyQ,
             key.Parameters);
 
-        return (IQuery<IGrouping<K, E>>)CreateRawGroupedQueryMethod
-            .MakeGenericMethod(typeof(K), loweredKey.Type, typeof(E), typeof(EInternal))
-            .Invoke(null, [source, key, keyLambda, element, elementShape])!;
+        return (IQuery<IGrouping<K, E>>)CreateRawGroupTypedMethod
+            .MakeGenericMethod(typeof(K), keyQ.Type, typeof(E), typeof(QG))
+            .Invoke(this, [key, keyQLambda, element, elementShape])!;
     }
 
-    private static GroupedQueryResult<K, KInternal, E, EInternal, T, Q> CreateRawGroupedQuery<K, KInternal, E, EInternal>(
-        IQueryable<Q> source,
+    private GroupedQueryResult<K, KQ, E, QG, T, Q> CreateRawGroupTyped<K, KQ, E, QG>(
         Expression<Func<Q, K>> key,
-        LambdaExpression loweredKey,
-        Expression<Func<Q, EInternal>> element,
-        Expression<Func<EInternal, E>> elementShape)
+        LambdaExpression keyQ,
+        Expression<Func<Q, QG>> element,
+        Expression<Func<QG, E>> elementShape)
     {
-        var group = Expression.Parameter(typeof(IGrouping<KInternal, EInternal>), "g");
-        var projection = Expression.Lambda<Func<IGrouping<KInternal, EInternal>, Pair<KInternal, EInternal[]>>>(
+        var group = Expression.Parameter(typeof(IGrouping<KQ, QG>), "g");
+        var pair = Expression.Lambda<Func<IGrouping<KQ, QG>, Pair<KQ, QG[]>>>(
             Expression.MemberInit(
-                Expression.New(typeof(Pair<KInternal, EInternal[]>)),
+                Expression.New(typeof(Pair<KQ, QG[]>)),
                 Expression.Bind(
-                    typeof(Pair<KInternal, EInternal[]>).GetProperty(nameof(Pair<int, int>.Left))!,
+                    typeof(Pair<KQ, QG[]>).GetProperty(nameof(Pair<int, int>.Left))!,
                     Expression.Property(group, nameof(IGrouping<int, int>.Key))),
                 Expression.Bind(
-                    typeof(Pair<KInternal, EInternal[]>).GetProperty(nameof(Pair<int, int>.Right))!,
-                    Expression.Call(EnumerableToArrayMethod.MakeGenericMethod(typeof(EInternal)), group))),
+                    typeof(Pair<KQ, QG[]>).GetProperty(nameof(Pair<int, int>.Right))!,
+                    Expression.Call(EnumerableToArrayMethod.MakeGenericMethod(typeof(QG)), group))),
             group);
+        var translateShape = CreateRawGroupShape<K, KQ, E, QG>(elementShape);
 
-        var grouped = source
-            .GroupBy((Expression<Func<Q, KInternal>>)loweredKey, element)
-            .Select(projection);
-
-        return new GroupedQueryResult<K, KInternal, E, EInternal, T, Q>(
-            grouped,
-            source,
+        return new GroupedQueryResult<K, KQ, E, QG, T, Q>(
+            Source.GroupBy((Expression<Func<Q, KQ>>)keyQ, element).Select(pair),
+            Source,
             key,
             element,
             elementShape,
-            CreateShape<K, KInternal, E, EInternal>(elementShape));
+            translateShape);
     }
 
-    private static Expression<Func<Pair<KInternal, EInternal[]>, IGrouping<K, E>>> CreateShape<K, KInternal, E, EInternal>(
-        Expression<Func<EInternal, E>> elementShape)
+    private static Expression<Func<Pair<KQ, QG[]>, IGrouping<K, E>>> CreateRawGroupShape<K, KQ, E, QG>(
+        Expression<Func<QG, E>> elementShape)
     {
-        var pair = Expression.Parameter(typeof(Pair<KInternal, EInternal[]>), "p");
-        var internalKey = Expression.Property(pair, nameof(Pair<int, int>.Left));
-        Expression internalItems = Expression.Property(pair, nameof(Pair<int, int>.Right));
+        var pair = Expression.Parameter(typeof(Pair<KQ, QG[]>), "p");
+        var keyQ = Expression.Property(pair, nameof(Pair<int, int>.Left));
+        var itemsQ = Expression.Property(pair, nameof(Pair<int, int>.Right));
 
-        var key = Expression.Parameter(typeof(KInternal), "k");
-        var keyShape = Expression.Lambda<Func<KInternal, K>>(
+        var key = Expression.Parameter(typeof(KQ), "k");
+        var keyShape = Expression.Lambda<Func<KQ, K>>(
             TupleProjection<T, Q>.Rebuild(key, typeof(K)),
             key);
-        var holder = new GroupingShapeHolder<KInternal, K, EInternal, E>
+        var holder = new GroupingShapeHolder<KQ, K, QG, E>
         {
             KeyShape = keyShape.Compile(),
             ElementShape = elementShape.Compile()
@@ -224,19 +175,19 @@ internal static class RawGroupedQueryBuilder<T, Q>
         var holderExpression = Expression.Constant(holder);
 
         var groupingType = typeof(ShapedGroupingValue<,,,>).MakeGenericType(
-            typeof(KInternal),
+            typeof(KQ),
             typeof(K),
-            typeof(EInternal),
+            typeof(QG),
             typeof(E));
 
         var body = Expression.MemberInit(
             Expression.New(groupingType),
             Expression.Bind(
                 groupingType.GetProperty(nameof(ShapedGroupingValue<int, int, int, int>.InternalKey))!,
-                internalKey),
+                keyQ),
             Expression.Bind(
                 groupingType.GetProperty(nameof(ShapedGroupingValue<int, int, int, int>.InternalItems))!,
-                internalItems),
+                itemsQ),
             Expression.Bind(
                 groupingType.GetProperty(nameof(ShapedGroupingValue<int, int, int, int>.KeyShape))!,
                 Expression.Property(holderExpression, nameof(GroupingShapeHolder<int, int, int, int>.KeyShape))),
@@ -244,7 +195,7 @@ internal static class RawGroupedQueryBuilder<T, Q>
                 groupingType.GetProperty(nameof(ShapedGroupingValue<int, int, int, int>.ElementShape))!,
                 Expression.Property(holderExpression, nameof(GroupingShapeHolder<int, int, int, int>.ElementShape))));
 
-        return Expression.Lambda<Func<Pair<KInternal, EInternal[]>, IGrouping<K, E>>>(
+        return Expression.Lambda<Func<Pair<KQ, QG[]>, IGrouping<K, E>>>(
             Expression.Convert(body, typeof(IGrouping<K, E>)),
             pair);
     }
@@ -254,7 +205,43 @@ internal static class RawGroupedQueryBuilder<T, Q>
                      m.IsGenericMethodDefinition &&
                      m.GetParameters().Length == 1);
 
-    private static readonly MethodInfo CreateRawGroupedQueryMethod =
-        typeof(RawGroupedQueryBuilder<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Static)
-            .Single(m => m.Name == nameof(CreateRawGroupedQuery) && m.GetGenericArguments().Length == 4);
+    private static readonly MethodInfo CreateRawGroupTypedMethod =
+        typeof(DeferredQuery<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Single(m => m.Name == nameof(CreateRawGroupTyped) && m.GetGenericArguments().Length == 4);
+    #endregion
+}
+
+internal sealed class GroupedQueryResult<K, KQ, E, QG, T, Q>
+    : DeferredQuery<IGrouping<K, E>, Pair<KQ, QG[]>>
+{
+    private readonly IQueryable<Q> _source;
+    private readonly Expression<Func<Q, K>> _key;
+    private readonly Expression<Func<Q, QG>> _element;
+    private readonly Expression<Func<QG, E>> _elementShape;
+
+    internal GroupedQueryResult(
+        IQueryable<Pair<KQ, QG[]>> source,
+        IQueryable<Q> originalSource,
+        Expression<Func<Q, K>> key,
+        Expression<Func<Q, QG>> element,
+        Expression<Func<QG, E>> elementShape,
+        Expression<Func<Pair<KQ, QG[]>, IGrouping<K, E>>> shape) : base(source, shape)
+    {
+        _source = originalSource;
+        _key = key;
+        _element = element;
+        _elementShape = elementShape;
+    }
+
+    public override IQuery<R> Select<R>(Expression<Func<IGrouping<K, E>, R>> mapping)
+    {
+        var group = Expression.Parameter(typeof(IGrouping<K, QG>), mapping.Parameters[0].Name);
+        var body = new GroupTranslateVisitor<K, QG, E>(group, mapping.Parameters[0], _elementShape)
+            .Visit(mapping.Body);
+        body = TupleExpressionNormalizer.Normalize(body!);
+
+        var shape = Expression.Lambda<Func<IGrouping<K, QG>, R>>(body, group);
+
+        return ProjectedGroupQueryBuilder<T, Q>.Create(_source, _key, _element, shape);
+    }
 }

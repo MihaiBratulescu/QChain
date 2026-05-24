@@ -9,10 +9,10 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     public virtual IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
        new DeferredQuery<R, Q>(Source, Compose(mapping, Shape));
 
-    public virtual IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
+    public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         FlattenPreservingShape<R>(Translate(collectionSelector));
 
-    public virtual IQuery<R> SelectMany<C, R>(Expression<Func<T, IEnumerable<C>>> collectionSelector,
+    public IQuery<R> SelectMany<C, R>(Expression<Func<T, IEnumerable<C>>> collectionSelector,
                                               Expression<Func<T, C, R>> resultSelector)
     {
         var source = Source.SelectMany(
