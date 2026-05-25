@@ -24,14 +24,8 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
 
     #region Helpers
     private Expression<Func<Q, TResult>> Translate<TResult>(
-        Expression<Func<T, TResult>> expression)
-    {
-        var body = new ProjectionInliningVisitor(expression.Parameters[0], Shape.Body).Visit(expression.Body)!;
-
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Q, TResult>>(body, Shape.Parameters);
-    }
+        Expression<Func<T, TResult>> expression) =>
+        Compose(expression, Shape);
 
     private static Expression<Func<TSource, TResult>> Compose<TSource, TMiddle, TResult>(
         Expression<Func<TMiddle, TResult>> outer, Expression<Func<TSource, TMiddle>> inner)

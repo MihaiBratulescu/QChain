@@ -88,17 +88,15 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var leftQ = Expression.PropertyOrField(pair, nameof(Pair<LQ, RQ>.Left));
         var rightQ = Expression.PropertyOrField(pair, nameof(Pair<LQ, RQ>.Right));
 
-        var left = new ReplaceExpressionVisitor(leftShape.Parameters[0], leftQ)
-            .Visit(leftShape.Body)!;
+        var left = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftQ);
 
-        var right = new ReplaceExpressionVisitor(rightShape.Parameters[0], rightQ)
-            .Visit(rightShape.Body)!;
+        var right = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightQ);
 
-        var body = new ReplaceExpressionVisitor(selector.Parameters[0], left)
-            .Visit(selector.Body)!;
-
-        body = new ReplaceExpressionVisitor(selector.Parameters[1], right)
-            .Visit(body)!;
+        var body = ReplaceExpressionVisitor.ReplaceMany(selector.Body, new Dictionary<Expression, Expression>
+        {
+            [selector.Parameters[0]] = left,
+            [selector.Parameters[1]] = right
+        });
 
         return Expression.Lambda<Func<Pair<LQ, RQ>, TResult>>(body, pair);
     }

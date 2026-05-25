@@ -66,18 +66,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     }
 
     private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(Expression<Func<T, IEnumerable<C>>> collectionSelector)
-    {
-        var q = Expression.Parameter(typeof(Q), collectionSelector.Parameters[0].Name);
-
-        var publicShape = ReplaceExpressionVisitor.Replace(
-            Shape.Body, Shape.Parameters[0], q);
-
-        var body = new ProjectionInliningVisitor(
-                collectionSelector.Parameters[0], publicShape)
-            .Visit(collectionSelector.Body)!;
-
-        return Expression.Lambda<Func<Q, IEnumerable<C>>>(body, q);
-    }
+        => Translate(collectionSelector);
 
     private Expression<Func<Pair<Q, C>, R>> TranslateSelectManyResult<C, R>(Expression<Func<T, C, R>> resultSelector)
     {
@@ -86,15 +75,14 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
         var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
 
-        var publicShape = ReplaceExpressionVisitor.Replace(
-            Shape.Body, Shape.Parameters[0], outerQ);
+        var publicShape = ReplaceExpressionVisitor.Replace(Shape.Body, Shape.Parameters[0], outerQ);
 
-        var body = new ProjectionInliningVisitor(
-                resultSelector.Parameters[0], publicShape)
-            .Visit(resultSelector.Body)!;
-
-        body = ReplaceExpressionVisitor.Replace(
-            body, resultSelector.Parameters[1], innerC);
+        var body = ReplaceExpressionVisitor.ReplaceMany(resultSelector.Body, new Dictionary<Expression, Expression>
+        {
+            [resultSelector.Parameters[0]] = publicShape,
+            [resultSelector.Parameters[1]] = innerC
+        });
+        body = TupleExpressionNormalizer.Normalize(body);
 
         return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
     }
