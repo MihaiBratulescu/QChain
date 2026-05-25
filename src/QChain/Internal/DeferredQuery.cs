@@ -65,9 +65,3 @@ internal sealed class ShapedGroupingValue<KInternal, K, EInternal, E> : IGroupin
     public IEnumerator<E> GetEnumerator() => InternalItems.Select(ElementShape).GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
-
-internal sealed class GroupingShapeHolder<KInternal, K, EInternal, E>
-{
-    public required Func<KInternal, K> KeyShape { get; init; }
-    public required Func<EInternal, E> ElementShape { get; init; }
-}
