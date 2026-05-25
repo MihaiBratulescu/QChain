@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace QChain;
 
-public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
 {
     public IQuery<T> Union(IQuery<T> other) =>
         SetOperation(other, SetOperationKind.Union);
@@ -18,7 +18,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     public IQuery<T> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
     {
-        var translated = Translate(keySelector);
+        var translated = QueryShape.Translate(keySelector);
         var parameter = translated.Parameters[0];
 
         var contains = Expression.Call(
@@ -31,7 +31,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         var predicate = Expression.Lambda<Func<Q, bool>>(
             Expression.Not(contains), parameter);
 
-        return new Query<T, Q>(Source.Where(predicate), Shape);
+        return new Query<T, Q>(QueryShape.Source.Where(predicate), QueryShape.Shape);
     }
 
     public IQuery<T> Intersect(IQuery<T> other) =>
@@ -39,7 +39,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 
     public IQuery<T> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
     {
-        var translated = Translate(keySelector);
+        var translated = QueryShape.Translate(keySelector);
 
         var contains = Expression.Call(
             typeof(Enumerable),
@@ -51,27 +51,27 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         var predicate = Expression.Lambda<Func<Q, bool>>(
             contains, translated.Parameters);
 
-        return new Query<T, Q>(Source.Where(predicate), Shape);
+        return new Query<T, Q>(QueryShape.Source.Where(predicate), QueryShape.Shape);
     }
 
     #region Helpers
     private IQuery<T> SetOperation(IQuery<T> other, SetOperationKind kind)
     {
-        var right = (other as IInternalQuery)!;
-        var carrier = TupleProjection<T, Q>.Lower(Shape.Body).Type;
-        var qr = right.UntypedShape.Parameters[0].Type;
+        var right = (other as IUntypedQuery)!;
+        var carrier = TupleProjection<T, Q>.Lower(QueryShape.Shape.Body).Type;
+        var qr = right.Untyped.UntypedShape.Parameters[0].Type;
 
         return (IQuery<T>)SetOperationTypedMethod
             .MakeGenericMethod(qr, carrier)
             .Invoke(this, [right, kind])!;
     }
 
-    private Query<T, C> SetOperationTyped<QR, C>(IInternalQuery rightUntyped, SetOperationKind kind)
+    private Query<T, C> SetOperationTyped<QR, C>(IUntypedQuery rightUntyped, SetOperationKind kind)
     {
-        var rightSource = (IQueryable<QR>)rightUntyped.UntypedSource;
-        var rightShape = (Expression<Func<QR, T>>)rightUntyped.UntypedShape;
+        var rightSource = (IQueryable<QR>)rightUntyped.Untyped.UntypedSource;
+        var rightShape = (Expression<Func<QR, T>>)rightUntyped.Untyped.UntypedShape;
 
-        var left = Source.Select(BuildCarrierShape<Q, C>(Shape));
+        var left = QueryShape.Source.Select(BuildCarrierShape<Q, C>(QueryShape.Shape));
         var right = rightSource.Select(BuildCarrierShape<QR, C>(rightShape));
 
         var source = kind switch

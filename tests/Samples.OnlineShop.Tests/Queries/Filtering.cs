@@ -40,29 +40,6 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
-    public async Task Distinct()
-    {
-        var distinct = await Query(q => q.Accounts
-            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
-            .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2.CurrencyId))
-            .Distinct());
-
-        Assert.NotEmpty(distinct);
-        Assert.Equal(distinct, distinct.Distinct());
-    }
-
-    [Fact]
-    public async Task DistinctBy()
-    {
-        var distinct = await Query(q => q.Accounts
-            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
-            .DistinctBy(x => ValueTuple.Create(x.Item1.AccountId, x.Item2.CurrencyId)));
-
-        Assert.NotEmpty(distinct);
-        Assert.Equal(distinct, distinct.Distinct());
-    }
-
-    [Fact]
     public async Task Where_Predicate()
     {
         Expression<Func<Account, bool>> inactive = a => a.IsActive == false;

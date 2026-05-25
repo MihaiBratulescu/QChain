@@ -255,4 +255,132 @@ public class Join(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
         Assert.NotEmpty(rows);
         Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
     }
+
+    [Fact]
+    public async Task Join_After_Distinct_With_Projected_Right_Side()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2.CurrencyId))
+            .Distinct()
+            .Join(
+                q.Orders.Select(o => new { o.AccountId, o.OrderId }),
+                x => x.Item1,
+                o => o.AccountId,
+                (x, o) => ValueTuple.Create(x.Item1, o.AccountId, o.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task GroupJoin_After_Distinct()
+    {
+        var rows = await Query(q => q.Accounts
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2.CurrencyId))
+            .Distinct()
+            .GroupJoin(
+                q.Orders,
+                x => x.Item1,
+                o => o.AccountId,
+                (x, orders) => ValueTuple.Create(x.Item1, orders.Count()))
+            .OrderBy(x => x.Item1));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.True(x.Item1 > 0));
+        Assert.All(rows, x => Assert.True(x.Item2 > 0));
+    }
+
+    [Fact]
+    public async Task Join_After_Union()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => new { a.AccountId, Label = a.Email })
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => new { a.AccountId, Label = a.Email }))
+                .Join(
+                    q.Orders,
+                    a => a.AccountId,
+                    o => o.AccountId,
+                    (a, o) => ValueTuple.Create(a.AccountId, o.AccountId, a.Label)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task GroupJoin_After_Union()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => new { a.AccountId, Label = a.Email })
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => new { a.AccountId, Label = a.Email }))
+                .GroupJoin(
+                    q.Orders,
+                    a => a.AccountId,
+                    o => o.AccountId,
+                    (a, orders) => ValueTuple.Create(a.AccountId, orders.Count()))
+                .OrderBy(x => x.Item1));
+
+        Assert.Equal([1, 2, 3, 4], rows.Select(x => x.Item1));
+        Assert.All(rows, x => Assert.True(x.Item2 >= 0));
+    }
+
+    [Fact]
+    public async Task Join_After_AnonymousProjection()
+    {
+        var rows = await Query(q => q.Accounts
+            .Select(a => new
+            {
+                Id = a.AccountId,
+                a.Email,
+                Active = a.IsActive
+            })
+            .Join(
+                q.Orders,
+                a => a.Id,
+                o => o.AccountId,
+                (a, o) => new
+                {
+                    a.Id,
+                    o.AccountId,
+                    o.OrderId,
+                    a.Active
+                }));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Id, x.AccountId));
+    }
+
+    [Fact]
+    public async Task GroupJoin_After_AnonymousProjection()
+    {
+        var rows = await Query(q => q.Accounts
+            .Select(a => new
+            {
+                Id = a.AccountId,
+                a.Email,
+                Active = a.IsActive
+            })
+            .GroupJoin(
+                q.Orders,
+                a => a.Id,
+                o => o.AccountId,
+                (a, orders) => new
+                {
+                    a.Id,
+                    Count = orders.Count()
+                })
+            .OrderBy(x => x.Id));
+
+        Assert.Equal(_fixture.db.Accounts.Select(a => a.AccountId).OrderBy(x => x).ToArray(), rows.Select(x => x.Id));
+        Assert.All(rows, x => Assert.True(x.Count >= 0));
+    }
 }

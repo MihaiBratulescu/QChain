@@ -6,14 +6,14 @@ using System.Reflection;
 
 namespace QChain;
 
-public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
 {
     //IQueryable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>
     public IQuery<IGrouping<K, T>> GroupBy<K>(Expression<Func<T, K>> selector)
     {
         Expression<Func<Q, Q>> element = q => q;
 
-        return CreateRawGroup(Translate(selector), element, Shape);
+        return CreateRawGroup(QueryShape.Translate(selector), element, QueryShape.Shape);
     }
 
     //IQueryable<IGrouping<TKey, TElement>> GroupBy<TSource, TKey, TElement>
@@ -22,8 +22,8 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         Expression<Func<E, E>> elementShape = e => e;
 
         return CreateRawGroup(
-            Translate(selector),
-            Translate(elementSelector),
+            QueryShape.Translate(selector),
+            QueryShape.Translate(elementSelector),
             elementShape);
     }
 
@@ -33,8 +33,8 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         Expression<Func<Q, Q>> element = q => q;
 
         return ProjectedGroupQueryBuilder<T, Q>.Create(
-            Source,
-            Translate(key),
+            QueryShape.Source,
+            QueryShape.Translate(key),
             element,
             TranslateGroup(selector));
     }
@@ -45,8 +45,8 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         Expression<Func<Q, Q>> element = q => q;
 
         return ProjectedGroupQueryBuilder<T, Q>.Create(
-            Source,
-            Translate(key),
+            QueryShape.Source,
+            QueryShape.Translate(key),
             element,
             TranslateInternalElementGroup(resultsSelector));
     }
@@ -54,11 +54,11 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     //IQueryable<TResult> GroupBy<TSource, TKey, TElement, TResult>
     public IQuery<R> GroupBy<K, E, R>(Expression<Func<T, K>> key, Expression<Func<T, E>> elementSelector, Expression<Func<K, IEnumerable<E>, R>> resultsSelector)
     {
-        var translatedKey = Translate(key);
-        var translatedElement = Translate(elementSelector);
+        var translatedKey = QueryShape.Translate(key);
+        var translatedElement = QueryShape.Translate(elementSelector);
         var shape = TranslateElementGroup(resultsSelector);
 
-        return ProjectedGroupQueryBuilder<T, Q>.Create(Source, translatedKey, translatedElement, shape);
+        return ProjectedGroupQueryBuilder<T, Q>.Create(QueryShape.Source, translatedKey, translatedElement, shape);
     }
 
     #region Helpers
@@ -66,7 +66,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     {
         var groupQ = Expression.Parameter(typeof(IGrouping<K, Q>), selector.Parameters[0].Name);
 
-        var body = new GroupTranslateVisitor<K, Q, T>(groupQ, selector.Parameters[0], Shape).Visit(selector.Body);
+        var body = new GroupTranslateVisitor<K, Q, T>(groupQ, selector.Parameters[0], QueryShape.Shape).Visit(selector.Body);
         body = TupleExpressionNormalizer.Normalize(body);
 
         return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, groupQ);
@@ -93,11 +93,21 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         var body = ReplaceExpressionVisitor.ReplaceMany(selector.Body, new Dictionary<Expression, Expression>
         {
             [selector.Parameters[0]] = Expression.Property(group, nameof(IGrouping<K, Q>.Key)),
-            [selector.Parameters[1]] = ComposeEnumerable(Shape, group)
+            [selector.Parameters[1]] = ComposeEnumerable(QueryShape.Shape, group)
         });
         body = TupleExpressionNormalizer.Normalize(body);
 
         return Expression.Lambda<Func<IGrouping<K, Q>, R>>(body, group);
+    }
+
+    private static MethodCallExpression ComposeEnumerable<TRightInternal, TRightPublic>(
+        Expression<Func<TRightInternal, TRightPublic>> itemShape,
+        Expression enumerableExpression)
+    {
+        return Expression.Call(
+            EnumerableSelectMethod.MakeGenericMethod(typeof(TRightInternal), typeof(TRightPublic)),
+            enumerableExpression,
+            itemShape);
     }
 
     private IQuery<IGrouping<K, E>> CreateRawGroup<K, E, QG>(
@@ -136,8 +146,8 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
         var translateShape = CreateRawGroupShape<K, KQ, E, QG>(elementShape);
 
         return new GroupedQueryResult<K, KQ, E, QG, T, Q>(
-            Source.GroupBy((Expression<Func<Q, KQ>>)keyQ, element).Select(pair),
-            Source,
+            QueryShape.Source.GroupBy((Expression<Func<Q, KQ>>)keyQ, element).Select(pair),
+            QueryShape.Source,
             key,
             element,
             elementShape,
@@ -196,6 +206,12 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
     private static readonly MethodInfo CreateRawGroupTypedMethod =
         typeof(Query<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
             .Single(m => m.Name == nameof(CreateRawGroupTyped) && m.GetGenericArguments().Length == 4);
+
+    private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
+        .Single(m => m.Name == nameof(Enumerable.Select) &&
+                     m.IsGenericMethodDefinition &&
+                     m.GetParameters()[1].ParameterType is { IsGenericType: true } p &&
+                     p.GetGenericTypeDefinition() == typeof(Func<,>));
     #endregion
 }
 

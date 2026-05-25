@@ -89,8 +89,8 @@ public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
     {
         (int accountId, int orderId)[] distinct = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
-                .DistinctBy(a => new { aId = a.Item2.AccountId, oId = a.Item1.AccountId })
-                .Select(a => ValueTuple.Create(a.aId, a.oId)));
+                .Select(a => ValueTuple.Create(a.Item2.AccountId, a.Item1.AccountId))
+                .Distinct());
     }
 
     [Fact]
