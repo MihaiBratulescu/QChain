@@ -1,4 +1,4 @@
-using QChain.Internal;
+using QChain;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -42,14 +42,14 @@ internal static class ProjectedGroupQueryBuilder<T, Q>
             .Invoke(null, [source, keyLambda, element, projectionLambda, shapeLambda])!;
     }
 
-    private static DeferredQuery<R, C> CreateProjectedGroupQuery<KInternal, E, R, C>(
+    private static Query<R, C> CreateProjectedGroupQuery<KInternal, E, R, C>(
         IQueryable<Q> source,
         LambdaExpression key,
         Expression<Func<Q, E>> element,
         LambdaExpression projection,
         LambdaExpression shape)
     {
-        return new DeferredQuery<R, C>(
+        return new Query<R, C>(
             source
                 .GroupBy((Expression<Func<Q, KInternal>>)key, element)
                 .Select((Expression<Func<IGrouping<KInternal, E>, C>>)projection),

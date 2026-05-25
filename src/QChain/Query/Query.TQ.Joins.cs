@@ -1,10 +1,11 @@
-﻿using QChain.Visitors;
+﻿using QChain.Internal;
+using QChain.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal;
+namespace QChain;
 
-public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     public IQuery<(T, R)> Join<R, K>(IQuery<R> right, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
         Join(right, lKey, rKey, (left, rightRow) => new ValueTuple<T, R>(left, rightRow));
@@ -37,17 +38,17 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         return (IQuery<TOut>)generic.Invoke(this, [right, lKey, rKey, result])!;
     }
 
-    private static readonly MethodInfo JoinInternalTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(JoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-    private static readonly MethodInfo GroupJoinInternalTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(GroupJoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo JoinInternalTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(JoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo GroupJoinInternalTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(GroupJoinInternalTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
-    private DeferredQuery<TOut, Pair<Q, QR>> JoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result)
+    private Query<TOut, Pair<Q, QR>> JoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, R, TOut>> result)
     {
-        var right = (DeferredQuery<R, QR>)rightUntyped;
+        var right = (Query<R, QR>)rightUntyped;
 
         var joined = Source.Join(right.Source, Translate(lKey), right.Translate(rKey),
             (l, r) => new Pair<Q, QR> { Left = l, Right = r });
 
-        return new DeferredQuery<TOut, Pair<Q, QR>>(joined, BuildJoinShape(right.Shape, result));
+        return new Query<TOut, Pair<Q, QR>>(joined, BuildJoinShape(right.Shape, result));
     }
 
     private Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(Expression<Func<QR, R>> rightShape, Expression<Func<T, R, TOut>> result)
@@ -70,14 +71,14 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         return Expression.Lambda<Func<Pair<Q, QR>, TOut>>(body, pairParam);
     }
 
-    private DeferredQuery<TOut, Pair<Q, IEnumerable<QR>>> GroupJoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result)
+    private Query<TOut, Pair<Q, IEnumerable<QR>>> GroupJoinInternalTyped<R, K, TOut, QR>(IInternalQuery rightUntyped, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey, Expression<Func<T, IEnumerable<R>, TOut>> result)
     {
-        var right = (DeferredQuery<R, QR>)rightUntyped;
+        var right = (Query<R, QR>)rightUntyped;
 
         var grouped = Source.GroupJoin(right.Source, Translate(lKey), right.Translate(rKey),
             (l, r) => new Pair<Q, IEnumerable<QR>> { Left = l, Right = r });
 
-        return new DeferredQuery<TOut, Pair<Q, IEnumerable<QR>>>(grouped, BuildGroupJoinShape(right.Shape, result));
+        return new Query<TOut, Pair<Q, IEnumerable<QR>>>(grouped, BuildGroupJoinShape(right.Shape, result));
     }
 
     private Expression<Func<Pair<Q, IEnumerable<QR>>, TOut>> BuildGroupJoinShape<R, QR, TOut>(Expression<Func<QR, R>> rightShape, Expression<Func<T, IEnumerable<R>, TOut>> result)

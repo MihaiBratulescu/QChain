@@ -1,10 +1,12 @@
 ﻿#if NET10_0_OR_GREATER
-using System.Linq.Expressions;
+using QChain.Internal;
 using QChain.Visitors;
 
-namespace QChain.Internal;
+using System.Linq.Expressions;
 
-public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+namespace QChain;
+
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     public IQuery<(T, R?)> LeftJoin<R, K>(IQuery<R> other, Expression<Func<T, K>> lKey, Expression<Func<R, K>> rKey) =>
         LeftJoin(other, lKey, rKey, (l, r) => ValueTuple.Create(l, r));
@@ -29,7 +31,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     }
 
     private IQuery<TResult> LeftJoin<R, RQ, K, TResult>(
-        DeferredQuery<R, RQ> other,
+        Query<R, RQ> other,
         Expression<Func<T, K>> leftKey,
         Expression<Func<R, K>> rightKey,
         Expression<Func<T, R?, TResult>> resultSelector)
@@ -49,11 +51,11 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             other.Shape,
             resultSelector);
 
-        return new DeferredQuery<TResult, Pair<Q, RQ?>>(source, shape);
+        return new Query<TResult, Pair<Q, RQ?>>(source, shape);
     }
 
     private IQuery<TResult> RightJoin<R, RQ, K, TResult>(
-        DeferredQuery<R, RQ> other,
+        Query<R, RQ> other,
         Expression<Func<T, K>> leftKey,
         Expression<Func<R, K>> rightKey,
         Expression<Func<T?, R, TResult>> resultSelector)
@@ -73,7 +75,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             other.Shape,
             resultSelector);
 
-        return new DeferredQuery<TResult, Pair<Q?, RQ>>(
+        return new Query<TResult, Pair<Q?, RQ>>(
             source,
             shape);
     }

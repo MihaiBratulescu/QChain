@@ -1,10 +1,11 @@
-﻿using QChain.Visitors;
+﻿using QChain.Internal;
+using QChain.Visitors;
 using System.Collections;
 using System.Linq.Expressions;
 
-namespace QChain.Internal;
+namespace QChain;
 
-public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     #region Internal Query
     protected IQueryable<Q> Source { get; }
@@ -14,10 +15,10 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     #endregion
 
     #region Constructors
-    internal DeferredQuery(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
+    internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         (Source, Shape) = (source, shape);
 
-    protected DeferredQuery(DeferredQuery<T, Q> query) =>
+    protected Query(Query<T, Q> query) =>
         (Source, Shape) = (query.Source, query.Shape);
     #endregion
 
@@ -64,4 +65,10 @@ internal sealed class ShapedGroupingValue<KInternal, K, EInternal, E> : IGroupin
 
     public IEnumerator<E> GetEnumerator() => InternalItems.Select(ElementShape).GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+internal sealed class GroupingShapeHolder<KInternal, K, EInternal, E>
+{
+    public required Func<KInternal, K> KeyShape { get; init; }
+    public required Func<EInternal, E> ElementShape { get; init; }
 }

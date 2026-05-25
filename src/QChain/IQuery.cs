@@ -1,5 +1,4 @@
-﻿using QChain.CachedQuery;
-using QChain.Predicates;
+﻿using QChain.Predicates;
 using System.Linq.Expressions;
 
 namespace QChain;

@@ -1,13 +1,15 @@
-﻿using QChain.Visitors;
+﻿using QChain.Internal;
+using QChain.Visitors;
+
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal;
+namespace QChain;
 
-public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     public virtual IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
-       new DeferredQuery<R, Q>(Source, Compose(mapping, Shape));
+       new Query<R, Q>(Source, Compose(mapping, Shape));
 
     public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         FlattenPreservingShape<R>(Translate(collectionSelector));
@@ -19,11 +21,11 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
             TranslateSelectManyCollection(collectionSelector),
             (q, c) => new Pair<Q, C> { Left = q, Right = c });
 
-        return new DeferredQuery<R, Pair<Q, C>>(source, TranslateSelectManyResult(resultSelector));
+        return new Query<R, Pair<Q, C>>(source, TranslateSelectManyResult(resultSelector));
     }
 
     #region Helpers
-    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(DeferredQuery<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+    private static readonly MethodInfo FlattenPreservingShapeTypedMethod = typeof(Query<T, Q>).GetMethod(nameof(FlattenPreservingShapeTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
     private IQuery<R> FlattenPreservingShape<R>(LambdaExpression translatedCollectionSelector)
     {
         var call = (MethodCallExpression)translatedCollectionSelector.Body;
@@ -56,13 +58,13 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
         return (IQuery<R>)generic.Invoke(this, [collectionSelector, itemShape])!;
     }
 
-    private DeferredQuery<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
+    private Query<R, QR> FlattenPreservingShapeTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
     {
         var collectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)collectionSelectorUntyped;
 
         var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;
 
-        return new DeferredQuery<R, QR>(Source.SelectMany(collectionSelector), itemShape);
+        return new Query<R, QR>(Source.SelectMany(collectionSelector), itemShape);
     }
 
     private Expression<Func<Q, IEnumerable<C>>> TranslateSelectManyCollection<C>(Expression<Func<T, IEnumerable<C>>> collectionSelector)

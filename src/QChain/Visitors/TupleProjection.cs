@@ -1,4 +1,4 @@
-using QChain.Internal;
+using QChain;
 using System.Linq.Expressions;
 using System.Reflection;
 

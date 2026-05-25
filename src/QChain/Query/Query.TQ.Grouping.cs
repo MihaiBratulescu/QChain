@@ -1,10 +1,12 @@
-﻿using QChain.Visitors;
+﻿using QChain.Internal;
+using QChain.Visitors;
+
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal;
+namespace QChain;
 
-public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
+public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IInternalQuery
 {
     //IQueryable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>
     public IQuery<IGrouping<K, T>> GroupBy<K>(Expression<Func<T, K>> selector)
@@ -192,13 +194,13 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
                      m.GetParameters().Length == 1);
 
     private static readonly MethodInfo CreateRawGroupTypedMethod =
-        typeof(DeferredQuery<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+        typeof(Query<T, Q>).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
             .Single(m => m.Name == nameof(CreateRawGroupTyped) && m.GetGenericArguments().Length == 4);
     #endregion
 }
 
 internal sealed class GroupedQueryResult<K, KQ, E, QG, T, Q>
-    : DeferredQuery<IGrouping<K, E>, Pair<KQ, QG[]>>
+    : Query<IGrouping<K, E>, Pair<KQ, QG[]>>
 {
     private readonly IQueryable<Q> _source;
     private readonly Expression<Func<Q, K>> _key;
