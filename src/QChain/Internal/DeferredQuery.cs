@@ -9,6 +9,7 @@ public partial class DeferredQuery<T, Q> : IQuery<T>, IOrderedQuery<T>, IInterna
     #region Internal Query
     protected IQueryable<Q> Source { get; }
     protected Expression<Func<Q, T>> Shape { get; }
+    IQueryable IInternalQuery.UntypedSource => Source;
     LambdaExpression IInternalQuery.UntypedShape => Shape;
     #endregion
 
