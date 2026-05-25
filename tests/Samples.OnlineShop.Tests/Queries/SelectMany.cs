@@ -1,10 +1,28 @@
 ﻿using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
+using QChain;
+
 namespace Samples.OnlineShop.Tests.Queries;
 
 public class SelectMany(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
+    [Fact]
+    public void PlainCollectionSelector_FlattensInMemoryCollection()
+    {
+        var source = new Query<int[]>(new[]
+        {
+            new[] { 1, 2 }, new[] { 3, 4 }
+        }.AsQueryable());
+
+        var items = source
+            .SelectMany(x => x)
+            .AsQueryable()
+            .ToArray();
+
+        Assert.Equal([1, 2, 3, 4], items);
+    }
+
     [Fact]
     public async Task AfterGroupJoin_FlattensCollection()
     {

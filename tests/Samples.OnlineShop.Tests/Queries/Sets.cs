@@ -153,4 +153,64 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
 
         Assert.Equal([1, 2, 3, 4, 5, 6, 7], items.Select(x => x.accountId));
     }
+
+    [Fact]
+    public async Task Union_Preserves_RightProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => a.AccountId)
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId + 100))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2, 103, 104], items);
+    }
+
+    [Fact]
+    public async Task Concat_Preserves_RightProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => a.AccountId)
+                .Concat(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId + 100))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2, 103, 104], items);
+    }
+
+    [Fact]
+    public async Task Except_Compares_PublicProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 4)
+                .Select(a => a.AccountId)
+                .Except(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId - 2))
+                .OrderBy(x => x));
+
+        Assert.Equal([3, 4], items);
+    }
+
+    [Fact]
+    public async Task Intersect_Compares_PublicProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 4)
+                .Select(a => a.AccountId)
+                .Intersect(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId - 2))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2], items);
+    }
 }
