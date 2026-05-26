@@ -111,6 +111,18 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public async Task ExceptBy_AfterTupleProjection()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+                .ExceptBy([1, 2, 3], x => x.Item1)
+                .OrderBy(x => x.Item1));
+
+        Assert.Equal([4, 5, 6, 7], items.Select(x => x.Item1));
+    }
+
+    [Fact]
     public async Task Intersect()
     {
         var items = await Query(q =>
@@ -131,6 +143,18 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
                 .OrderBy(a => a.AccountId));
 
         Assert.Equal([1, 2, 3], items.Select(a => a.AccountId));
+    }
+
+    [Fact]
+    public async Task IntersectBy_AfterObjectProjection()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Select(a => new { Id = a.AccountId, a.Email })
+                .IntersectBy([1, 2, 3], x => x.Id)
+                .OrderBy(x => x.Id));
+
+        Assert.Equal([1, 2, 3], items.Select(x => x.Id));
     }
 
     [Fact]

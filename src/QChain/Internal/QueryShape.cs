@@ -117,23 +117,18 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
 
     public QueryShape<T, Q> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
     {
-        var translated = Translate(keySelector);
-
-        var contains = Expression.Call(
-            typeof(Enumerable),
-            nameof(Enumerable.Contains),
-            [typeof(K)],
-            Expression.Constant(keys),
-            translated.Body);
-
-        var predicate = Expression.Lambda<Func<Q, bool>>(
-            Expression.Not(contains),
-            translated.Parameters);
-
-        return WithSource(Source.Where(predicate));
+        return WhereKeyIn(keys, keySelector, include: false);
     }
 
     public QueryShape<T, Q> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
+    {
+        return WhereKeyIn(keys, keySelector, include: true);
+    }
+
+    private QueryShape<T, Q> WhereKeyIn<K>(
+        IEnumerable<K> keys,
+        Expression<Func<T, K>> keySelector,
+        bool include)
     {
         var translated = Translate(keySelector);
 
@@ -144,8 +139,10 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
             Expression.Constant(keys),
             translated.Body);
 
+        Expression body = include ? contains : Expression.Not(contains);
+
         var predicate = Expression.Lambda<Func<Q, bool>>(
-            contains,
+            body,
             translated.Parameters);
 
         return WithSource(Source.Where(predicate));
@@ -258,13 +255,10 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
     private QueryShape<T, TCarrier> DistinctTyped<TCarrier>(Expression lowered)
     {
         var carrierShape = Expression.Lambda<Func<Q, TCarrier>>(lowered, Shape.Parameters);
-        var loweredShape = new QueryShape<T, TCarrier>(
-            Source.Select(carrierShape),
-            Rebuild<TCarrier>());
 
         return new QueryShape<T, TCarrier>(
-            loweredShape.Source.Distinct(),
-            loweredShape.Shape);
+            Source.Select(carrierShape).Distinct(),
+            Rebuild<TCarrier>());
     }
 
     private IQueryShape SetOperation(IQueryShape other, SetOperationKind kind)
@@ -280,15 +274,15 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
     {
         var right = (QueryShape<T, QR>)rightUntyped;
 
-        var left = Source.Select(BuildCarrierShape<Q, C>(Shape));
-        var rightSource = right.Source.Select(BuildCarrierShape<QR, C>(right.Shape));
+        var leftCarrier = Source.Select(BuildCarrierShape<Q, C>(Shape));
+        var rightCarrier = right.Source.Select(BuildCarrierShape<QR, C>(right.Shape));
 
         var source = kind switch
         {
-            SetOperationKind.Union => left.Union(rightSource),
-            SetOperationKind.Concat => left.Concat(rightSource),
-            SetOperationKind.Except => left.Except(rightSource),
-            SetOperationKind.Intersect => left.Intersect(rightSource),
+            SetOperationKind.Union => leftCarrier.Union(rightCarrier),
+            SetOperationKind.Concat => leftCarrier.Concat(rightCarrier),
+            SetOperationKind.Except => leftCarrier.Except(rightCarrier),
+            SetOperationKind.Intersect => leftCarrier.Intersect(rightCarrier),
             _ => throw new NotSupportedException(kind.ToString())
         };
 

@@ -6,6 +6,39 @@ namespace Samples.OnlineShop.Tests.Queries;
 public class Distinct(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
+    public async Task EntityProjection()
+    {
+        var rows = await Query(q => q.Accounts
+            .Distinct()
+            .OrderBy(a => a.AccountId));
+
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7], rows.Select(a => a.AccountId));
+    }
+
+    [Fact]
+    public async Task ScalarProjection()
+    {
+        var rows = await Query(q => q.Orders
+            .Select(o => o.AccountId)
+            .Distinct()
+            .OrderBy(id => id));
+
+        Assert.Equal(rows, rows.Distinct());
+        Assert.All(rows, id => Assert.True(id > 0));
+    }
+
+    [Fact]
+    public async Task ObjectProjection()
+    {
+        var rows = await Query(q => q.Accounts
+            .Select(a => new { a.AccountId, a.IsActive })
+            .Distinct()
+            .OrderBy(a => a.AccountId));
+
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7], rows.Select(a => a.AccountId));
+    }
+
+    [Fact]
     public async Task TupleProjection()
     {
         var distinct = await Query(q => q.Accounts
