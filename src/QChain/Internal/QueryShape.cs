@@ -103,6 +103,54 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
             .Invoke(this, [lowered])!;
     }
 
+    public IQueryShape Union(IQueryShape other) =>
+        SetOperation(other, SetOperationKind.Union);
+
+    public IQueryShape Concat(IQueryShape other) =>
+        SetOperation(other, SetOperationKind.Concat);
+
+    public IQueryShape Except(IQueryShape other) =>
+        SetOperation(other, SetOperationKind.Except);
+
+    public IQueryShape Intersect(IQueryShape other) =>
+        SetOperation(other, SetOperationKind.Intersect);
+
+    public QueryShape<T, Q> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
+    {
+        var translated = Translate(keySelector);
+
+        var contains = Expression.Call(
+            typeof(Enumerable),
+            nameof(Enumerable.Contains),
+            [typeof(K)],
+            Expression.Constant(keys),
+            translated.Body);
+
+        var predicate = Expression.Lambda<Func<Q, bool>>(
+            Expression.Not(contains),
+            translated.Parameters);
+
+        return WithSource(Source.Where(predicate));
+    }
+
+    public QueryShape<T, Q> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector)
+    {
+        var translated = Translate(keySelector);
+
+        var contains = Expression.Call(
+            typeof(Enumerable),
+            nameof(Enumerable.Contains),
+            [typeof(K)],
+            Expression.Constant(keys),
+            translated.Body);
+
+        var predicate = Expression.Lambda<Func<Q, bool>>(
+            contains,
+            translated.Parameters);
+
+        return WithSource(Source.Where(predicate));
+    }
+
     public Expression<Func<Q, TResult>> Translate<TResult>(Expression<Func<T, TResult>> expression) =>
         ComposeInternal(expression);
 
@@ -219,6 +267,40 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
             loweredShape.Shape);
     }
 
+    private IQueryShape SetOperation(IQueryShape other, SetOperationKind kind)
+    {
+        var carrier = TupleProjection<T, Q>.Lower(Shape.Body).Type;
+
+        return (IQueryShape)SetOperationTypedMethod
+            .MakeGenericMethod(other.SourceType, carrier)
+            .Invoke(this, [other, kind])!;
+    }
+
+    private QueryShape<T, C> SetOperationTyped<QR, C>(IQueryShape rightUntyped, SetOperationKind kind)
+    {
+        var right = (QueryShape<T, QR>)rightUntyped;
+
+        var left = Source.Select(BuildCarrierShape<Q, C>(Shape));
+        var rightSource = right.Source.Select(BuildCarrierShape<QR, C>(right.Shape));
+
+        var source = kind switch
+        {
+            SetOperationKind.Union => left.Union(rightSource),
+            SetOperationKind.Concat => left.Concat(rightSource),
+            SetOperationKind.Except => left.Except(rightSource),
+            SetOperationKind.Intersect => left.Intersect(rightSource),
+            _ => throw new NotSupportedException(kind.ToString())
+        };
+
+        return new QueryShape<T, C>(source, Rebuild<C>());
+    }
+
+    private static Expression<Func<TSource, C>> BuildCarrierShape<TSource, C>(Expression<Func<TSource, T>> shape)
+    {
+        var body = TupleProjection<T, TSource>.Lower(shape.Body);
+        return Expression.Lambda<Func<TSource, C>>(body, shape.Parameters);
+    }
+
     private QueryShape<TOut, Pair<Q, QR>> JoinTyped<R, K, TOut, QR>(
         IQueryShape rightUntyped,
         Expression<Func<T, K>> leftKey,
@@ -331,142 +413,20 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
     private static readonly MethodInfo SelectManyTypedMethod =
         typeof(QueryShape<T, Q>).GetMethod(nameof(SelectManyTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
 
+    private static readonly MethodInfo SetOperationTypedMethod =
+        typeof(QueryShape<T, Q>).GetMethod(nameof(SetOperationTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
     private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
         .Single(m => m.Name == nameof(Enumerable.Select) &&
                      m.IsGenericMethodDefinition &&
                      m.GetParameters()[1].ParameterType is { IsGenericType: true } p &&
                      p.GetGenericTypeDefinition() == typeof(Func<,>));
-}
 
-#if NET10_0_OR_GREATER
-internal sealed partial record QueryShape<T, Q>
-{
-    public IQueryShape LeftJoin<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, R?, TOut>> result)
+    private enum SetOperationKind
     {
-        return (IQueryShape)LeftJoinTypedMethod
-            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
-            .Invoke(this, [right, leftKey, rightKey, result])!;
+        Union,
+        Concat,
+        Except,
+        Intersect
     }
-
-    public IQueryShape RightJoin<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T?, R, TOut>> result)
-    {
-        return (IQueryShape)RightJoinTypedMethod
-            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
-            .Invoke(this, [right, leftKey, rightKey, result])!;
-    }
-
-    private QueryShape<TOut, Pair<Q, QR?>> LeftJoinTyped<R, K, TOut, QR>(
-        IQueryShape rightUntyped,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, R?, TOut>> result)
-    {
-        var right = (QueryShape<R, QR>)rightUntyped;
-
-        var source = Source.LeftJoin(
-            right.Source,
-            Translate(leftKey),
-            right.Translate(rightKey),
-            (left, rightRow) => new Pair<Q, QR?>
-            {
-                Left = left,
-                Right = rightRow
-            });
-
-        return new QueryShape<TOut, Pair<Q, QR?>>(
-            source,
-            BuildOuterJoinShape<Q, QR?, T, R?, TOut>(Shape, right.Shape, result));
-    }
-
-    private QueryShape<TOut, Pair<Q?, QR>> RightJoinTyped<R, K, TOut, QR>(
-        IQueryShape rightUntyped,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T?, R, TOut>> result)
-    {
-        var right = (QueryShape<R, QR>)rightUntyped;
-
-        var source = Source.RightJoin(
-            right.Source,
-            Translate(leftKey),
-            right.Translate(rightKey),
-            (left, rightRow) => new Pair<Q?, QR>
-            {
-                Left = left,
-                Right = rightRow
-            });
-
-        return new QueryShape<TOut, Pair<Q?, QR>>(
-            source,
-            BuildOuterJoinShape<Q?, QR, T?, R, TOut>(Shape, right.Shape, result));
-    }
-
-    private static Expression<Func<Pair<TLeftSource, TRightSource>, TOut>> BuildOuterJoinShape<TLeftSource, TRightSource, TLeft, TRight, TOut>(
-        LambdaExpression leftShape,
-        LambdaExpression rightShape,
-        Expression<Func<TLeft, TRight, TOut>> selector)
-    {
-        var pair = Expression.Parameter(typeof(Pair<TLeftSource, TRightSource>), "p");
-
-        var leftQ = Expression.PropertyOrField(pair, nameof(Pair<TLeftSource, TRightSource>.Left));
-        var rightQ = Expression.PropertyOrField(pair, nameof(Pair<TLeftSource, TRightSource>.Right));
-
-        var left = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftQ);
-        var right = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightQ);
-
-        var body = ReplaceExpressionVisitor.ReplaceMany(selector.Body, new Dictionary<Expression, Expression>
-        {
-            [selector.Parameters[0]] = left,
-            [selector.Parameters[1]] = right
-        });
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Pair<TLeftSource, TRightSource>, TOut>>(body, pair);
-    }
-
-    private static readonly MethodInfo LeftJoinTypedMethod =
-        typeof(QueryShape<T, Q>).GetMethod(nameof(LeftJoinTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-
-    private static readonly MethodInfo RightJoinTypedMethod =
-        typeof(QueryShape<T, Q>).GetMethod(nameof(RightJoinTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
-}
-#endif
-
-internal readonly struct Pair<T1, T2>
-{
-    public required T1 Left { get; init; }
-    public required T2 Right { get; init; }
-}
-
-internal readonly struct Projection<T1, T2>
-{
-    public required T1 Item1 { get; init; }
-    public required T2 Item2 { get; init; }
-}
-
-internal sealed class ShapedGroupingValue<KInternal, K, EInternal, E> : IGrouping<K, E>
-{
-    public required KInternal InternalKey { get; init; }
-    public required IEnumerable<EInternal> InternalItems { get; init; }
-    public required Func<KInternal, K> KeyShape { get; init; }
-    public required Func<EInternal, E> ElementShape { get; init; }
-
-    public K Key => KeyShape(InternalKey);
-
-    public IEnumerator<E> GetEnumerator() => InternalItems.Select(ElementShape).GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-}
-
-internal sealed class GroupingShapeHolder<KInternal, K, EInternal, E>
-{
-    public required Func<KInternal, K> KeyShape { get; init; }
-    public required Func<EInternal, E> ElementShape { get; init; }
 }

@@ -92,7 +92,23 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     #endregion
 
     #region Sets
+    public IQuery<T> Union(IQuery<T> other) =>
+        Next<T>(QueryShape.Union(((IUntypedQuery)other).Untyped));
 
+    public IQuery<T> Concat(IQuery<T> other) =>
+        Next<T>(QueryShape.Concat(((IUntypedQuery)other).Untyped));
+
+    public IQuery<T> Except(IQuery<T> other) =>
+        Next<T>(QueryShape.Except(((IUntypedQuery)other).Untyped));
+
+    public IQuery<T> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>
+        Next(QueryShape.ExceptBy(keys, keySelector));
+
+    public IQuery<T> Intersect(IQuery<T> other) =>
+        Next<T>(QueryShape.Intersect(((IUntypedQuery)other).Untyped));
+
+    public IQuery<T> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>
+        Next(QueryShape.IntersectBy(keys, keySelector));
     #endregion
 
     #region Sorting
