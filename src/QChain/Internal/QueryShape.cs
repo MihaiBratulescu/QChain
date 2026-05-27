@@ -33,7 +33,7 @@ internal abstract class QueryShape<T, Q> : QueryShape<T>
     public virtual Expression<Func<Q, TResult>> Translate<TResult>(Expression<Func<T, TResult>> expression) =>
         ComposeInternal(expression);
 
-    protected virtual Expression<Func<Q, R>> ComposeInternal<R>(Expression<Func<T, R>> outer)
+    protected Expression<Func<Q, R>> ComposeInternal<R>(Expression<Func<T, R>> outer)
     {
         var body = ReplaceExpressionVisitor.Replace(outer.Body, outer.Parameters[0], Shape.Body);
 

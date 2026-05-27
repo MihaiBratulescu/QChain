@@ -11,10 +11,9 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
 
     IQueryShape IUntypedQuery.Untyped => QueryShape;
 
-
     #region Constructors
     internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
-        QueryShape = new RegularQueryShape<T, Q>(source, shape);
+        QueryShape = new SequenceQueryShape<T, Q>(source, shape);
 
     internal Query(SequenceQueryShape<T, Q> queryShape) => 
         QueryShape = queryShape;

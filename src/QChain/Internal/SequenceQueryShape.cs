@@ -2,7 +2,7 @@ using System.Linq.Expressions;
 
 namespace QChain.Internal;
 
-internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) 
+internal partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) 
     : QueryShape<T, Q>(source, shape)
 {
     public SequenceQueryShape<T, Q> Where(Expression<Func<T, bool>> predicate) =>
@@ -82,7 +82,8 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
     public SequenceQueryShape<T, Q> IntersectBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>
         WhereKeyIn(keys, keySelector, include: true);
 
-    protected abstract SequenceQueryShape<T, Q> WithSource(IQueryable<Q> source);
+    protected virtual SequenceQueryShape<T, Q> WithSource(IQueryable<Q> source) =>
+        new SequenceQueryShape<T, Q>(source, Shape);
 
     private SequenceQueryShape<T, Q> WhereKeyIn<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector,bool include)
     {
