@@ -167,7 +167,7 @@ int activeCount = await unitOfWork.Query(db => db.Accounts
         .Where(a => a.IsActive())
         .CountAsync());
 
-(Account account, Order order) ordersInLastMonth = await unitOfWork.Query(db =>
+(Account account, Order order)[] ordersInLastMonth = await unitOfWork.Query(db =>
         db.AccountsRepository.ActiveEuropeanOrdersInLastMonth())
     .ToArrayAsync();
 ```
