@@ -186,6 +186,20 @@ public class AccountsRepository(IUnitOfWork db)
 
 ---
 
+## Escaping the Abstraction
+
+As a measure of last resort, `AsQueryable()` exposes the underlying `IQueryable<T>` for direct LINQ provider access. 
+
+This is when QChain abstractions are insufficient or translation fails.
+
+```csharp
+var sql = query
+    .AsQueryable()
+    .ToQueryString();
+```
+
+---
+
 ## &#x1F4E6; Packages
 
 - **QChain** - Core abstractions and query pipeline
