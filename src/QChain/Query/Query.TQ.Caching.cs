@@ -1,5 +1,5 @@
 ﻿//using QChain.CachedQuery;
-using QChain.Internal;
+using QChain.Internal.Shapes;
 
 namespace QChain;
 

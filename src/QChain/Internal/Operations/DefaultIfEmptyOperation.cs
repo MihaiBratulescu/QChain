@@ -1,4 +1,5 @@
 using QChain.Internal.Helpers;
+using QChain.Internal.Shapes;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -172,10 +173,4 @@ internal static class DefaultIfEmptyOperation
 
     private static readonly MethodInfo LowerTupleMethod =
         typeof(DefaultIfEmptyOperation).GetMethod(nameof(LowerTuple), BindingFlags.NonPublic | BindingFlags.Static)!;
-}
-
-internal sealed class DefaultIfEmptyValue<T>
-{
-    public bool HasValue { get; init; }
-    public T Value { get; init; } = default!;
 }

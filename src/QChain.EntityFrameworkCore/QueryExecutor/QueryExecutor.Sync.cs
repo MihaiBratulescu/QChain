@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+using QChain.Predicates;
+using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
 
@@ -8,17 +9,27 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
 
     public bool Any(Expression<Func<T, bool>> predicate) => query.Any(predicate);
 
+    public bool Any(Func<T, Predicate> predicate) => Any(PredicateCompiler.Compile(predicate));
+
     public bool All(Expression<Func<T, bool>> predicate) => query.All(predicate);
+
+    public bool All(Func<T, Predicate> predicate) => All(PredicateCompiler.Compile(predicate));
 
     public int Count() => query.Count();
 
     public int Count(Expression<Func<T, bool>> predicate)
         => query.Count(predicate);
 
+    public int Count(Func<T, Predicate> predicate)
+        => Count(PredicateCompiler.Compile(predicate));
+
     public long LongCount() => query.LongCount();
 
     public long LongCount(Expression<Func<T, bool>> predicate)
         => query.LongCount(predicate);
+
+    public long LongCount(Func<T, Predicate> predicate)
+        => LongCount(PredicateCompiler.Compile(predicate));
 
     public T ElementAt(int index)
         => query.ElementAt(index);
@@ -31,33 +42,49 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public T First(Expression<Func<T, bool>> predicate)
         => query.First(predicate);
 
+    public T First(Func<T, Predicate> predicate)
+        => First(PredicateCompiler.Compile(predicate));
+
     public T? FirstOrDefault() => query.FirstOrDefault();
 
     public T? FirstOrDefault(Expression<Func<T, bool>> predicate)
         => query.FirstOrDefault(predicate);
+
+    public T? FirstOrDefault(Func<T, Predicate> predicate)
+        => FirstOrDefault(PredicateCompiler.Compile(predicate));
 
     public T Last() => query.Last();
 
     public T Last(Expression<Func<T, bool>> predicate)
         => query.Last(predicate);
 
+    public T Last(Func<T, Predicate> predicate)
+        => Last(PredicateCompiler.Compile(predicate));
 
     public T? LastOrDefault() => query.LastOrDefault();
 
-
     public T? LastOrDefault(Expression<Func<T, bool>> predicate)
         => query.LastOrDefault(predicate);
+
+    public T? LastOrDefault(Func<T, Predicate> predicate)
+        => LastOrDefault(PredicateCompiler.Compile(predicate));
 
     public T Single() => query.Single();
 
     public T Single(Expression<Func<T, bool>> predicate)
         => query.Single(predicate);
 
+    public T Single(Func<T, Predicate> predicate)
+        => Single(PredicateCompiler.Compile(predicate));
+
     public T? SingleOrDefault()
         => query.SingleOrDefault();
 
     public T? SingleOrDefault(Expression<Func<T, bool>> predicate)
         => query.SingleOrDefault(predicate);
+
+    public T? SingleOrDefault(Func<T, Predicate> predicate)
+        => SingleOrDefault(PredicateCompiler.Compile(predicate));
 
     public T? Min() => query.Min();
 

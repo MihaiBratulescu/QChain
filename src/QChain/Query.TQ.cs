@@ -1,6 +1,6 @@
-﻿using QChain.Internal;
-using QChain.Internal.Grouping;
+﻿using QChain.Internal.Grouping;
 using QChain.Internal.Operations;
+using QChain.Internal.Shapes;
 using QChain.Predicates;
 using System.Linq.Expressions;
 
@@ -105,7 +105,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     #endregion
 
     #region Projection
-    public virtual IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
+    public IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
         Next<R>(QueryShape.Select(mapping));
 
     public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>

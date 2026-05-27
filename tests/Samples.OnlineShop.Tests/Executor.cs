@@ -1,5 +1,7 @@
-﻿using QChain;
+using QChain;
+using QChain.Predicates;
 using Samples.OnlineShop.DatabaseModels;
+using System.Linq.Expressions;
 using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests;
@@ -11,7 +13,7 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     [Fact]
     public async Task ToArray()
     {
-        var array = await Accounts.ToArrayAsync(default);        
+        var array = await Accounts.ToArrayAsync(default);
 
         Assert.NotEmpty(array);
     }
@@ -111,6 +113,37 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     }
 
     [Fact]
+    public async Task TerminalPredicate_Async()
+    {
+        Expression<Func<Account, bool>> active = a => a.IsActive;
+        Expression<Func<Account, bool>> evenId = a => a.AccountId % 2 == 0;
+        Expression<Func<Account, bool>> account2 = a => a.AccountId == 2;
+
+        IQueryExecutor<Account> accounts = _fixture.db.Query(db => db.Accounts.OrderBy(a => a.AccountId).Select(a => a));
+
+        Assert.True(await accounts.AnyAsync(x => active.And(evenId), default));
+        Assert.Equal(3, await accounts.CountAsync(x => active.And(evenId), default));
+        Assert.Equal(3L, await accounts.LongCountAsync(x => active.And(evenId), default));
+        Assert.Equal(2, (await accounts.FirstAsync(x => active.And(evenId), default)).AccountId);
+        Assert.Equal(6, (await accounts.LastAsync(x => active.And(evenId), default)).AccountId);
+        Assert.Equal(2, (await accounts.SingleAsync(x => active.And(account2), default)).AccountId);
+    }
+
+    [Fact]
+    public void TerminalPredicate_Sync_AfterJoin()
+    {
+        Expression<Func<Account, bool>> active = a => a.IsActive;
+        Expression<Func<Order, bool>> euro = o => o.CurrencyId == CurrencyType.EUR;
+
+        IQueryExecutor<(Account account, Order order)> joined = _fixture.db.Query(db =>
+            db.Accounts.Join(db.Orders, a => a.AccountId, o => o.AccountId));
+
+        Assert.True(joined.Any(x => active.And(euro)));
+        Assert.Equal(2, joined.Count(x => active.And(euro)));
+        Assert.NotNull(joined.FirstOrDefault(x => active.And(euro)).account);
+    }
+
+    [Fact]
     public async Task Aggregates_AfterProjection()
     {
         var max = await Accounts.MaxAsync(a => a.AccountId, default);
@@ -163,7 +196,7 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     public async Task TrackedEntities()
     {
         _fixture.db.ChangeTracker.Clear();
-        
+
         var items = await Accounts.AsNoTracking().AsTracking().ToArrayAsync(default);
 
         Assert.NotEmpty(items);
