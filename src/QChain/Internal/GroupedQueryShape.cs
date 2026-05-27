@@ -43,7 +43,13 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>
         var group = Expression.Parameter(typeof(IGrouping<K, QG>), mapping.Parameters[0].Name);
         var body = new Internal.Visitors.GroupTranslateVisitor<K, QG, E>(group, mapping.Parameters[0], _elementShape)
             .Visit(mapping.Body);
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         body = Internal.Visitors.TupleExpressionNormalizer.Normalize(body!);
+=======
+        body = TupleExpressionNormalizer.Normalize(body!);
+>>>>>>> After
+        body = Builders.TupleExpressionNormalizer.Normalize(body!);
 
         return Expression.Lambda<Func<IGrouping<K, QG>, R>>(body, group);
     }
@@ -51,11 +57,33 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>
     private IQueryShape ProjectGrouped<R>(Expression<Func<IGrouping<K, QG>, R>> publicKeyShape)
     {
         var group = Expression.Parameter(typeof(IGrouping<KQ, QG>), publicKeyShape.Parameters[0].Name);
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         var keyShape = Internal.Visitors.TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
         var body = new GroupKeyRebuildVisitor(publicKeyShape.Parameters[0], group, keyShape).Visit(publicKeyShape.Body)!;
-        body = Internal.Visitors.TupleExpressionNormalizer.Normalize(body);
+=======
+        var keyShape = TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
+        var body = new GroupKeyRebuildVisitor(publicKeyShape.Parameters[0], group, keyShape).Visit(publicKeyShape.Body)!;
+>>>>>>> After
+        var keyShape = Builders.TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
+        var body = new GroupKeyRebuildVisitor(publicKeyShape.Parameters[0], group, keyShape).Visit(publicKeyShape.Body)!;
 
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
+        body = Internal.Visitors.TupleExpressionNormalizer.Normalize(body);
+=======
+        body = TupleExpressionNormalizer.Normalize(body);
+>>>>>>> After
+        body = Builders.TupleExpressionNormalizer.Normalize(body);
+
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         var lowered = Internal.Visitors.TupleProjection<T, Q>.Lower(body);
+        var projection = Expression.Lambda(
+=======
+        var lowered = TupleProjection<T, Q>.Lower(body);
+        var projection = Expression.Lambda(
+>>>>>>> After
+        var lowered = Builders.TupleProjection<T, Q>.Lower(body);
         var projection = Expression.Lambda(
             typeof(Func<,>).MakeGenericType(typeof(IGrouping<KQ, QG>), lowered.Type),
             lowered,
@@ -70,7 +98,13 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>
     {
         var projection = (Expression<Func<IGrouping<KQ, QG>, C>>)projectionUntyped;
         var carrier = Expression.Parameter(typeof(C), "p");
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         var rebuilt = Internal.Visitors.TupleProjection<T, Q>.Rebuild(carrier, typeof(R));
+=======
+        var rebuilt = TupleProjection<T, Q>.Rebuild(carrier, typeof(R));
+>>>>>>> After
+        var rebuilt = Builders.TupleProjection<T, Q>.Rebuild(carrier, typeof(R));
 
         return new ProjectedQueryShape<R, C>(
             _groupedSource.Select(projection),
@@ -80,12 +114,24 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>
     private Expression<Func<IGrouping<KQ, QG>, R>> TranslateGrouped<R>(Expression<Func<IGrouping<K, E>, R>> expression)
     {
         var group = Expression.Parameter(typeof(IGrouping<KQ, QG>), expression.Parameters[0].Name);
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         var keyShape = Internal.Visitors.TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
+=======
+        var keyShape = TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
+>>>>>>> After
+        var keyShape = Builders.TupleProjection<T, Q>.Rebuild(Expression.Property(group, nameof(IGrouping<int, int>.Key)), typeof(K));
 
         var body = new Internal.Visitors.GroupTranslateVisitor<K, QG, E>(group, expression.Parameters[0], _elementShape)
             .Visit(expression.Body);
         body = new GroupKeyRebuildVisitor(expression.Parameters[0], group, keyShape).Visit(body!);
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
         body = Internal.Visitors.TupleExpressionNormalizer.Normalize(body!);
+=======
+        body = TupleExpressionNormalizer.Normalize(body!);
+>>>>>>> After
+        body = Builders.TupleExpressionNormalizer.Normalize(body!);
 
         return Expression.Lambda<Func<IGrouping<KQ, QG>, R>>(body, group);
     }
@@ -117,7 +163,15 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>
             if (expression is not null &&
                 node.Member.DeclaringType is not null &&
                 !node.Member.DeclaringType.IsAssignableFrom(expression.Type) &&
+
+<<<<<<< TODO: Unmerged change from project 'QChain (net10.0)', Before:
                 Internal.Visitors.ProjectionReduction.TryRewriteTupleAccess(expression, node.Member.Name, out var rewritten))
+            {
+=======
+                ProjectionReduction.TryRewriteTupleAccess(expression, node.Member.Name, out var rewritten))
+            {
+>>>>>>> After
+                Builders.ProjectionReduction.TryRewriteTupleAccess(expression, node.Member.Name, out var rewritten))
             {
                 return rewritten;
             }

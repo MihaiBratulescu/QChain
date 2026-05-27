@@ -1,8 +1,7 @@
-using QChain.Internal;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Visitors;
+namespace QChain.Internal.Builders;
 
 internal static class TupleProjection<T, Q>
 {

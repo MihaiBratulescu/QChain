@@ -1,3 +1,4 @@
+using QChain.Internal.Builders;
 using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -29,32 +30,6 @@ internal static class JoinShapeBuilder<T, Q>
             .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
             .Invoke(null, [left, right, leftKey, rightKey, result])!;
     }
-
-#if NET10_0_OR_GREATER
-    public static IQueryShape LeftJoin<R, K, TOut>(
-        SequenceQueryShape<T, Q> left,
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, R?, TOut>> result)
-    {
-        return (IQueryShape)LeftJoinTypedMethod
-            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
-            .Invoke(null, [left, right, leftKey, rightKey, result])!;
-    }
-
-    public static IQueryShape RightJoin<R, K, TOut>(
-        SequenceQueryShape<T, Q> left,
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T?, R, TOut>> result)
-    {
-        return (IQueryShape)RightJoinTypedMethod
-            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
-            .Invoke(null, [left, right, leftKey, rightKey, result])!;
-    }
-#endif
 
     private static SequenceQueryShape<TOut, Pair<Q, QR>> JoinTyped<R, K, TOut, QR>(
         SequenceQueryShape<T, Q> left,
@@ -104,7 +79,104 @@ internal static class JoinShapeBuilder<T, Q>
             BuildGroupJoinShape(left.Shape, right.Shape, result));
     }
 
+
+    private static Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(
+        Expression<Func<Q, T>> leftShape,
+        Expression<Func<QR, R>> rightShape,
+        Expression<Func<T, R, TOut>> result)
+    {
+        var pair = Expression.Parameter(typeof(Pair<Q, QR>), "p");
+
+        var leftInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Left));
+        var rightInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Right));
+
+        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
+        var rightPublic = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightInternal);
+
+        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
+        {
+            [result.Parameters[0]] = leftPublic,
+            [result.Parameters[1]] = rightPublic
+        });
+        body = TupleExpressionNormalizer.Normalize(body);
+
+        return Expression.Lambda<Func<Pair<Q, QR>, TOut>>(body, pair);
+    }
+
+    private static Expression<Func<Pair<Q, IEnumerable<QR>>, TOut>> BuildGroupJoinShape<R, QR, TOut>(
+        Expression<Func<Q, T>> leftShape,
+        Expression<Func<QR, R>> rightShape,
+        Expression<Func<T, IEnumerable<R>, TOut>> result)
+    {
+        var pair = Expression.Parameter(typeof(Pair<Q, IEnumerable<QR>>), "p");
+
+        var leftInternal = Expression.Property(pair, nameof(Pair<Q, IEnumerable<QR>>.Left));
+        var rightInternal = Expression.Property(pair, nameof(Pair<Q, IEnumerable<QR>>.Right));
+
+        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
+        var projectedRight = ComposeEnumerable(rightShape, rightInternal);
+
+        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
+        {
+            [result.Parameters[0]] = leftPublic,
+            [result.Parameters[1]] = projectedRight
+        });
+        body = TupleExpressionNormalizer.Normalize(body);
+
+        return Expression.Lambda<Func<Pair<Q, IEnumerable<QR>>, TOut>>(body, pair);
+    }
+
+    private static MethodCallExpression ComposeEnumerable<TRightInternal, TRightPublic>(
+        Expression<Func<TRightInternal, TRightPublic>> itemShape,
+        Expression enumerableExpression)
+    {
+        return Expression.Call(
+            EnumerableSelectMethod.MakeGenericMethod(typeof(TRightInternal), typeof(TRightPublic)),
+            enumerableExpression,
+            itemShape);
+    }
+
+    private static readonly MethodInfo JoinTypedMethod =
+        typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(JoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
+
+    private static readonly MethodInfo GroupJoinTypedMethod =
+        typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(GroupJoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
+
+
+
+    private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
+        .Single(m => m.Name == nameof(Enumerable.Select) &&
+                     m.IsGenericMethodDefinition &&
+                     m.GetParameters()[1].ParameterType is { IsGenericType: true } p &&
+                     p.GetGenericTypeDefinition() == typeof(Func<,>));
+
+
+
 #if NET10_0_OR_GREATER
+    public static IQueryShape LeftJoin<R, K, TOut>(
+        SequenceQueryShape<T, Q> left,
+        IQueryShape right,
+        Expression<Func<T, K>> leftKey,
+        Expression<Func<R, K>> rightKey,
+        Expression<Func<T, R?, TOut>> result)
+    {
+        return (IQueryShape)LeftJoinTypedMethod
+            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
+            .Invoke(null, [left, right, leftKey, rightKey, result])!;
+    }
+
+    public static IQueryShape RightJoin<R, K, TOut>(
+        SequenceQueryShape<T, Q> left,
+        IQueryShape right,
+        Expression<Func<T, K>> leftKey,
+        Expression<Func<R, K>> rightKey,
+        Expression<Func<T?, R, TOut>> result)
+    {
+        return (IQueryShape)RightJoinTypedMethod
+            .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
+            .Invoke(null, [left, right, leftKey, rightKey, result])!;
+    }
+
     private static SequenceQueryShape<TOut, Pair<Q, QR?>> LeftJoinTyped<R, K, TOut, QR>(
         SequenceQueryShape<T, Q> left,
         IQueryShape rightUntyped,
@@ -175,81 +247,11 @@ internal static class JoinShapeBuilder<T, Q>
 
         return Expression.Lambda<Func<Pair<TLeftSource, TRightSource>, TOut>>(body, pair);
     }
-#endif
 
-    private static Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(
-        Expression<Func<Q, T>> leftShape,
-        Expression<Func<QR, R>> rightShape,
-        Expression<Func<T, R, TOut>> result)
-    {
-        var pair = Expression.Parameter(typeof(Pair<Q, QR>), "p");
-
-        var leftInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Left));
-        var rightInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Right));
-
-        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
-        var rightPublic = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightInternal);
-
-        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
-        {
-            [result.Parameters[0]] = leftPublic,
-            [result.Parameters[1]] = rightPublic
-        });
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Pair<Q, QR>, TOut>>(body, pair);
-    }
-
-    private static Expression<Func<Pair<Q, IEnumerable<QR>>, TOut>> BuildGroupJoinShape<R, QR, TOut>(
-        Expression<Func<Q, T>> leftShape,
-        Expression<Func<QR, R>> rightShape,
-        Expression<Func<T, IEnumerable<R>, TOut>> result)
-    {
-        var pair = Expression.Parameter(typeof(Pair<Q, IEnumerable<QR>>), "p");
-
-        var leftInternal = Expression.Property(pair, nameof(Pair<Q, IEnumerable<QR>>.Left));
-        var rightInternal = Expression.Property(pair, nameof(Pair<Q, IEnumerable<QR>>.Right));
-
-        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
-        var projectedRight = ComposeEnumerable(rightShape, rightInternal);
-
-        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
-        {
-            [result.Parameters[0]] = leftPublic,
-            [result.Parameters[1]] = projectedRight
-        });
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Pair<Q, IEnumerable<QR>>, TOut>>(body, pair);
-    }
-
-    private static MethodCallExpression ComposeEnumerable<TRightInternal, TRightPublic>(
-        Expression<Func<TRightInternal, TRightPublic>> itemShape,
-        Expression enumerableExpression)
-    {
-        return Expression.Call(
-            EnumerableSelectMethod.MakeGenericMethod(typeof(TRightInternal), typeof(TRightPublic)),
-            enumerableExpression,
-            itemShape);
-    }
-
-    private static readonly MethodInfo JoinTypedMethod =
-        typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(JoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
-
-    private static readonly MethodInfo GroupJoinTypedMethod =
-        typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(GroupJoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
-
-#if NET10_0_OR_GREATER
     private static readonly MethodInfo LeftJoinTypedMethod =
         typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(LeftJoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     private static readonly MethodInfo RightJoinTypedMethod =
         typeof(JoinShapeBuilder<T, Q>).GetMethod(nameof(RightJoinTyped), BindingFlags.NonPublic | BindingFlags.Static)!;
 #endif
-
-    private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
-        .Single(m => m.Name == nameof(Enumerable.Select) &&
-                     m.IsGenericMethodDefinition &&
-                     m.GetParameters()[1].ParameterType is { IsGenericType: true } p &&
-                     p.GetGenericTypeDefinition() == typeof(Func<,>));
 }

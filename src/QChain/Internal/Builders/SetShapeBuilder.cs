@@ -1,8 +1,7 @@
-using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal;
+namespace QChain.Internal.Builders;
 
 internal static class SetShapeBuilder<T, Q>
 {

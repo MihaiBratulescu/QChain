@@ -1,12 +1,11 @@
+using QChain.Internal.Builders;
 using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace QChain.Internal;
 
-internal abstract partial class SequenceQueryShape<T, Q>(
-    IQueryable<Q> source,
-    Expression<Func<Q, T>> shape) : QueryShape<T, Q>(source, shape)
+internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) : QueryShape<T, Q>(source, shape)
 {
     public SequenceQueryShape<T, Q> Where(Expression<Func<T, bool>> predicate) =>
         WithSource(Source.Where(Translate(predicate)));

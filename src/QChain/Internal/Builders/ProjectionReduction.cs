@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Visitors;
+namespace QChain.Internal.Builders;
 
 internal static class ProjectionReduction
 {
