@@ -15,7 +15,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
         QueryShape = new RegularQueryShape<T, Q>(source, shape);
 
-    private Query(SequenceQueryShape<T, Q> queryShape) => 
+    internal Query(SequenceQueryShape<T, Q> queryShape) => 
         QueryShape = queryShape;
 
     protected Query(Query<T, Q> query) =>
@@ -39,6 +39,29 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     #endregion
 
     #region Grouping
+    public IQuery<IGrouping<K, T>> GroupBy<K>(Expression<Func<T, K>> key) =>
+        GroupShapeBuilder<T, Q>.CreateRaw(QueryShape, key);
+
+    public IQuery<IGrouping<K, E>> GroupBy<K, E>(
+        Expression<Func<T, K>> keySelector,
+        Expression<Func<T, E>> elementSelector) =>
+        GroupShapeBuilder<T, Q>.CreateRaw(QueryShape, keySelector, elementSelector);
+
+    public IQuery<R> GroupBy<K, R>(
+        Expression<Func<T, K>> key,
+        Expression<Func<IGrouping<K, T>, R>> selector) =>
+        GroupShapeBuilder<T, Q>.CreateProjected(QueryShape, key, selector);
+
+    public IQuery<R> GroupBy<K, R>(
+        Expression<Func<T, K>> keySelector,
+        Expression<Func<K, IEnumerable<T>, R>> resultsSelector) =>
+        GroupShapeBuilder<T, Q>.CreateProjected(QueryShape, keySelector, resultsSelector);
+
+    public IQuery<R> GroupBy<K, E, R>(
+        Expression<Func<T, K>> keySelector,
+        Expression<Func<T, E>> elementSelector,
+        Expression<Func<K, IEnumerable<E>, R>> resultsSelector) =>
+        GroupShapeBuilder<T, Q>.CreateProjected(QueryShape, keySelector, elementSelector, resultsSelector);
     #endregion
 
     #region Joins
@@ -82,7 +105,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
 
     #region Projection
     public virtual IQuery<R> Select<R>(Expression<Func<T, R>> mapping) =>
-        Next(QueryShape.Compose(mapping));
+        Next<R>(QueryShape.Select(mapping));
 
     public IQuery<R> SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
         Next<R>(QueryShape.SelectMany(collectionSelector));
