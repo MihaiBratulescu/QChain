@@ -123,6 +123,18 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public async Task ExceptBy_Filters_DuplicateKeys()
+    {
+        var items = await Query(q =>
+            q.Orders
+                .OrderBy(o => o.OrderId)
+                .ExceptBy([3, 5], o => o.AccountId));
+
+        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
+        Assert.DoesNotContain(items, o => o.AccountId is 3 or 5);
+    }
+
+    [Fact]
     public async Task Intersect()
     {
         var items = await Query(q =>
@@ -155,6 +167,18 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
                 .OrderBy(x => x.Id));
 
         Assert.Equal([1, 2, 3], items.Select(x => x.Id));
+    }
+
+    [Fact]
+    public async Task IntersectBy_Filters_DuplicateKeys()
+    {
+        var items = await Query(q =>
+            q.Orders
+                .OrderBy(o => o.OrderId)
+                .IntersectBy([1, 2], o => o.AccountId));
+
+        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
+        Assert.All(items, o => Assert.True(o.AccountId is 1 or 2));
     }
 
     [Fact]
