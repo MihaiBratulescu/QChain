@@ -139,16 +139,8 @@ public static class OrderPredicates
 
 ```csharp
 var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive())                // predicate reuse
-        .Where(a => a.Region == Region.Europe))  //Expression<Func<T, bool>>
-    .ToArrayAsync(ct);
-```
-
-## Predicates can also be composed together: 
-
-```csharp
-var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive().And(a.FromEurope()))) // Func<T, Predicate>
+        .Where(a => a.IsActive())     // predicate reuse
+        .Where(a => a.FromEurope()))  //Expression<Func<T, bool>>
     .ToArrayAsync(ct);
 ```
 
