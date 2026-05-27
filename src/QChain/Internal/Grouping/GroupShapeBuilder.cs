@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace QChain.Internal.Builders;
+namespace QChain.Internal.Grouping;
 
 internal static class GroupShapeBuilder<T, Q>
 {

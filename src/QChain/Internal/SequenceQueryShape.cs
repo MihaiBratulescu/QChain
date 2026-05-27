@@ -31,34 +31,34 @@ internal partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression
 
     public SequenceQueryShape<T, Q> Reverse() => WithSource(Source.Reverse());
 
-    public IQueryShape Distinct() => SetQueryShape<T, Q>.Distinct(this);
+    public IQueryShape Distinct() => SetOperation<T, Q>.Distinct(this);
 
-    public IQueryShape Union(IQueryShape other) => SetQueryShape<T, Q>.Union(this, other);
+    public IQueryShape Union(IQueryShape other) => SetOperation<T, Q>.Union(this, other);
 
-    public IQueryShape Concat(IQueryShape other) => SetQueryShape<T, Q>.Concat(this, other);
+    public IQueryShape Concat(IQueryShape other) => SetOperation<T, Q>.Concat(this, other);
 
-    public IQueryShape Except(IQueryShape other) => SetQueryShape<T, Q>.Except(this, other);
+    public IQueryShape Except(IQueryShape other) => SetOperation<T, Q>.Except(this, other);
 
-    public IQueryShape Intersect(IQueryShape other) => SetQueryShape<T, Q>.Intersect(this, other);
+    public IQueryShape Intersect(IQueryShape other) => SetOperation<T, Q>.Intersect(this, other);
 
     public IQueryShape Select<R>(Expression<Func<T, R>> mapping) => Compose(mapping);
 
     public virtual IQueryShape Compose<R>(Expression<Func<T, R>> outer) => 
-        ProjectedQueryShape<T, Q>.Compose(this, outer);
+        ProjectionOperation<T, Q>.Compose(this, outer);
 
     public IQueryShape SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
-        ProjectedQueryShape<T, Q>.SelectMany(this, collectionSelector);
+        ProjectionOperation<T, Q>.SelectMany(this, collectionSelector);
 
     public SequenceQueryShape<R, Pair<Q, C>> SelectMany<C, R>(
         Expression<Func<T, IEnumerable<C>>> collectionSelector,
         Expression<Func<T, C, R>> resultSelector) =>
-        ProjectedQueryShape<T, Q>.SelectMany(this, collectionSelector, resultSelector);
+        ProjectionOperation<T, Q>.SelectMany(this, collectionSelector, resultSelector);
 
     public IQueryShape Join<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, R, TOut>> result) =>
-        JoinedQueryShape<T, Q>.Join(this, right, leftKey, rightKey, result);
+        JoinOperation<T, Q>.Join(this, right, leftKey, rightKey, result);
 
     public IQueryShape GroupJoin<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
-        JoinedQueryShape<T, Q>.GroupJoin(this, right, leftKey, rightKey, result);
+        JoinOperation<T, Q>.GroupJoin(this, right, leftKey, rightKey, result);
 
 #if NET10_0_OR_GREATER
     public IQueryShape LeftJoin<R, K, TOut>(
@@ -66,14 +66,14 @@ internal partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression
         Expression<Func<T, K>> leftKey,
         Expression<Func<R, K>> rightKey,
         Expression<Func<T, R?, TOut>> result) =>
-        JoinedQueryShape<T, Q>.LeftJoin(this, right, leftKey, rightKey, result);
+        JoinOperation<T, Q>.LeftJoin(this, right, leftKey, rightKey, result);
 
     public IQueryShape RightJoin<R, K, TOut>(
         IQueryShape right,
         Expression<Func<T, K>> leftKey,
         Expression<Func<R, K>> rightKey,
         Expression<Func<T?, R, TOut>> result) =>
-        JoinedQueryShape<T, Q>.RightJoin(this, right, leftKey, rightKey, result);
+        JoinOperation<T, Q>.RightJoin(this, right, leftKey, rightKey, result);
 #endif
 
     public SequenceQueryShape<T, Q> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>

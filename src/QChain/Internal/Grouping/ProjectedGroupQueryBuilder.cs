@@ -2,7 +2,7 @@ using QChain.Internal.Helpers;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Builders;
+namespace QChain.Internal.Grouping;
 
 internal static class ProjectedGroupQueryBuilder<T, Q>
 {

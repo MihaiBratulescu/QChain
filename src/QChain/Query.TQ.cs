@@ -1,5 +1,5 @@
 ﻿using QChain.Internal;
-using QChain.Internal.Builders;
+using QChain.Internal.Grouping;
 using QChain.Predicates;
 using System.Linq.Expressions;
 

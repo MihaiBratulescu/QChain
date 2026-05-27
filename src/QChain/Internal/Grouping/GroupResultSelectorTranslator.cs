@@ -3,7 +3,7 @@ using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Builders;
+namespace QChain.Internal.Grouping;
 
 internal static class GroupResultSelectorTranslator<T, Q>
 {

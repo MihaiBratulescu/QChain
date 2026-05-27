@@ -2,23 +2,18 @@ using QChain.Internal.Helpers;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Builders;
+namespace QChain.Internal.Grouping;
 
 internal static class RawGroupShapeBuilder<T, Q>
 {
-    public static IQuery<IGrouping<K, T>> Create<K>(
-        SequenceQueryShape<T, Q> query,
-        Expression<Func<T, K>> selector)
+    public static IQuery<IGrouping<K, T>> Create<K>(SequenceQueryShape<T, Q> query, Expression<Func<T, K>> selector)
     {
         Expression<Func<Q, Q>> element = q => q;
 
         return Create(query, query.Translate(selector), element, query.Shape);
     }
 
-    public static IQuery<IGrouping<K, E>> Create<K, E>(
-        SequenceQueryShape<T, Q> query,
-        Expression<Func<T, K>> selector,
-        Expression<Func<T, E>> elementSelector)
+    public static IQuery<IGrouping<K, E>> Create<K, E>(SequenceQueryShape<T, Q> query, Expression<Func<T, K>> selector, Expression<Func<T, E>> elementSelector)
     {
         Expression<Func<E, E>> elementShape = e => e;
 
@@ -80,10 +75,7 @@ internal static class RawGroupShapeBuilder<T, Q>
         var holderExpression = Expression.Constant(holder);
 
         var groupingType = typeof(ShapedGroupingValue<,,,>).MakeGenericType(
-            typeof(KQ),
-            typeof(K),
-            typeof(QG),
-            typeof(E));
+            typeof(KQ), typeof(K), typeof(QG), typeof(E));
 
         var body = Expression.MemberInit(
             Expression.New(groupingType),
