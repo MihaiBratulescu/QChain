@@ -156,24 +156,26 @@ public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 }
 ```
 
-Use the synchronous overload when the delegate computes a value immediately, the async overload when the delegate performs async work itself, and the `IQuery<T>` overload when the delegate returns a composable query that should be executed through QChain's terminal operations.
+- `Query<T>(Func<IUnitOfWork, T>)` for immediate values
+- `Query<T>(Func<IUnitOfWork, Task<T>>)` for async work
+- `Query<T>(Func<IUnitOfWork, IQuery<T>>)` for deferred query execution
 
 ```csharp
-var totalAccounts = unitOfWork.Query(db => db.Accounts.Count());
+int totalAccounts = unitOfWork.Query(db => db.Accounts.Count());
 
-var activeCount = await unitOfWork.Query(db => db.Accounts
+int activeCount = await unitOfWork.Query(db => db.Accounts
         .Where(a => a.IsActive())
         .CountAsync());
 
-var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
-        db.AccountsRepository.ActiveEuropeanAccountOrders())
+(Account account, Order order) activeEuropeanAccountOrders = await unitOfWork.Query(db =>
+        db.AccountsRepository.ActiveEuropeanAccountOrdersInLastMonth())
     .ToArrayAsync();
 ```
 
 ```csharp
-public sealed class AccountsRepository(IUnitOfWork db)
+public class AccountsRepository(IUnitOfWork db)
 {
-    public IQuery<(Account account, Order order)> ActiveEuropeanAccountOrders() =>
+    public IQuery<(Account account, Order order)> ActiveEuropeanAccountOrdersInLastMonth() =>
         db.Accounts
             .Join(db.Orders, a => a.AccountId, o => o.AccountId,
                 (a, o) => ValueTuple.Create(a, o))
