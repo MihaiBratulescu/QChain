@@ -149,8 +149,7 @@ var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
 ```csharp
 var activeEuropeanAccountOrders = await unitOfWork.Query(db => db.Accounts
         .Join(db.Orders, a => a.AccountId, o => o.AccountId, a, o) => ValueTuple.Create(a, o))
-        .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
-        Select(x => x.order))
+        .Where(x => x.account.IsActive().And(x.order.InLastMonth())))
     .ToArrayAsync(ct);
 ```
 
