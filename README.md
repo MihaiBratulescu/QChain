@@ -23,7 +23,7 @@ LINQ is powerful, but in real-world applications it often leads to:
 - poor support for reusable specifications
 
 ### What QChain Solves
-- Reusable composition
+- Reusable predicates
 - Composable pipelines
 - Flexible construction and execution
 
@@ -41,8 +41,7 @@ Large EF Core applications often end up with long methods, and duplicated, tight
 public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
 {
     return db.Customers
-        .Where(c => c.IsActive)
-        .Where(c => c.Region == "EU")
+        .Where(c => c.IsActive && c.Region == "EU")                                     // duplicated predicates
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
@@ -53,8 +52,7 @@ public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(Dat
 public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
 {
     return db.Customers
-        .Where(c => c.IsActive)
-        .Where(c => c.Region == "EU")
+        .Where(c => c.IsActive && c.Region == "EU")                                     // duplicated predicates
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
         .Where(x => x.o.CreatedAt >= from)
