@@ -60,6 +60,22 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
     public IQueryShape GroupJoin<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
         JoinedQueryShape<T, Q>.GroupJoin(this, right, leftKey, rightKey, result);
 
+#if NET10_0_OR_GREATER
+    public IQueryShape LeftJoin<R, K, TOut>(
+        IQueryShape right,
+        Expression<Func<T, K>> leftKey,
+        Expression<Func<R, K>> rightKey,
+        Expression<Func<T, R?, TOut>> result) =>
+        JoinedQueryShape<T, Q>.LeftJoin(this, right, leftKey, rightKey, result);
+
+    public IQueryShape RightJoin<R, K, TOut>(
+        IQueryShape right,
+        Expression<Func<T, K>> leftKey,
+        Expression<Func<R, K>> rightKey,
+        Expression<Func<T?, R, TOut>> result) =>
+        JoinedQueryShape<T, Q>.RightJoin(this, right, leftKey, rightKey, result);
+#endif
+
     public SequenceQueryShape<T, Q> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>
         WhereKeyIn(keys, keySelector, include: false);
 

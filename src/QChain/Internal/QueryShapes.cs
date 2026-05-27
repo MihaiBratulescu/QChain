@@ -163,6 +163,29 @@ internal sealed class JoinedQueryShape<T, Q>(IQueryable<Q> source, Expression<Fu
             BuildJoinShape(left.Shape, right.Shape, result));
     }
 
+    private static Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(
+        Expression<Func<Q, T>> leftShape,
+        Expression<Func<QR, R>> rightShape,
+        Expression<Func<T, R, TOut>> result)
+    {
+        var pair = Expression.Parameter(typeof(Pair<Q, QR>), "p");
+
+        var leftInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Left));
+        var rightInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Right));
+
+        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
+        var rightPublic = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightInternal);
+
+        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
+        {
+            [result.Parameters[0]] = leftPublic,
+            [result.Parameters[1]] = rightPublic
+        });
+        body = TupleExpressionNormalizer.Normalize(body);
+
+        return Expression.Lambda<Func<Pair<Q, QR>, TOut>>(body, pair);
+    }
+
     private static SequenceQueryShape<TOut, Pair<Q, IEnumerable<QR>>> GroupJoinTyped<R, K, TOut, QR>(
         SequenceQueryShape<T, Q> left,
         IQueryShape rightUntyped,
@@ -185,29 +208,6 @@ internal sealed class JoinedQueryShape<T, Q>(IQueryable<Q> source, Expression<Fu
         return new JoinedQueryShape<TOut, Pair<Q, IEnumerable<QR>>>(
             grouped,
             BuildGroupJoinShape(left.Shape, right.Shape, result));
-    }
-
-    private static Expression<Func<Pair<Q, QR>, TOut>> BuildJoinShape<R, QR, TOut>(
-        Expression<Func<Q, T>> leftShape,
-        Expression<Func<QR, R>> rightShape,
-        Expression<Func<T, R, TOut>> result)
-    {
-        var pair = Expression.Parameter(typeof(Pair<Q, QR>), "p");
-
-        var leftInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Left));
-        var rightInternal = Expression.Property(pair, nameof(Pair<Q, QR>.Right));
-
-        var leftPublic = ReplaceExpressionVisitor.Replace(leftShape.Body, leftShape.Parameters[0], leftInternal);
-        var rightPublic = ReplaceExpressionVisitor.Replace(rightShape.Body, rightShape.Parameters[0], rightInternal);
-
-        var body = ReplaceExpressionVisitor.ReplaceMany(result.Body, new Dictionary<Expression, Expression>
-        {
-            [result.Parameters[0]] = leftPublic,
-            [result.Parameters[1]] = rightPublic
-        });
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Pair<Q, QR>, TOut>>(body, pair);
     }
 
     private static Expression<Func<Pair<Q, IEnumerable<QR>>, TOut>> BuildGroupJoinShape<R, QR, TOut>(
