@@ -147,16 +147,10 @@ var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
 ## Reusable across joins.
 
 ```csharp
-var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
-    {
-        IQuery<(Account account, Order order)> accountOrders = db.Accounts
-            .Join(db.Orders, a => a.AccountId, o => o.AccountId,
-                 (a, o) => ValueTuple.Create(a, o));
-
-        return accountOrders
-            .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
-            .Select(x => x.order);
-    })
+var activeEuropeanAccountOrders = await unitOfWork.Query(db => db.Accounts
+        .Join(db.Orders, a => a.AccountId, o => o.AccountId, a, o) => ValueTuple.Create(a, o))
+        .Where(x => x.account.IsActive().And(x.order.InLastMonth()))
+        Select(x => x.order))
     .ToArrayAsync(ct);
 ```
 
