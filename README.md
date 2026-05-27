@@ -84,7 +84,7 @@ public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(D
 }
 ```
 
-## &#x1F517; Calling End
+## &#x1F517; Composing at the Call Site
 
 Mapping and pagination compose externally. Query composition is reusable while execution concerns remain composable.
 
@@ -218,4 +218,8 @@ For EF Core support:
 ```bash
 dotnet add package QChain.EntityFrameworkCore
 ```
+---
 
+## Feedback/Contribution
+
+[Issues](https://github.com/MihaiBratulescu/QChain/issues), [Discussions](https://github.com/MihaiBratulescu/QChain/discussions), and [Pull Requests](https://github.com/MihaiBratulescu/QChain/pulls) are welcome.
