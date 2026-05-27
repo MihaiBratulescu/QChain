@@ -8,7 +8,7 @@ public interface IQuery<T>
     IQueryable<T> AsQueryable();
 
     IQuery<T?> DefaultIfEmpty();
-    
+
     IQuery<T> Distinct();
 
     #region Filtering

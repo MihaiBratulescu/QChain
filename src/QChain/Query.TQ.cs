@@ -1,5 +1,6 @@
 ﻿using QChain.Internal;
 using QChain.Internal.Grouping;
+using QChain.Internal.Operations;
 using QChain.Predicates;
 using System.Linq.Expressions;
 
@@ -28,7 +29,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
         Next<T>(QueryShape.Distinct());
 
     public IQuery<T?> DefaultIfEmpty() =>
-        new Query<T?>(QueryShape.Project().DefaultIfEmpty());
+        new Query<T?>(DefaultIfEmptyOperation.Apply(QueryShape));
 
     #region Filtering
     public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>

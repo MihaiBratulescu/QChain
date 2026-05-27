@@ -63,14 +63,39 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     }
 
     [Fact]
-    public async Task Mapping_Tuple_Throws()
+    public async Task Mapping_Tuple_ReturnsComponentDefaults()
     {
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-           Query(q => q.Accounts
+        (int id, bool active)[] items = await Query(q => q.Accounts
             .Where(a => a.AccountId > 100)
             .Select(a => ValueTuple.Create(a.AccountId, a.IsActive))
-            .DefaultIfEmpty())
-        );
+            .DefaultIfEmpty());
+
+        Assert.Single(items);
+        Assert.Equal((0, false), items[0]);
+    }
+
+    [Fact]
+    public async Task Mapping_MixedTuple_ReturnsComponentDefaults()
+    {
+        (int? clearance, string? email, int id)[] items = await Query(q => q.Accounts
+            .Where(a => a.AccountId > 100)
+            .Select(a => ValueTuple.Create(a.ClearanceLevel, a.Email, a.AccountId))
+            .DefaultIfEmpty());
+
+        Assert.Single(items);
+        Assert.Equal((null, null, 0), items[0]);
+    }
+
+    [Fact]
+    public async Task Mapping_NullableTuple_ReturnsNull()
+    {
+        (int id, bool active)?[] items = await Query(q => q.Accounts
+            .Where(a => a.AccountId > 100)
+            .Select(a => (ValueTuple<int, bool>?)ValueTuple.Create(a.AccountId, a.IsActive))
+            .DefaultIfEmpty());
+
+        Assert.Single(items);
+        Assert.Null(items[0]);
     }
 
     [Fact]
