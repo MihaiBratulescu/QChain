@@ -149,6 +149,19 @@ public interface IUnitOfWork
     Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query);
     IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query);
 }
+
+public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
+{
+    public IQuery<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
+    public IQuery<Order> Orders { get; } = new Query<Order>(db.Set<Order>());
+
+    public T Query<T>(Func<IUnitOfWork, T> query) => query(this);
+
+    public Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query) => query(this);
+
+    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) =>
+        new QueryExecutor<T>(query(this));
+}
 ```
 
 Use the synchronous overload when the delegate computes a value immediately, the async overload when the delegate performs async work itself, and the `IQuery<T>` overload when the delegate returns a composable query that should be executed through QChain's terminal operations.
