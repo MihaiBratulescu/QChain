@@ -92,42 +92,31 @@ internal static class GroupShapeBuilder<T, Q>
             .Invoke(null, [query, key, keyQLambda, element, elementShape])!;
     }
 
-    private static Query<IGrouping<K, E>, Pair<KQ, QG[]>> CreateRawTyped<K, KQ, E, QG>(
+    private static Query<IGrouping<K, E>, IGrouping<KQ, QG>> CreateRawTyped<K, KQ, E, QG>(
         SequenceQueryShape<T, Q> query,
         Expression<Func<Q, K>> key,
         LambdaExpression keyQ,
         Expression<Func<Q, QG>> element,
         Expression<Func<QG, E>> elementShape)
     {
-        var group = Expression.Parameter(typeof(IGrouping<KQ, QG>), "g");
-        var pair = Expression.Lambda<Func<IGrouping<KQ, QG>, Pair<KQ, QG[]>>>(
-            Expression.MemberInit(
-                Expression.New(typeof(Pair<KQ, QG[]>)),
-                Expression.Bind(
-                    typeof(Pair<KQ, QG[]>).GetProperty(nameof(Pair<int, int>.Left))!,
-                    Expression.Property(group, nameof(IGrouping<int, int>.Key))),
-                Expression.Bind(
-                    typeof(Pair<KQ, QG[]>).GetProperty(nameof(Pair<int, int>.Right))!,
-                    Expression.Call(EnumerableToArrayMethod.MakeGenericMethod(typeof(QG)), group))),
-            group);
-
         var shape = new GroupedQueryShape<K, KQ, E, QG, T, Q>(
-            query.Source.GroupBy((Expression<Func<Q, KQ>>)keyQ, element).Select(pair),
+            query.Source.GroupBy((Expression<Func<Q, KQ>>)keyQ, element),
             query.Source,
             key,
+            keyQ,
             element,
             elementShape,
             CreateRawGroupShape<K, KQ, E, QG>(elementShape));
 
-        return new Query<IGrouping<K, E>, Pair<KQ, QG[]>>(shape);
+        return new Query<IGrouping<K, E>, IGrouping<KQ, QG>>(shape);
     }
 
-    private static Expression<Func<Pair<KQ, QG[]>, IGrouping<K, E>>> CreateRawGroupShape<K, KQ, E, QG>(
+    private static Expression<Func<IGrouping<KQ, QG>, IGrouping<K, E>>> CreateRawGroupShape<K, KQ, E, QG>(
         Expression<Func<QG, E>> elementShape)
     {
-        var pair = Expression.Parameter(typeof(Pair<KQ, QG[]>), "p");
-        var keyQ = Expression.Property(pair, nameof(Pair<int, int>.Left));
-        var itemsQ = Expression.Property(pair, nameof(Pair<int, int>.Right));
+        var group = Expression.Parameter(typeof(IGrouping<KQ, QG>), "g");
+        var keyQ = Expression.Property(group, nameof(IGrouping<int, int>.Key));
+        var itemsQ = Expression.Call(EnumerableToArrayMethod.MakeGenericMethod(typeof(QG)), group);
 
         var key = Expression.Parameter(typeof(KQ), "k");
         var keyShape = Expression.Lambda<Func<KQ, K>>(
@@ -161,9 +150,9 @@ internal static class GroupShapeBuilder<T, Q>
                 groupingType.GetProperty(nameof(ShapedGroupingValue<int, int, int, int>.ElementShape))!,
                 Expression.Property(holderExpression, nameof(GroupingShapeHolder<int, int, int, int>.ElementShape))));
 
-        return Expression.Lambda<Func<Pair<KQ, QG[]>, IGrouping<K, E>>>(
+        return Expression.Lambda<Func<IGrouping<KQ, QG>, IGrouping<K, E>>>(
             Expression.Convert(body, typeof(IGrouping<K, E>)),
-            pair);
+            group);
     }
 
     private static Expression<Func<IGrouping<K, Q>, R>> TranslateGroup<K, R>(

@@ -1,6 +1,4 @@
-﻿using QChain;
-
-namespace QChain;
+﻿namespace QChain;
 
 public static class IQueryableHandlers
 {

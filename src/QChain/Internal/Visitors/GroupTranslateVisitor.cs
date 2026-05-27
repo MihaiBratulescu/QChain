@@ -43,6 +43,24 @@ internal sealed class GroupTranslateVisitor<G, Q, T> : ExpressionVisitor
             return Expression.Property(expr, nameof(IGrouping<int, int>.Key));
         }
 
+        if (expr is not null &&
+            node.Member.DeclaringType is not null &&
+            !node.Member.DeclaringType.IsAssignableFrom(expr.Type) &&
+            ProjectionReduction.TryRewriteTupleAccess(expr, node.Member.Name, out var rewritten))
+        {
+            return Visit(rewritten);
+        }
+
+        if (expr is not null &&
+            node.Member.DeclaringType is not null &&
+            !node.Member.DeclaringType.IsAssignableFrom(expr.Type) &&
+            expr.Type.IsGenericType &&
+            expr.Type.GetGenericTypeDefinition() == typeof(Projection<,>) &&
+            node.Member.Name is nameof(Projection<int, int>.Item1) or nameof(Projection<int, int>.Item2))
+        {
+            return Expression.PropertyOrField(expr, node.Member.Name);
+        }
+
         return node.Update(expr);
     }
 

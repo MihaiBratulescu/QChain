@@ -164,6 +164,128 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
+    public async Task RawGroup_Where_OnAggregate()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .Where(g => g.Count() > 1)
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
+            .OrderBy(x => x.Item1));
+
+        Assert.Equal([1, 2], result.Select(x => x.Item1));
+        Assert.All(result, x => Assert.True(x.Item2 > 1));
+    }
+
+    [Fact]
+    public async Task RawGroup_OrderBy_OnKey()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .OrderByDescending(g => g.Key)
+            .Select(g => g.Key));
+
+        Assert.Equal([5, 3, 2, 1], result);
+    }
+
+    [Fact]
+    public async Task RawGroup_OrderBy_OnTupleKey()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => ValueTuple.Create(o.CurrencyId, o.AccountId))
+            .OrderBy(g => g.Key.Item1)
+            .ThenBy(g => g.Key.Item2)
+            .Select(g => ValueTuple.Create(g.Key.Item1, g.Key.Item2)));
+
+        Assert.Equal(
+            result.OrderBy(x => x.Item1).ThenBy(x => x.Item2),
+            result);
+    }
+
+    [Fact]
+    public async Task RawGroup_Where_OnTupleKeyMember()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => ValueTuple.Create(o.CurrencyId, o.AccountId))
+            .Where(g => g.Key.Item1 == CurrencyType.EUR)
+            .Select(g => ValueTuple.Create(g.Key.Item1, g.Key.Item2))
+            .OrderBy(x => x.Item2));
+
+        Assert.Equal(
+            [ValueTuple.Create(CurrencyType.EUR, 1), ValueTuple.Create(CurrencyType.EUR, 2)],
+            result);
+    }
+
+    [Fact]
+    public async Task RawGroup_Where_OnElementAggregate()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .Where(g => g.Sum(o => o.Total) > 250)
+            .Select(g => ValueTuple.Create(g.Key, g.Sum(o => o.Total)))
+            .OrderBy(x => x.Item1));
+
+        Assert.Equal([1, 3], result.Select(x => x.Item1));
+        Assert.All(result, x => Assert.True(x.Item2 > 250));
+    }
+
+    [Fact]
+    public async Task RawGroup_OrderBy_OnAggregate()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .OrderByDescending(g => g.Count())
+            .ThenBy(g => g.Key)
+            .Select(g => ValueTuple.Create(g.Key, g.Count())));
+
+        Assert.Equal([1, 2, 3, 5], result.Select(x => x.Item1));
+        Assert.Equal([3, 2, 1, 1], result.Select(x => x.Item2));
+    }
+
+    [Fact]
+    public async Task RawGroup_Filter_ThenMaterializeItems()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .Where(g => g.Count() > 1)
+            .OrderBy(g => g.Key)
+            .Select(g => ValueTuple.Create(g.Key, g.ToArray())));
+
+        Assert.Equal([1, 2], result.Select(x => x.Item1));
+        Assert.All(result, x => Assert.True(x.Item2.Length > 1));
+    }
+
+    [Fact]
+    public async Task RawGroup_Order_Page_Select()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .OrderBy(g => g.Key)
+            .Skip(1)
+            .Take(2)
+            .Select(g => ValueTuple.Create(g.Key, g.Count())));
+
+        Assert.Equal([2, 3], result.Select(x => x.Item1));
+    }
+
+    [Fact]
+    public async Task RawGroup_Filter_Project_ThenJoin()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.CurrencyId)
+            .Where(g => g.Count() > 1)
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
+            .Join(
+                q.Currencies,
+                g => g.Item1,
+                c => c.CurrencyId,
+                (g, c) => ValueTuple.Create(g.Item1, g.Item2, c.Symbol))
+            .OrderBy(x => x.Item1));
+
+        Assert.Equal([CurrencyType.EUR, CurrencyType.USD, CurrencyType.BTC], result.Select(x => x.Item1));
+        Assert.All(result, x => Assert.True(x.Item2 > 1));
+    }
+
+    [Fact]
     public async Task Aggregate_ThenJoin()
     {
         (CurrencyType currencyId, int activeCount, Currency currency)[] result =
