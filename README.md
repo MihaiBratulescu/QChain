@@ -167,15 +167,15 @@ int activeCount = await unitOfWork.Query(db => db.Accounts
         .Where(a => a.IsActive())
         .CountAsync());
 
-(Account account, Order order) activeEuropeanAccountOrders = await unitOfWork.Query(db =>
-        db.AccountsRepository.ActiveEuropeanAccountOrdersInLastMonth())
+(Account account, Order order) ordersInLastMonth = await unitOfWork.Query(db =>
+        db.AccountsRepository.ActiveEuropeanOrdersInLastMonth())
     .ToArrayAsync();
 ```
 
 ```csharp
 public class AccountsRepository(IUnitOfWork db)
 {
-    public IQuery<(Account account, Order order)> ActiveEuropeanAccountOrdersInLastMonth() =>
+    public IQuery<(Account account, Order order)> ActiveEuropeanOrdersInLastMonth() =>
         db.Accounts
             .Join(db.Orders, a => a.AccountId, o => o.AccountId,
                 (a, o) => ValueTuple.Create(a, o))
