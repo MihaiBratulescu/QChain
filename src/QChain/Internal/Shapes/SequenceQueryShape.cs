@@ -87,13 +87,14 @@ internal partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression
 
     private SequenceQueryShape<T, Q> WhereKeyIn<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector,bool include)
     {
+        var values = keys.ToArray();
         var translated = Translate(keySelector);
 
         var contains = Expression.Call(
             typeof(Enumerable),
             nameof(Enumerable.Contains),
             [typeof(K)],
-            Expression.Constant(keys),
+            Expression.Constant(values),
             translated.Body);
 
         Expression body = include ? contains : Expression.Not(contains);

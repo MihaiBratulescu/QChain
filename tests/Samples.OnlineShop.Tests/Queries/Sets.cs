@@ -193,6 +193,21 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public void ExceptBy_Translates_AsServerKeyFilter()
+    {
+        var query = _fixture.db.Orders
+            .OrderBy(o => o.OrderId)
+            .ExceptBy([3, 5], o => o.AccountId);
+
+        var sql = query.ToQueryString().ToUpperInvariant();
+
+        Assert.Contains("WHERE", sql);
+        Assert.Contains("ACCOUNTID", sql);
+        Assert.Contains("NOT", sql);
+        Assert.True(sql.Contains(" IN ") || sql.Contains("JSON_EACH") || sql.Contains("EXISTS"), sql);
+    }
+
+    [Fact]
     public async Task Intersect()
     {
         var items = await Query(q =>
@@ -259,6 +274,20 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
 
         Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
         Assert.All(items, o => Assert.True(o.AccountId is 1 or 2));
+    }
+
+    [Fact]
+    public void IntersectBy_Translates_AsServerKeyFilter()
+    {
+        var query = _fixture.db.Orders
+            .OrderBy(o => o.OrderId)
+            .IntersectBy([1, 2], o => o.AccountId);
+
+        var sql = query.ToQueryString().ToUpperInvariant();
+
+        Assert.Contains("WHERE", sql);
+        Assert.Contains("ACCOUNTID", sql);
+        Assert.True(sql.Contains(" IN ") || sql.Contains("JSON_EACH") || sql.Contains("EXISTS"), sql);
     }
 
     [Fact]

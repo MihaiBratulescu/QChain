@@ -28,6 +28,10 @@ public interface IAsyncQueryExecutor<T>
     public Task<T?> ElementAtOrDefaultAsync(int index, CancellationToken ct = default);
     #endregion
 
+    #region Contains
+    public Task<bool> ContainsAsync(T item, CancellationToken ct = default);
+    #endregion
+
     #region First/FirstOrDefault
     public Task<T> FirstAsync(CancellationToken ct = default);
     public Task<T> FirstAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default);
@@ -56,10 +60,10 @@ public interface IAsyncQueryExecutor<T>
     #endregion
 
     #region Min/Max
-    public Task<T> MinAsync(CancellationToken ct = default);
-    public Task<R> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
-    public Task<T> MaxAsync(CancellationToken ct = default);
-    public Task<R> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
+    public Task<T?> MinAsync(CancellationToken ct = default);
+    public Task<R?> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
+    public Task<T?> MaxAsync(CancellationToken ct = default);
+    public Task<R?> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
     #endregion
 
     #region Sum

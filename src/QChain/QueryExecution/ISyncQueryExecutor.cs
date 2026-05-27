@@ -27,6 +27,10 @@ public interface ISyncQueryExecutor<T>
     public T? ElementAtOrDefault(int index);
     #endregion
 
+    #region Contains
+    public bool Contains(T item);
+    #endregion
+
     #region First/FirstOrDefault
     public T First();
     public T First(Expression<Func<T, bool>> predicate);

@@ -9,19 +9,21 @@ namespace QChain.Internal.Operations;
 
 internal static class DefaultIfEmptyOperation
 {
-    public static IQueryable<T?> Apply<T, Q>(SequenceQueryShape<T, Q> shape)
+    public static IQueryShape Apply<T, Q>(SequenceQueryShape<T, Q> shape)
     {
         if (TryGetNullableTupleValue(shape.Shape.Body, out var tupleType, out var tupleValue))
             return ApplyNullableTuple<T, Q>(shape.Source, shape.Shape.Parameters, tupleType, tupleValue);
 
         var lowered = TupleProjection<T, Q>.Lower(shape.Shape.Body);
         if (lowered.Type == typeof(T))
-            return shape.Project().DefaultIfEmpty();
+            return new SequenceQueryShape<T?, T?>(
+                shape.Project().DefaultIfEmpty(),
+                x => x);
 
         return ApplyTuple<T, Q>(shape.Source, shape.Shape.Parameters, lowered);
     }
 
-    private static IQueryable<T?> ApplyTuple<T, Q>(
+    private static IQueryShape ApplyTuple<T, Q>(
         IQueryable<Q> source,
         IReadOnlyCollection<ParameterExpression> parameters,
         Expression lowered)
@@ -31,12 +33,12 @@ internal static class DefaultIfEmptyOperation
             lowered,
             parameters);
 
-        return (IQueryable<T?>)ApplyTupleMethod
+        return (IQueryShape)ApplyTupleMethod
             .MakeGenericMethod(typeof(T), typeof(Q), lowered.Type)
             .Invoke(null, [source, selector])!;
     }
 
-    private static IQueryable<T?> ApplyTupleCore<T, Q, C>(
+    private static SequenceQueryShape<T?, DefaultIfEmptyValue<C>> ApplyTupleCore<T, Q, C>(
         IQueryable<Q> source,
         Expression<Func<Q, C>> lowered)
     {
@@ -47,14 +49,15 @@ internal static class DefaultIfEmptyOperation
         var body = TupleProjection<T, C>.Rebuild(defaulted, typeof(T));
         var selector = Expression.Lambda<Func<DefaultIfEmptyValue<C>, T?>>(body, row);
 
-        return source
+        var defaultedSource = source
             .Select(lowered)
             .Select(x => new DefaultIfEmptyValue<C> { HasValue = true, Value = x })
-            .DefaultIfEmpty()
-            .Select(selector);
+            .DefaultIfEmpty();
+
+        return new SequenceQueryShape<T?, DefaultIfEmptyValue<C>>(defaultedSource, selector);
     }
 
-    private static IQueryable<T?> ApplyNullableTuple<T, Q>(
+    private static IQueryShape ApplyNullableTuple<T, Q>(
         IQueryable<Q> source,
         IReadOnlyCollection<ParameterExpression> parameters,
         Type tupleType,
@@ -68,12 +71,12 @@ internal static class DefaultIfEmptyOperation
             lowered,
             parameters);
 
-        return (IQueryable<T?>)ApplyNullableTupleMethod
+        return (IQueryShape)ApplyNullableTupleMethod
             .MakeGenericMethod(typeof(T), typeof(Q), tupleType, lowered.Type)
             .Invoke(null, [source, selector])!;
     }
 
-    private static IQueryable<T?> ApplyNullableTupleCore<T, Q, TTuple, C>(
+    private static SequenceQueryShape<T?, DefaultIfEmptyValue<C>> ApplyNullableTupleCore<T, Q, TTuple, C>(
         IQueryable<Q> source,
         Expression<Func<Q, C>> lowered)
         where TTuple : struct
@@ -89,11 +92,12 @@ internal static class DefaultIfEmptyOperation
             Expression.Default(typeof(T)));
         var selector = Expression.Lambda<Func<DefaultIfEmptyValue<C>, T?>>(body, row);
 
-        return source
+        var defaultedSource = source
             .Select(lowered)
             .Select(x => new DefaultIfEmptyValue<C> { HasValue = true, Value = x })
-            .DefaultIfEmpty()
-            .Select(selector);
+            .DefaultIfEmpty();
+
+        return new SequenceQueryShape<T?, DefaultIfEmptyValue<C>>(defaultedSource, selector);
     }
 
     private static Expression DefaultCarrier(Expression carrier, Expression hasValue)

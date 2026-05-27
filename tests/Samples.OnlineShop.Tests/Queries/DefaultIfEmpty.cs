@@ -99,6 +99,20 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     }
 
     [Fact]
+    public async Task Mapping_Tuple_ComposesAfterDefaultIfEmpty()
+    {
+        (int id, string email)[] items = await Query(q => q.Accounts
+            .Where(a => a.AccountId > 100)
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+            .DefaultIfEmpty()
+            .Where(x => x.Item1 == 0)
+            .Select(x => ValueTuple.Create(x.Item1, x.Item2 ?? "missing")));
+
+        Assert.Single(items);
+        Assert.Equal((0, "missing"), items[0]);
+    }
+
+    [Fact]
     public async Task GroupJoin()
     {
         (Account acc, Order? order)[] items = await Query(q => q.Accounts

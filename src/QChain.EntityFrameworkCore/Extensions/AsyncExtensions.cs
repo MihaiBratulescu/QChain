@@ -69,13 +69,13 @@ public static class AsyncExtensions
         #endregion
 
         #region Min/Max
-        public Task<T> MinAsync(CancellationToken ct = default) =>
+        public Task<T?> MinAsync(CancellationToken ct = default) =>
             Query(query, q => q.MinAsync(ct));
-        public Task<R> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default) =>
+        public Task<R?> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default) =>
             Query(query.Select(selector), q => q.MinAsync(ct));
-        public Task<T> MaxAsync(CancellationToken ct = default) =>
+        public Task<T?> MaxAsync(CancellationToken ct = default) =>
             Query(query, q => q.MaxAsync(ct));
-        public Task<R> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default) =>
+        public Task<R?> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default) =>
             Query(query.Select(selector), q => q.MaxAsync(ct));
         #endregion
 

@@ -1,4 +1,5 @@
-﻿using Samples.OnlineShop.DatabaseModels;
+﻿using Microsoft.EntityFrameworkCore;
+using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
 namespace Samples.OnlineShop.Tests.Queries;
@@ -292,7 +293,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
             .Select(g => g.Key);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToArrayAsync(efQuery));
+            efQuery.ToArrayAsync());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => Query(q => q.Orders
             .GroupBy(o => o.AccountId)

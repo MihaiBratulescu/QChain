@@ -37,6 +37,9 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public T? ElementAtOrDefault(int index)
         => query.ElementAtOrDefault(index);
 
+    public bool Contains(T item)
+        => query.Contains(item);
+
     public T First() => query.First();
 
     public T First(Expression<Func<T, bool>> predicate)

@@ -44,11 +44,14 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public Task<T?> ElementAtOrDefaultAsync(int index, CancellationToken ct = default)
         => query.ElementAtOrDefaultAsync(index, ct);
 
-    public Task<R> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
+    public Task<R?> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
         => query.MaxAsync(selector, ct);
 
-    public Task<R> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
+    public Task<R?> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
         => query.MinAsync(selector, ct);
+
+    public Task<bool> ContainsAsync(T item, CancellationToken ct = default)
+        => query.ContainsAsync(item, ct);
 
     public Task<T> FirstAsync(CancellationToken ct = default)
         => query.FirstAsync(ct);
@@ -104,10 +107,10 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public Task<T?> LastOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
         => LastOrDefaultAsync(PredicateCompiler.Compile(predicate), ct);
 
-    public Task<T> MinAsync(CancellationToken ct = default)
+    public Task<T?> MinAsync(CancellationToken ct = default)
         => query.MinAsync(ct);
 
-    public Task<T> MaxAsync(CancellationToken ct = default)
+    public Task<T?> MaxAsync(CancellationToken ct = default)
         => query.MaxAsync(ct);
 
     public Task<decimal> SumAsync(Expression<Func<T, decimal>> selector, CancellationToken ct = default)
