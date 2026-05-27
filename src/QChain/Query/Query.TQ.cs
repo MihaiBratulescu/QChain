@@ -127,9 +127,6 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     public IQuery<T> Reverse() => Next(QueryShape.Reverse());
     #endregion
 
-    private Query<TNext, QNext> Next<TNext, QNext>(IQueryable<QNext> source, Expression<Func<QNext, TNext>> shape)
-        => new(source, shape);
-
     private Query<TNext, QNext> Next<TNext, QNext>(QueryShape<TNext, QNext> queryShape)
         => new(queryShape);
 

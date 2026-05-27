@@ -25,69 +25,40 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
 
     public IQueryable<T> Project() => Source.Select(Shape);
 
-    private QueryShape<T, Q> WithSource(IQueryable<Q> source) => new(source, Shape);
+    public QueryShape<T, Q> Where(Expression<Func<T, bool>> predicate) => 
+        WithSource(Source.Where(Translate(predicate)));
 
-    public QueryShape<T, Q> Where(Expression<Func<T, bool>> predicate)
-    {
-        return WithSource(Source.Where(Translate(predicate)));
-    }
+    public QueryShape<T, Q> Skip(int count) => 
+        WithSource(Source.Skip(count));
 
-    public QueryShape<T, Q> Skip(int count)
-    {
-        return WithSource(Source.Skip(count));
-    }
+    public QueryShape<T, Q> Take(int count) => 
+        WithSource(Source.Take(count));
 
-    public QueryShape<T, Q> Take(int count)
-    {
-        return WithSource(Source.Take(count));
-    }
+    public QueryShape<T, Q> Page(int index, int count) => 
+        WithSource(Source.Skip(index * count).Take(count));
 
-    public QueryShape<T, Q> Page(int index, int count)
-    {
-        return WithSource(Source.Skip(index * count).Take(count));
-    }
+    public QueryShape<T, Q> OrderBy<K>(Expression<Func<T, K>> selector) => 
+        WithSource(Source.OrderBy(Translate(selector)));
 
-    public QueryShape<T, Q> OrderBy<K>(Expression<Func<T, K>> selector)
-    {
-        return WithSource(Source.OrderBy(Translate(selector)));
-    }
+    public QueryShape<T, Q> OrderByDescending<K>(Expression<Func<T, K>> selector) => 
+        WithSource(Source.OrderByDescending(Translate(selector)));
 
-    public QueryShape<T, Q> OrderByDescending<K>(Expression<Func<T, K>> selector)
-    {
-        return WithSource(Source.OrderByDescending(Translate(selector)));
-    }
+    public QueryShape<T, Q> ThenBy<K>(Expression<Func<T, K>> selector) => 
+        WithSource(((IOrderedQueryable<Q>)Source).ThenBy(Translate(selector)));
 
-    public QueryShape<T, Q> ThenBy<K>(Expression<Func<T, K>> selector)
-    {
-        return WithSource(((IOrderedQueryable<Q>)Source).ThenBy(Translate(selector)));
-    }
+    public QueryShape<T, Q> ThenByDescending<K>(Expression<Func<T, K>> selector) => 
+        WithSource(((IOrderedQueryable<Q>)Source).ThenByDescending(Translate(selector)));
 
-    public QueryShape<T, Q> ThenByDescending<K>(Expression<Func<T, K>> selector)
-    {
-        return WithSource(((IOrderedQueryable<Q>)Source).ThenByDescending(Translate(selector)));
-    }
+    public QueryShape<T, Q> Reverse() => WithSource(Source.Reverse());
 
-    public QueryShape<T, Q> Reverse()
-    {
-        return WithSource(Source.Reverse());
-    }
-
-    public IQueryShape Join<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, R, TOut>> result)
+    public IQueryShape Join<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, R, TOut>> result)
     {
         return (IQueryShape)JoinTypedMethod
             .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
             .Invoke(this, [right, leftKey, rightKey, result])!;
     }
 
-    public IQueryShape GroupJoin<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, IEnumerable<R>, TOut>> result)
+    public IQueryShape GroupJoin<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, IEnumerable<R>, TOut>> result)
     {
         return (IQueryShape)GroupJoinTypedMethod
             .MakeGenericMethod(typeof(R), typeof(K), typeof(TOut), right.SourceType)
@@ -194,6 +165,8 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
             TranslateSelectManyResult(resultSelector));
     }
 
+    private QueryShape<T, Q> WithSource(IQueryable<Q> source) => new(source, Shape);
+
     private Expression<Func<Q, R>> ComposeInternal<R>(Expression<Func<T, R>> outer)
     {
         var body = ReplaceExpressionVisitor.Replace(outer.Body, outer.Parameters[0], Shape.Body);
@@ -268,25 +241,6 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
         return (IQueryShape)SetOperationTypedMethod
             .MakeGenericMethod(other.SourceType, carrier)
             .Invoke(this, [other, kind])!;
-    }
-
-    private QueryShape<T, C> SetOperationTyped<QR, C>(IQueryShape rightUntyped, SetOperationKind kind)
-    {
-        var right = (QueryShape<T, QR>)rightUntyped;
-
-        var leftCarrier = Source.Select(BuildCarrierShape<Q, C>(Shape));
-        var rightCarrier = right.Source.Select(BuildCarrierShape<QR, C>(right.Shape));
-
-        var source = kind switch
-        {
-            SetOperationKind.Union => leftCarrier.Union(rightCarrier),
-            SetOperationKind.Concat => leftCarrier.Concat(rightCarrier),
-            SetOperationKind.Except => leftCarrier.Except(rightCarrier),
-            SetOperationKind.Intersect => leftCarrier.Intersect(rightCarrier),
-            _ => throw new NotSupportedException(kind.ToString())
-        };
-
-        return new QueryShape<T, C>(source, Rebuild<C>());
     }
 
     private static Expression<Func<TSource, C>> BuildCarrierShape<TSource, C>(Expression<Func<TSource, T>> shape)
@@ -409,6 +363,25 @@ internal sealed partial record QueryShape<T, Q>(IQueryable<Q> Source, Expression
 
     private static readonly MethodInfo SetOperationTypedMethod =
         typeof(QueryShape<T, Q>).GetMethod(nameof(SetOperationTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+    private QueryShape<T, C> SetOperationTyped<QR, C>(IQueryShape rightUntyped, SetOperationKind kind)
+    {
+        var right = (QueryShape<T, QR>)rightUntyped;
+
+        var leftCarrier = Source.Select(BuildCarrierShape<Q, C>(Shape));
+        var rightCarrier = right.Source.Select(BuildCarrierShape<QR, C>(right.Shape));
+
+        var source = kind switch
+        {
+            SetOperationKind.Union => leftCarrier.Union(rightCarrier),
+            SetOperationKind.Concat => leftCarrier.Concat(rightCarrier),
+            SetOperationKind.Except => leftCarrier.Except(rightCarrier),
+            SetOperationKind.Intersect => leftCarrier.Intersect(rightCarrier),
+            _ => throw new NotSupportedException(kind.ToString())
+        };
+
+        return new QueryShape<T, C>(source, Rebuild<C>());
+    }
 
     private static readonly MethodInfo EnumerableSelectMethod = typeof(Enumerable).GetMethods(BindingFlags.Public | BindingFlags.Static)
         .Single(m => m.Name == nameof(Enumerable.Select) &&
