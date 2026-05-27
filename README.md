@@ -135,15 +135,17 @@ public static class OrderPredicates
 }
 ```
 
-## Route execution through the unit of work.
+## Unit of Work
 
-Expose query roots from your unit of work as `IQuery<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary.
+Expose query roots from your unit of work as `IQuery<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary. `QueryExecutor<T>` is provided for deferred execution.
 
 ```csharp
 public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
     public IQuery<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
     public IQuery<Order> Orders { get; } = new Query<Order>(db.Set<Order>());
+
+    public IAccountsRepository AccountsRepository { get; } = new AccountsRepository(this);
 
     public T Query<T>(Func<IUnitOfWork, T> query) => query(this);
 
@@ -159,29 +161,25 @@ Use the synchronous overload when the delegate computes a value immediately, the
 ```csharp
 var totalAccounts = unitOfWork.Query(db => db.Accounts.Count());
 
-var activeCount = await unitOfWork.Query(db =>
-    db.Accounts.Where(a => a.IsActive).CountAsync(ct));
+var activeCount = await unitOfWork.Query(db => db.Accounts
+        .Where(a => a.IsActive())
+        .CountAsync());
 
-var activeAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive))
-    .ToArrayAsync(ct);
+var activeEuropeanAccountOrders = await unitOfWork.Query(db =>
+        db.AccountsRepository.ActiveEuropeanAccountOrders())
+    .ToArrayAsync();
 ```
 
-## Use normal query composition.
-
 ```csharp
-var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive().And(a.FromEurope()))  // predicate reuse        
-    .ToArrayAsync(ct);
-```
-
-## Reusable across joins.
-
-```csharp
-var activeEuropeanAccountOrders = await unitOfWork.Query(db => db.Accounts
-        .Join(db.Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o))
-        .Where(x => x.account.IsActive().And(x.order.InLastMonth())))
-    .ToArrayAsync(ct);
+public sealed class AccountsRepository(IUnitOfWork db)
+{
+    public IQuery<(Account account, Order order)> ActiveEuropeanAccountOrders() =>
+        db.Accounts
+            .Join(db.Orders, a => a.AccountId, o => o.AccountId,
+                (a, o) => ValueTuple.Create(a, o))
+            // predicates are reusable across joins
+            .Where(x => x.account.IsActive().And(x.order.InLastMonth())); 
+}
 ```
 
 ---
