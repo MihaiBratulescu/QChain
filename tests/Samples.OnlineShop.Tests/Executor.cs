@@ -160,6 +160,24 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     }
 
     [Fact]
+    public async Task MinMax_EmptyNullableProjection_ReturnsNull()
+    {
+        var empty = Accounts.Where(a => a.AccountId > 100);
+
+        Assert.Null(await empty.MinAsync(a => a.ClearanceLevel, default));
+        Assert.Null(await empty.MaxAsync(a => a.ClearanceLevel, default));
+    }
+
+    [Fact]
+    public async Task MinMax_EmptyNonNullableProjection_Throws()
+    {
+        var empty = Accounts.Where(a => a.AccountId > 100);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => empty.MinAsync(a => a.AccountId, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => empty.MaxAsync(a => a.AccountId, default));
+    }
+
+    [Fact]
     public async Task ElementAt_AfterProjection()
     {
         var item = await Accounts

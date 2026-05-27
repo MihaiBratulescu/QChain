@@ -67,6 +67,30 @@ public class LeftJoin(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     }
 
     [Fact]
+    public async Task CanFilterNullRightAfterJoin()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Where(x => x.Item2 == null)
+            .Select(x => x.Item1.AccountId)
+            .OrderBy(x => x));
+
+        Assert.Equal([4, 6, 7], items);
+    }
+
+    [Fact]
+    public async Task CanFilterNonNullRightAfterJoin()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Where(x => x.Item2 != null)
+            .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2!.AccountId)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
     public async Task CanUsePredicatesOnLeftAndRight()
     {
         var items = await Query(q => q.Accounts

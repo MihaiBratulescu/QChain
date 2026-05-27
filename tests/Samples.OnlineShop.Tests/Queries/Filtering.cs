@@ -40,6 +40,34 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
+    public async Task TupleProjection_NullFilters()
+    {
+        var rows = await Query(q => q.Accounts
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email, a.ClearanceLevel))
+            .Where(x => x.Item2 == null && x.Item3 == null));
+
+        Assert.Single(rows);
+        Assert.Equal(6, rows[0].Item1);
+        Assert.Null(rows[0].Item2);
+        Assert.Null(rows[0].Item3);
+    }
+
+    [Fact]
+    public async Task AnonymousProjection_NullCoalesce()
+    {
+        var rows = await Query(q => q.Accounts
+            .Where(a => a.Email == null)
+            .Select(a => new
+            {
+                a.AccountId,
+                Email = a.Email ?? "missing"
+            }));
+
+        Assert.Single(rows);
+        Assert.Equal("missing", rows[0].Email);
+    }
+
+    [Fact]
     public async Task Where_Predicate()
     {
         Expression<Func<Account, bool>> inactive = a => a.IsActive == false;

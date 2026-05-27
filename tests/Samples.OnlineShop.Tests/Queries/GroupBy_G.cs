@@ -422,6 +422,47 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
+    public async Task RawGroup_NullableKey_AllNullsStayInNullGroup()
+    {
+        var result = await Query(q => q.Accounts
+            .GroupBy(a => a.ClearanceLevel)
+            .Where(g => g.Key == null)
+            .Select(g => ValueTuple.Create(g.Key, g.Count())));
+
+        Assert.Single(result);
+        Assert.Null(result[0].Item1);
+        Assert.Equal(7, result[0].Item2);
+    }
+
+    [Fact]
+    public async Task ProjectedGroup_NullableTupleKey_PreservesNullMember()
+    {
+        var result = await Query(q => q.Accounts
+            .GroupBy(
+                a => ValueTuple.Create(a.ClearanceLevel, a.Email == null),
+                g => ValueTuple.Create(g.Key.Item1, g.Key.Item2, g.Count()))
+            .OrderBy(x => x.Item2));
+
+        Assert.Equal([false, true], result.Select(x => x.Item2));
+        Assert.All(result, x => Assert.Null(x.Item1));
+        Assert.Equal(7, result.Sum(x => x.Item3));
+    }
+
+    [Fact]
+    public async Task RawGroup_LeftJoin_NullRight_CanGroupByNullKey()
+    {
+        var result = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .GroupBy(x => x.Item2 == null ? null : (int?)x.Item2.CurrencyId)
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
+            .OrderBy(x => x.Item1.HasValue)
+            .ThenBy(x => x.Item1));
+
+        Assert.Contains(result, x => x.Item1 is null && x.Item2 > 0);
+        Assert.Contains(result, x => x.Item1 == (int)CurrencyType.EUR);
+    }
+
+    [Fact]
     public async Task TwoJoins_ThenGroupBy_TupleKey_Aggregate()
     {
         var result = await Query(q => q.Orders
