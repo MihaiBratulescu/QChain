@@ -146,6 +146,18 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public Task<decimal?> AverageAsync(Expression<Func<T, decimal?>> selector, CancellationToken ct = default)
         => query.AverageAsync(selector, ct);
 
+    public Task<double> AverageAsync(Expression<Func<T, int>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<double?> AverageAsync(Expression<Func<T, int?>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<double> AverageAsync(Expression<Func<T, long>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
+    public Task<double?> AverageAsync(Expression<Func<T, long?>> selector, CancellationToken ct = default)
+        => query.AverageAsync(selector, ct);
+
     public Task<float> AverageAsync(Expression<Func<T, float>> selector, CancellationToken ct = default)
         => query.AverageAsync(selector, ct);
 

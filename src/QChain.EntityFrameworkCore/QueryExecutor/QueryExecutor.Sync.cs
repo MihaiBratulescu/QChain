@@ -132,6 +132,18 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public decimal? Average(Expression<Func<T, decimal?>> selector)
         => query.Average(selector);
 
+    public double Average(Expression<Func<T, int>> selector)
+        => query.Average(selector);
+
+    public double? Average(Expression<Func<T, int?>> selector)
+        => query.Average(selector);
+
+    public double Average(Expression<Func<T, long>> selector)
+        => query.Average(selector);
+
+    public double? Average(Expression<Func<T, long?>> selector)
+        => query.Average(selector);
+
     public float Average(Expression<Func<T, float>> selector)
         => query.Average(selector);
 

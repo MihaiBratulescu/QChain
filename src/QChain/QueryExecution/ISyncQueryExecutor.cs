@@ -82,6 +82,12 @@ public interface ISyncQueryExecutor<T>
     public decimal Average(Expression<Func<T, decimal>> selector);
     public decimal? Average(Expression<Func<T, decimal?>> selector);
 
+    public double Average(Expression<Func<T, int>> selector);
+    public double? Average(Expression<Func<T, int?>> selector);
+
+    public double Average(Expression<Func<T, long>> selector);
+    public double? Average(Expression<Func<T, long?>> selector);
+
     public float Average(Expression<Func<T, float>> selector);
     public float? Average(Expression<Func<T, float?>> selector);
 

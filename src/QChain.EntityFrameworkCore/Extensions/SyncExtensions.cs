@@ -111,6 +111,16 @@ public static class SyncExtensions
         public decimal? Average(Expression<Func<T, decimal?>> selector) =>
             Query(query, q => q.Average(selector));
 
+        public double Average(Expression<Func<T, int>> selector) =>
+            Query(query, q => q.Average(selector));
+        public double? Average(Expression<Func<T, int?>> selector) =>
+            Query(query, q => q.Average(selector));
+
+        public double Average(Expression<Func<T, long>> selector) =>
+            Query(query, q => q.Average(selector));
+        public double? Average(Expression<Func<T, long?>> selector) =>
+            Query(query, q => q.Average(selector));
+
         public float Average(Expression<Func<T, float>> selector) =>
           Query(query, q => q.Average(selector));
         public float? Average(Expression<Func<T, float?>> selector) =>

@@ -83,6 +83,12 @@ public interface IAsyncQueryExecutor<T>
     public Task<decimal> AverageAsync(Expression<Func<T, decimal>> selector, CancellationToken ct = default);
     public Task<decimal?> AverageAsync(Expression<Func<T, decimal?>> selector, CancellationToken ct = default);
 
+    public Task<double> AverageAsync(Expression<Func<T, int>> selector, CancellationToken ct = default);
+    public Task<double?> AverageAsync(Expression<Func<T, int?>> selector, CancellationToken ct = default);
+
+    public Task<double> AverageAsync(Expression<Func<T, long>> selector, CancellationToken ct = default);
+    public Task<double?> AverageAsync(Expression<Func<T, long?>> selector, CancellationToken ct = default);
+
     public Task<float> AverageAsync(Expression<Func<T, float>> selector, CancellationToken ct = default);
     public Task<float?> AverageAsync(Expression<Func<T, float?>> selector, CancellationToken ct = default);
 
