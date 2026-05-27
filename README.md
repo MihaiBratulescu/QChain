@@ -140,16 +140,6 @@ public static class OrderPredicates
 Expose query roots from your unit of work as `IQuery<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary.
 
 ```csharp
-public interface IUnitOfWork
-{
-    IQuery<Account> Accounts { get; }
-    IQuery<Order> Orders { get; }
-
-    T Query<T>(Func<IUnitOfWork, T> query);
-    Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query);
-    IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query);
-}
-
 public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
     public IQuery<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
