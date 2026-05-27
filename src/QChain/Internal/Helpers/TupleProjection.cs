@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal.Builders;
+namespace QChain.Internal.Helpers;
 
 internal static class TupleProjection<T, Q>
 {

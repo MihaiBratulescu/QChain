@@ -1,7 +1,4 @@
-using QChain.Internal.Builders;
-using QChain.Internal.Visitors;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace QChain.Internal;
 
@@ -34,78 +31,34 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
 
     public SequenceQueryShape<T, Q> Reverse() => WithSource(Source.Reverse());
 
-    public IQueryShape Select<R>(Expression<Func<T, R>> mapping) =>
-        Compose(mapping);
+    public IQueryShape Distinct() => SetQueryShape<T, Q>.Distinct(this);
 
-    public virtual IQueryShape Compose<R>(Expression<Func<T, R>> outer) =>
-        new ProjectedQueryShape<R, Q>(Source, ComposeInternal(outer));
+    public IQueryShape Union(IQueryShape other) => SetQueryShape<T, Q>.Union(this, other);
 
-    public IQueryShape SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector)
-    {
-        var translated = Translate(collectionSelector);
+    public IQueryShape Concat(IQueryShape other) => SetQueryShape<T, Q>.Concat(this, other);
 
-        if (translated.Body is not MethodCallExpression call)
-        {
-            return new ProjectedQueryShape<R, R>(
-                Source.SelectMany(translated),
-                item => item);
-        }
+    public IQueryShape Except(IQueryShape other) => SetQueryShape<T, Q>.Except(this, other);
 
-        var source = call.Arguments[0];
-        var itemShape = (LambdaExpression)call.Arguments[1];
-        var elementType = itemShape.Parameters[0].Type;
-        var collectionSelectorTyped = BuildCollectionSelector(translated, elementType, source);
+    public IQueryShape Intersect(IQueryShape other) => SetQueryShape<T, Q>.Intersect(this, other);
 
-        return (IQueryShape)SelectManyTypedMethod
-            .MakeGenericMethod(typeof(R), elementType)
-            .Invoke(this, [collectionSelectorTyped, itemShape])!;
-    }
+    public IQueryShape Select<R>(Expression<Func<T, R>> mapping) => Compose(mapping);
+
+    public virtual IQueryShape Compose<R>(Expression<Func<T, R>> outer) => 
+        ProjectedQueryShape<T, Q>.Compose(this, outer);
+
+    public IQueryShape SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector) =>
+        ProjectedQueryShape<T, Q>.SelectMany(this, collectionSelector);
 
     public SequenceQueryShape<R, Pair<Q, C>> SelectMany<C, R>(
         Expression<Func<T, IEnumerable<C>>> collectionSelector,
-        Expression<Func<T, C, R>> resultSelector)
-    {
-        var source = Source.SelectMany(
-            Translate(collectionSelector),
-            (q, c) => new Pair<Q, C>
-            {
-                Left = q,
-                Right = c
-            });
+        Expression<Func<T, C, R>> resultSelector) =>
+        ProjectedQueryShape<T, Q>.SelectMany(this, collectionSelector, resultSelector);
 
-        return new ProjectedQueryShape<R, Pair<Q, C>>(
-            source,
-            TranslateSelectManyResult(resultSelector));
-    }
+    public IQueryShape Join<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, R, TOut>> result) =>
+        JoinedQueryShape<T, Q>.Join(this, right, leftKey, rightKey, result);
 
-    public IQueryShape Join<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, R, TOut>> result) =>
-        JoinShapeBuilder<T, Q>.Join(this, right, leftKey, rightKey, result);
-
-    public IQueryShape GroupJoin<R, K, TOut>(
-        IQueryShape right,
-        Expression<Func<T, K>> leftKey,
-        Expression<Func<R, K>> rightKey,
-        Expression<Func<T, IEnumerable<R>, TOut>> result) =>
-        JoinShapeBuilder<T, Q>.GroupJoin(this, right, leftKey, rightKey, result);
-
-    public IQueryShape Distinct() =>
-        SetShapeBuilder<T, Q>.Distinct(this);
-
-    public IQueryShape Union(IQueryShape other) =>
-        SetShapeBuilder<T, Q>.Union(this, other);
-
-    public IQueryShape Concat(IQueryShape other) =>
-        SetShapeBuilder<T, Q>.Concat(this, other);
-
-    public IQueryShape Except(IQueryShape other) =>
-        SetShapeBuilder<T, Q>.Except(this, other);
-
-    public IQueryShape Intersect(IQueryShape other) =>
-        SetShapeBuilder<T, Q>.Intersect(this, other);
+    public IQueryShape GroupJoin<R, K, TOut>(IQueryShape right, Expression<Func<T, K>> leftKey, Expression<Func<R, K>> rightKey, Expression<Func<T, IEnumerable<R>, TOut>> result) =>
+        JoinedQueryShape<T, Q>.GroupJoin(this, right, leftKey, rightKey, result);
 
     public SequenceQueryShape<T, Q> ExceptBy<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector) =>
         WhereKeyIn(keys, keySelector, include: false);
@@ -135,44 +88,4 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
         return WithSource(Source.Where(predicate));
     }
 
-    private static LambdaExpression BuildCollectionSelector(LambdaExpression selector, Type elementType, Expression body)
-    {
-        return Expression.Lambda(
-            typeof(Func<,>).MakeGenericType(selector.Parameters[0].Type, typeof(IEnumerable<>).MakeGenericType(elementType)),
-            body,
-            selector.Parameters);
-    }
-
-    private SequenceQueryShape<R, QR> SelectManyTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
-    {
-        var collectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)collectionSelectorUntyped;
-        var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;
-
-        return new ProjectedQueryShape<R, QR>(
-            Source.SelectMany(collectionSelector),
-            itemShape);
-    }
-
-    private Expression<Func<Pair<Q, C>, R>> TranslateSelectManyResult<C, R>(
-        Expression<Func<T, C, R>> resultSelector)
-    {
-        var pair = Expression.Parameter(typeof(Pair<Q, C>), "p");
-
-        var outerQ = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Left));
-        var innerC = Expression.PropertyOrField(pair, nameof(Pair<Q, C>.Right));
-
-        var publicShape = ReplaceExpressionVisitor.Replace(Shape.Body, Shape.Parameters[0], outerQ);
-
-        var body = ReplaceExpressionVisitor.ReplaceMany(resultSelector.Body, new Dictionary<Expression, Expression>
-        {
-            [resultSelector.Parameters[0]] = publicShape,
-            [resultSelector.Parameters[1]] = innerC
-        });
-        body = TupleExpressionNormalizer.Normalize(body);
-
-        return Expression.Lambda<Func<Pair<Q, C>, R>>(body, pair);
-    }
-
-    private static readonly MethodInfo SelectManyTypedMethod =
-        typeof(SequenceQueryShape<T, Q>).GetMethod(nameof(SelectManyTyped), BindingFlags.NonPublic | BindingFlags.Instance)!;
 }

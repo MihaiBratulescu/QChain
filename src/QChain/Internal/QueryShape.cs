@@ -1,21 +1,8 @@
-using QChain.Internal.Builders;
+using QChain.Internal.Helpers;
 using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 
 namespace QChain.Internal;
-
-internal interface IUntypedQuery
-{
-    IQueryShape Untyped { get; }
-}
-
-internal interface IQueryShape
-{
-    IQueryable UntypedSource { get; }
-    LambdaExpression UntypedShape { get; }
-    Type SourceType { get; }
-}
-
 
 internal abstract class QueryShape<T> : IQueryShape
 {
