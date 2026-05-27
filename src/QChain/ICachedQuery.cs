@@ -1,4 +1,4 @@
-﻿namespace QChain.CachedQuery;
+﻿namespace QChain;
 
 public interface ICachedQuery<T> : IQuery<T>
 {

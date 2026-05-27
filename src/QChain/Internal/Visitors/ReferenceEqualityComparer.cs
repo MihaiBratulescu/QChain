@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
-namespace QChain.Visitors;
+namespace QChain.Internal.Visitors;
 
 internal sealed class ReferenceEqualityComparer : IEqualityComparer<Expression>
 {

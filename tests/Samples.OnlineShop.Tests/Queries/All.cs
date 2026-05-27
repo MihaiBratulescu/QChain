@@ -7,20 +7,28 @@ namespace Samples.OnlineShop.Tests.Queries;
 public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
 {
     [Fact]
-    public async Task Execute()
+    public async Task Execute1()
     {
-        (int id, bool isActive) [] accounts = await Query(db => db.Accounts
+        (int id, bool isActive)[] accounts = await Query(db => db.Accounts
             .FromEurope()
             .Active()
             .Select(a => ValueTuple.Create(a.AccountId, a.IsActive))
             .Where(a => a.Item1 % 2 == 0)
             .OrderByDescending(a => a.Item1));
+    }
 
+    [Fact]
+    public async Task Execute2()
+    {
         var shapedJoin = await Query(db => db.Accounts
             .GroupJoin(db.Orders.Select(o => new { o.OrderId, o.AccountId }), a => a.AccountId, o => o.AccountId,
                     (a, o) => new { a, o })
             .Where(x => x.a.AccountId < 100));
+    }
 
+    [Fact]
+    public async Task Execute3()
+    {
         (Account account, IEnumerable<Order> orders)[] accountWithOrders = await Query(db => db.Accounts
             .Active()
             .WithOrders(db.Orders.NewestFirst()
@@ -29,11 +37,19 @@ public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
             .Where(x => x.account.AccountId < 100)
             .OrderByDescending(a => a.account.AccountId)
             .ThenBy(a => a.account.IsActive));
+    }
 
+    [Fact]
+    public async Task Execute4()
+    {
         (Order order, IEnumerable<Transaction> transactions)[] ordersWithTransactions = await Query(db => db.Orders
-                .WithCurrencies(CurrencyType.EUR, CurrencyType.USD)
-                .WithTransactions(db.Transactions));
+               .WithCurrencies(CurrencyType.EUR, CurrencyType.USD)
+               .WithTransactions(db.Transactions));
+    }
 
+    [Fact]
+    public async Task Execute5()
+    {
         (Account a, IEnumerable<Order> o, Transaction t, Currency c)[] all = await Query(db => db.Accounts
             .WithOrders(db.Orders.InLastMonth())
             .Join(db.Transactions.Settled(), j => j.account.AccountId, t => t.OrderId,
@@ -41,10 +57,19 @@ public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
              .Join(db.Currencies, j => j.orders.Select(o => o.CurrencyId).FirstOrDefault(), c => c.CurrencyId,
                     (j, c) => ValueTuple.Create(j.account, j.orders, j.tx, c))
              .Where(t => t.Item1.AccountId < 100));
+    }
 
+    [Fact]
+    public async Task Execute6()
+    {
         (Account, IEnumerable<(int orderId, int accountId)>)[] shapedRight = await Query(db => db.Accounts
                 .GroupJoin(db.Orders.Select(o => ValueTuple.Create(o.OrderId, o.AccountId)), a => a.AccountId, o => o.Item1));
 
+    }
+
+    [Fact]
+    public async Task Execute7()
+    {
         (Order o, Transaction tx, Currency c)[] nested = await Query(db =>
         {
             IQuery<(Order order, Transaction transaction)> subquery = db.Orders
@@ -57,28 +82,42 @@ public class All(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
                 .Join(db.Currencies, x => x.order.CurrencyId, c => c.CurrencyId)
                 .Select(x => ValueTuple.Create(x.Item1.order, x.Item1.transaction, x.Item2));
         });
+    }
 
-
-
+    [Fact]
+    public async Task Execute8()
+    {
         (int accountId, int orderId)[] distinct = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
-                .DistinctBy(a => new { aId = a.Item2.AccountId, oId = a.Item1.AccountId })
-                .Select(a => ValueTuple.Create(a.aId, a.oId)));
+                .Select(a => ValueTuple.Create(a.Item2.AccountId, a.Item1.AccountId))
+                .Distinct());
+    }
 
+    [Fact]
+    public async Task Execute9()
+    {
         (int, Order)[] distinct2 = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .Select(a => a.Item2.AccountId)
                 .Distinct()
                 .Join(db.Orders, x => x, o => o.AccountId));
+    }
 
-        (CurrencyType ct, int accountId, IEnumerable<(Order, Account)>)[] group = 
+    [Fact]
+    public async Task Execute10()
+    {
+        (CurrencyType ct, int accountId, (Order, Account)[])[] group = 
             await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .GroupBy(a => ValueTuple.Create(a.Item1.CurrencyId, a.Item2.AccountId))
-                .Select(j => ValueTuple.Create(j.Key.Item1, j.Key.Item2, j.Items)));
+                .Select(j => ValueTuple.Create(j.Key.Item1, j.Key.Item2, j.ToArray())));
         //.Join(db.Currencies, j => j.Item1, c => c.CurrencyId, (j, c) =>
         //ValueTuple.Create(j.Item1, j.Item2, j.Item3, c))
+    }
 
+    [Fact]
+    public async Task Execute11()
+    {
         (CurrencyType, int activeCount, decimal sum, Currency currency)[] group2 = await Query(db => db.Orders
                 .Join(db.Accounts, o => o.AccountId, a => a.AccountId)
                 .Select(x => ValueTuple.Create(x.Item1, x.Item2))

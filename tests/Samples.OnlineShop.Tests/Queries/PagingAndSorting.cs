@@ -41,6 +41,32 @@ public class PagingAndSorting(SqliteFixture fixture, ITestOutputHelper output) :
     }
 
     [Fact]
+    public async Task Paging_AfterTupleProjection()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+                .OrderBy(x => x.Item1)
+                .Skip(1)
+                .Take(3));
+
+        Assert.Equal([2, 3, 4], rows.Select(x => x.Item1));
+    }
+
+    [Fact]
+    public async Task Page_AfterJoinProjection()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+                .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2.OrderId))
+                .OrderBy(x => x.Item2)
+                .Page(1, 2));
+
+        Assert.Equal([3, 4], rows.Select(x => x.Item2));
+    }
+
+    [Fact]
     public async Task Reverse()
     {
         var ids = await Query(q =>
@@ -72,5 +98,17 @@ public class PagingAndSorting(SqliteFixture fixture, ITestOutputHelper output) :
                 ValueTuple.Create(true, 1),
             ],
             rows);
+    }
+
+    [Fact]
+    public async Task ThenBy_AfterObjectProjection()
+    {
+        var rows = await Query(q =>
+            q.Accounts
+                .Select(a => new { a.IsActive, a.AccountId })
+                .OrderBy(a => a.IsActive)
+                .ThenBy(a => a.AccountId));
+
+        Assert.Equal([3, 5, 1, 2, 4, 6, 7], rows.Select(x => x.AccountId));
     }
 }

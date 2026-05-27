@@ -1,4 +1,4 @@
-﻿using QChain.Visitors;
+﻿using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -44,10 +44,7 @@ public static class PredicateCompiler
 
         var target = FindMember(root, entityType);
 
-        return new ReplaceExpressionVisitor(
-            condition.Parameters[0],
-            target)
-            .Visit(condition.Body)!;
+        return ReplaceExpressionVisitor.Replace(condition.Body, condition.Parameters[0], target);
     }
 
     private static Expression FindMember(Expression root, Type entityType)

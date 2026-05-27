@@ -111,6 +111,30 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public async Task ExceptBy_AfterTupleProjection()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+                .ExceptBy([1, 2, 3], x => x.Item1)
+                .OrderBy(x => x.Item1));
+
+        Assert.Equal([4, 5, 6, 7], items.Select(x => x.Item1));
+    }
+
+    [Fact]
+    public async Task ExceptBy_Filters_DuplicateKeys()
+    {
+        var items = await Query(q =>
+            q.Orders
+                .OrderBy(o => o.OrderId)
+                .ExceptBy([3, 5], o => o.AccountId));
+
+        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
+        Assert.DoesNotContain(items, o => o.AccountId is 3 or 5);
+    }
+
+    [Fact]
     public async Task Intersect()
     {
         var items = await Query(q =>
@@ -134,6 +158,30 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public async Task IntersectBy_AfterObjectProjection()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Select(a => new { Id = a.AccountId, a.Email })
+                .IntersectBy([1, 2, 3], x => x.Id)
+                .OrderBy(x => x.Id));
+
+        Assert.Equal([1, 2, 3], items.Select(x => x.Id));
+    }
+
+    [Fact]
+    public async Task IntersectBy_Filters_DuplicateKeys()
+    {
+        var items = await Query(q =>
+            q.Orders
+                .OrderBy(o => o.OrderId)
+                .IntersectBy([1, 2], o => o.AccountId));
+
+        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
+        Assert.All(items, o => Assert.True(o.AccountId is 1 or 2));
+    }
+
+    [Fact]
     public async Task Concat_Tuple()
     {
         IQuery<(int accountId, string? email)> active =
@@ -152,5 +200,65 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
             .ToArrayAsync();
 
         Assert.Equal([1, 2, 3, 4, 5, 6, 7], items.Select(x => x.accountId));
+    }
+
+    [Fact]
+    public async Task Union_Preserves_RightProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => a.AccountId)
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId + 100))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2, 103, 104], items);
+    }
+
+    [Fact]
+    public async Task Concat_Preserves_RightProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => a.AccountId)
+                .Concat(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId + 100))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2, 103, 104], items);
+    }
+
+    [Fact]
+    public async Task Except_Compares_PublicProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 4)
+                .Select(a => a.AccountId)
+                .Except(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId - 2))
+                .OrderBy(x => x));
+
+        Assert.Equal([3, 4], items);
+    }
+
+    [Fact]
+    public async Task Intersect_Compares_PublicProjectionShape()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 4)
+                .Select(a => a.AccountId)
+                .Intersect(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => a.AccountId - 2))
+                .OrderBy(x => x));
+
+        Assert.Equal([1, 2], items);
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace QChain.Visitors;
+namespace QChain.Internal.Visitors;
 
 internal sealed class ValueTupleCreateToCtorVisitor : ExpressionVisitor
 {
@@ -24,8 +24,7 @@ internal sealed class ValueTupleCreateToCtorVisitor : ExpressionVisitor
             5 => typeof(ValueTuple<,,,,>).MakeGenericType(types),
             6 => typeof(ValueTuple<,,,,,>).MakeGenericType(types),
             7 => typeof(ValueTuple<,,,,,,>).MakeGenericType(types),
-            8 => typeof(ValueTuple<,,,,,,,>).MakeGenericType(types),
-            _ => throw new NotSupportedException("ValueTuple arity > 8 not supported yet.")
+            _ => throw new NotSupportedException("ValueTuple arity > 7 not supported yet.")
         };
 
         var ctor = tupleType.GetConstructor(types)!;

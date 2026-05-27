@@ -27,6 +27,26 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     }
 
     [Fact]
+    public async Task Count_AfterProjection()
+    {
+        var count = await Accounts
+            .Select(a => ValueTuple.Create(a.AccountId, a.IsActive))
+            .CountAsync(x => x.Item1 > 0, default);
+
+        Assert.Equal(await Accounts.CountAsync(default), count);
+    }
+
+    [Fact]
+    public async Task LongCount_AfterProjection()
+    {
+        var count = await Accounts
+            .Select(a => new { Id = a.AccountId, a.IsActive })
+            .LongCountAsync(x => x.Id > 0, default);
+
+        Assert.Equal(await Accounts.LongCountAsync(default), count);
+    }
+
+    [Fact]
     public async Task FirstOrDefault()
     {
         var item = await Accounts.FirstOrDefaultAsync(default);
@@ -34,6 +54,17 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
 
         Assert.NotNull(item);
         Assert.NotNull(item2);
+    }
+
+    [Fact]
+    public async Task FirstOrDefault_AfterProjection()
+    {
+        var item = await Accounts
+            .OrderBy(a => a.AccountId)
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+            .FirstOrDefaultAsync(x => x.Item1 == 1, default);
+
+        Assert.Equal(1, item.Item1);
     }
 
     [Fact]
@@ -49,6 +80,17 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
     }
 
     [Fact]
+    public async Task SingleOrDefault_AfterProjection()
+    {
+        var item = await Accounts
+            .Select(a => new { Id = a.AccountId, a.Email })
+            .SingleOrDefaultAsync(a => a.Id == 1, default);
+
+        Assert.NotNull(item);
+        Assert.Equal(1, item.Id);
+    }
+
+    [Fact]
     public async Task Any()
     {
         var check = await Accounts.AnyAsync(default);
@@ -56,6 +98,54 @@ public class Executor(SqliteFixture fixture, ITestOutputHelper output) : QChainI
 
         Assert.True(check);
         Assert.True(check2);
+    }
+
+    [Fact]
+    public async Task Any_AfterProjection()
+    {
+        var check = await Accounts
+            .Select(a => ValueTuple.Create(a.AccountId, a.IsActive))
+            .AnyAsync(x => x.Item1 == 1, default);
+
+        Assert.True(check);
+    }
+
+    [Fact]
+    public async Task Aggregates_AfterProjection()
+    {
+        var max = await Accounts.MaxAsync(a => a.AccountId, default);
+        var min = await Accounts.MinAsync(a => a.AccountId, default);
+        var sum = await Accounts.SumAsync(a => a.AccountId, default);
+        var average = await Accounts.AverageAsync(a => (double)a.AccountId, default);
+
+        var projected = Accounts.Select(a => new { Id = a.AccountId, a.IsActive });
+
+        Assert.Equal(max, await projected.MaxAsync(a => a.Id, default));
+        Assert.Equal(min, await projected.MinAsync(a => a.Id, default));
+        Assert.Equal(sum, await projected.SumAsync(a => a.Id, default));
+        Assert.Equal(average, await projected.AverageAsync(a => (double)a.Id, default));
+    }
+
+    [Fact]
+    public async Task ElementAt_AfterProjection()
+    {
+        var item = await Accounts
+            .OrderBy(a => a.AccountId)
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+            .ElementAtAsync(1, default);
+
+        Assert.Equal(2, item.Item1);
+    }
+
+    [Fact]
+    public async Task ToList_AfterProjection()
+    {
+        var items = await Accounts
+            .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+            .ToListAsync(default);
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.True(x.Item1 > 0));
     }
 
     [Fact]
