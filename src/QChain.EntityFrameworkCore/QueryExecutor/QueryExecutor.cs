@@ -3,6 +3,6 @@
 
 public partial class QueryExecutor<T>(IQuery<T> query) : IQueryExecutor<T>
 {
-    public string ToQueryString(IQuery<T> query)
+    public string ToQueryString()
         => query.ToQueryString();
 }
