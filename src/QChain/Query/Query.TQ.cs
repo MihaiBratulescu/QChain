@@ -6,16 +6,16 @@ namespace QChain;
 
 public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
 {
-    private QueryShape<T, Q> QueryShape { get; set; }
+    private SequenceQueryShape<T, Q> QueryShape { get; set; }
 
     IQueryShape IUntypedQuery.Untyped => QueryShape;
 
 
     #region Constructors
     internal Query(IQueryable<Q> source, Expression<Func<Q, T>> shape) =>
-        QueryShape = new QueryShape<T, Q>(source, shape);
+        QueryShape = new RegularQueryShape<T, Q>(source, shape);
 
-    private Query(QueryShape<T, Q> queryShape) => 
+    private Query(SequenceQueryShape<T, Q> queryShape) => 
         QueryShape = queryShape;
 
     protected Query(Query<T, Q> query) =>
@@ -127,7 +127,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     public IQuery<T> Reverse() => Next(QueryShape.Reverse());
     #endregion
 
-    private Query<TNext, QNext> Next<TNext, QNext>(QueryShape<TNext, QNext> queryShape)
+    private Query<TNext, QNext> Next<TNext, QNext>(SequenceQueryShape<TNext, QNext> queryShape)
         => new(queryShape);
 
     private IQuery<TNext> Next<TNext>(IQueryShape queryShape)
@@ -137,7 +137,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     }
 
     private Query<TNext, QNext> NextUntyped<TNext, QNext>(IQueryShape queryShape) =>
-        new((QueryShape<TNext, QNext>)queryShape);
+        new((SequenceQueryShape<TNext, QNext>)queryShape);
 
     private static readonly System.Reflection.MethodInfo NextUntypedMethod =
         typeof(Query<T, Q>).GetMethod(nameof(NextUntyped), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;

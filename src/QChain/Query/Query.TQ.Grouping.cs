@@ -1,5 +1,5 @@
 ﻿using QChain.Internal;
-using QChain.Visitors;
+using QChain.Internal.Visitors;
 
 using System.Linq.Expressions;
 using System.Reflection;

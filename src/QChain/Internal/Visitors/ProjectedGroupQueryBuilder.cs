@@ -1,8 +1,7 @@
-using QChain;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Visitors;
+namespace QChain.Internal.Visitors;
 
 internal static class ProjectedGroupQueryBuilder<T, Q>
 {

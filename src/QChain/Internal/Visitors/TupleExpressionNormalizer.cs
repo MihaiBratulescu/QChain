@@ -1,6 +1,6 @@
 using System.Linq.Expressions;
 
-namespace QChain.Visitors;
+namespace QChain.Internal.Visitors;
 
 internal static class TupleExpressionNormalizer
 {
