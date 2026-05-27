@@ -1,4 +1,5 @@
 ﻿using QChain.Internal;
+using QChain.Internal.Builders;
 using QChain.Predicates;
 using System.Linq.Expressions;
 
@@ -159,9 +160,9 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
         return (IQuery<TNext>)generic.Invoke(this, [queryShape])!;
     }
 
-    private Query<TNext, QNext> NextUntyped<TNext, QNext>(IQueryShape queryShape) =>
-        new((SequenceQueryShape<TNext, QNext>)queryShape);
-
     private static readonly System.Reflection.MethodInfo NextUntypedMethod =
         typeof(Query<T, Q>).GetMethod(nameof(NextUntyped), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+
+    private Query<TNext, QNext> NextUntyped<TNext, QNext>(IQueryShape queryShape) =>
+        new((SequenceQueryShape<TNext, QNext>)queryShape);
 }

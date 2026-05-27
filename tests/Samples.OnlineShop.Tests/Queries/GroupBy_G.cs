@@ -268,6 +268,53 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
+    public async Task RawGroup_ThenByDescending()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.CurrencyId)
+            .OrderBy(g => g.Count())
+            .ThenByDescending(g => g.Key)
+            .Select(g => ValueTuple.Create(g.Key, g.Count())));
+
+        Assert.Equal(
+            result.OrderBy(x => x.Item2).ThenByDescending(x => x.Item1),
+            result);
+    }
+
+    [Fact]
+    public async Task RawGroup_Reverse()
+    {
+        var efQuery = _fixture.db.Orders
+            .AsQueryable()
+            .GroupBy(o => o.AccountId)
+            .OrderBy(g => g.Key)
+            .Reverse()
+            .Select(g => g.Key);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToArrayAsync(efQuery));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .OrderBy(g => g.Key)
+            .Reverse()
+            .Select(g => g.Key)));
+    }
+
+    [Fact]
+    public async Task RawGroup_Distinct_AfterSelect()
+    {
+        var result = await Query(q => q.Orders
+            .GroupBy(o => o.AccountId)
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
+            .Distinct()
+            .OrderBy(x => x.Item1));
+
+        Assert.Equal([1, 2, 3, 5], result.Select(x => x.Item1));
+        Assert.Equal(result, result.Distinct());
+    }
+
+    [Fact]
     public async Task RawGroup_Filter_Project_ThenJoin()
     {
         var result = await Query(q => q.Orders

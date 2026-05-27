@@ -5,7 +5,8 @@ using System.Reflection;
 
 namespace QChain.Internal;
 
-internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) : QueryShape<T, Q>(source, shape)
+internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) 
+    : QueryShape<T, Q>(source, shape)
 {
     public SequenceQueryShape<T, Q> Where(Expression<Func<T, bool>> predicate) =>
         WithSource(Source.Where(Translate(predicate)));
@@ -114,10 +115,7 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
 
     protected abstract SequenceQueryShape<T, Q> WithSource(IQueryable<Q> source);
 
-    private SequenceQueryShape<T, Q> WhereKeyIn<K>(
-        IEnumerable<K> keys,
-        Expression<Func<T, K>> keySelector,
-        bool include)
+    private SequenceQueryShape<T, Q> WhereKeyIn<K>(IEnumerable<K> keys, Expression<Func<T, K>> keySelector,bool include)
     {
         var translated = Translate(keySelector);
 
@@ -145,9 +143,7 @@ internal abstract partial class SequenceQueryShape<T, Q>(IQueryable<Q> source, E
             selector.Parameters);
     }
 
-    private SequenceQueryShape<R, QR> SelectManyTyped<R, QR>(
-        LambdaExpression collectionSelectorUntyped,
-        LambdaExpression itemShapeUntyped)
+    private SequenceQueryShape<R, QR> SelectManyTyped<R, QR>(LambdaExpression collectionSelectorUntyped, LambdaExpression itemShapeUntyped)
     {
         var collectionSelector = (Expression<Func<Q, IEnumerable<QR>>>)collectionSelectorUntyped;
         var itemShape = (Expression<Func<QR, R>>)itemShapeUntyped;

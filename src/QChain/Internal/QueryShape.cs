@@ -4,6 +4,11 @@ using System.Linq.Expressions;
 
 namespace QChain.Internal;
 
+internal interface IUntypedQuery
+{
+    IQueryShape Untyped { get; }
+}
+
 internal interface IQueryShape
 {
     IQueryable UntypedSource { get; }
@@ -11,10 +16,6 @@ internal interface IQueryShape
     Type SourceType { get; }
 }
 
-internal interface IUntypedQuery
-{
-    IQueryShape Untyped { get; }
-}
 
 internal abstract class QueryShape<T> : IQueryShape
 {
@@ -25,7 +26,7 @@ internal abstract class QueryShape<T> : IQueryShape
     public abstract IQueryable<T> Project();
 }
 
-internal abstract partial class QueryShape<T, Q> : QueryShape<T>
+internal abstract class QueryShape<T, Q> : QueryShape<T>
 {
     protected QueryShape(IQueryable<Q> source, Expression<Func<Q, T>> shape)
     {

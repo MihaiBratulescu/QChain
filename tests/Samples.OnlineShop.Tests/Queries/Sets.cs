@@ -64,6 +64,42 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
     }
 
     [Fact]
+    public async Task Union_Then_Where_Select()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 2)
+                .Select(a => ValueTuple.Create(a.AccountId, a.Email))
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 3 && a.AccountId <= 4)
+                    .Select(a => ValueTuple.Create(a.AccountId, a.Email)))
+                .Where(x => x.Item1 > 2)
+                .Select(x => x.Item1)
+                .OrderBy(x => x));
+
+        Assert.Equal([3, 4], items);
+    }
+
+    [Fact]
+    public async Task Union_Then_GroupBy()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 3)
+                .Select(a => new { a.IsActive, a.AccountId })
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 4 && a.AccountId <= 5)
+                    .Select(a => new { a.IsActive, a.AccountId }))
+                .GroupBy(
+                    a => a.IsActive,
+                    g => ValueTuple.Create(g.Key, g.Count()))
+                .OrderBy(x => x.Item1));
+
+        Assert.Equal([false, true], items.Select(x => x.Item1));
+        Assert.Equal([2, 3], items.Select(x => x.Item2));
+    }
+
+    [Fact]
     public async Task Concat()
     {
         var active = _fixture.db.Accounts
@@ -97,6 +133,28 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
 
         Assert.NotEmpty(except);
         Assert.All(except, a => Assert.True(a.IsActive));
+    }
+
+    [Fact]
+    public async Task Except_Then_Join()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 5)
+                .Select(a => new { a.AccountId, a.Email })
+                .Except(q.Accounts
+                    .Where(a => a.AccountId <= 2)
+                    .Select(a => new { a.AccountId, a.Email }))
+                .Join(
+                    q.Orders,
+                    a => a.AccountId,
+                    o => o.AccountId,
+                    (a, o) => ValueTuple.Create(a.AccountId, o.AccountId))
+                .OrderBy(x => x.Item1));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
+        Assert.DoesNotContain(items, x => x.Item1 <= 2);
     }
 
     [Fact]
@@ -144,6 +202,28 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
 
         Assert.NotEmpty(items);
         Assert.All(items, a => Assert.True(a.IsActive));
+    }
+
+    [Fact]
+    public async Task Intersect_Then_Join()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 5)
+                .Select(a => new { a.AccountId, a.Email })
+                .Intersect(q.Accounts
+                    .Where(a => a.AccountId >= 3)
+                    .Select(a => new { a.AccountId, a.Email }))
+                .Join(
+                    q.Orders,
+                    a => a.AccountId,
+                    o => o.AccountId,
+                    (a, o) => ValueTuple.Create(a.AccountId, o.AccountId))
+                .OrderBy(x => x.Item1));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
+        Assert.All(items, x => Assert.True(x.Item1 >= 3));
     }
 
     [Fact]

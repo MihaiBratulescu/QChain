@@ -1,5 +1,6 @@
 #if NET10_0_OR_GREATER
 
+using QChain.Internal.Builders;
 using System.Linq.Expressions;
 
 namespace QChain.Internal;

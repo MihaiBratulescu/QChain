@@ -1,9 +1,8 @@
-using QChain.Internal.Builders;
 using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Internal;
+namespace QChain.Internal.Builders;
 
 internal static class JoinShapeBuilder<T, Q>
 {
