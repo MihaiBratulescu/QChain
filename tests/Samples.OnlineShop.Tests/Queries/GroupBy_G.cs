@@ -372,4 +372,41 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
         Assert.NotEmpty(result);
         Assert.All(result, x => Assert.True(x.Item2 >= 0));
     }
+
+    [Fact]
+    public async Task TwoJoins_ThenGroupBy_TupleKey_Aggregate()
+    {
+        var result = await Query(q => q.Orders
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+            .Join(q.Transactions, x => x.Item1.OrderId, t => t.OrderId)
+            .GroupBy(
+                x => ValueTuple.Create(
+                    x.Item1.Item1.CurrencyId,
+                    x.Item1.Item2.IsActive),
+                g => new
+                {
+                    g.Key,
+                    Count = g.Count(),
+                    Total = g.Sum(x => x.Item1.Item1.Total)
+                }));
+
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public async Task Project_ThenGroupBy_Aggregate()
+    {
+        var result = await Query(q => q.Orders
+            .Select(o => new { o.AccountId, o.CurrencyId, o.Total })
+            .GroupBy(
+                x => x.AccountId,
+                g => new
+                {
+                    AccountId = g.Key,
+                    Count = g.Count(),
+                    Total = g.Sum(x => x.Total)
+                }));
+
+        Assert.NotEmpty(result);
+    }
 }
