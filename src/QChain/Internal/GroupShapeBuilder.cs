@@ -68,6 +68,13 @@ internal static class GroupShapeBuilder<T, Q>
             TranslateElementGroup(resultsSelector));
     }
 
+    public static IQuery<R> CreateProjected<K, E, R>(
+        IQueryable<Q> source,
+        Expression<Func<Q, K>> key,
+        Expression<Func<Q, E>> element,
+        Expression<Func<IGrouping<K, E>, R>> shape) =>
+        ProjectedGroupQueryBuilder<T, Q>.Create(source, key, element, shape);
+
     private static IQuery<IGrouping<K, E>> CreateRaw<K, E, QG>(
         SequenceQueryShape<T, Q> query,
         Expression<Func<Q, K>> key,

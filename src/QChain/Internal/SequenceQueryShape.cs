@@ -34,10 +34,10 @@ internal abstract partial class SequenceQueryShape<T, Q>(
 
     public SequenceQueryShape<T, Q> Reverse() => WithSource(Source.Reverse());
 
-    public virtual IQueryShape Select<R>(Expression<Func<T, R>> mapping) =>
+    public IQueryShape Select<R>(Expression<Func<T, R>> mapping) =>
         Compose(mapping);
 
-    public SequenceQueryShape<R, Q> Compose<R>(Expression<Func<T, R>> outer) =>
+    public virtual IQueryShape Compose<R>(Expression<Func<T, R>> outer) =>
         new ProjectedQueryShape<R, Q>(Source, ComposeInternal(outer));
 
     public IQueryShape SelectMany<R>(Expression<Func<T, IEnumerable<R>>> collectionSelector)

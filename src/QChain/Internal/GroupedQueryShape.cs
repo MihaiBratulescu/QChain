@@ -1,4 +1,3 @@
-using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 
 namespace QChain.Internal;
@@ -15,15 +14,16 @@ internal sealed class GroupedQueryShape<K, KQ, E, QG, T, Q>(
     protected override SequenceQueryShape<IGrouping<K, E>, Pair<KQ, QG[]>> WithSource(IQueryable<Pair<KQ, QG[]>> source) =>
         new GroupedQueryShape<K, KQ, E, QG, T, Q>(source, originalSource, key, element, elementShape, Shape);
 
-    public override IQueryShape Select<R>(Expression<Func<IGrouping<K, E>, R>> mapping)
+    public override IQueryShape Compose<R>(Expression<Func<IGrouping<K, E>, R>> outer) =>
+        ((IUntypedQuery)GroupShapeBuilder<T, Q>.CreateProjected(originalSource, key, element, TranslateGroup(outer))).Untyped;
+
+    private Expression<Func<IGrouping<K, QG>, R>> TranslateGroup<R>(Expression<Func<IGrouping<K, E>, R>> mapping)
     {
         var group = Expression.Parameter(typeof(IGrouping<K, QG>), mapping.Parameters[0].Name);
-        var body = new GroupTranslateVisitor<K, QG, E>(group, mapping.Parameters[0], elementShape)
+        var body = new Internal.Visitors.GroupTranslateVisitor<K, QG, E>(group, mapping.Parameters[0], elementShape)
             .Visit(mapping.Body);
-        body = TupleExpressionNormalizer.Normalize(body!);
+        body = Internal.Visitors.TupleExpressionNormalizer.Normalize(body!);
 
-        var shape = Expression.Lambda<Func<IGrouping<K, QG>, R>>(body, group);
-
-        return ((IUntypedQuery)ProjectedGroupQueryBuilder<T, Q>.Create(originalSource, key, element, shape)).Untyped;
+        return Expression.Lambda<Func<IGrouping<K, QG>, R>>(body, group);
     }
 }

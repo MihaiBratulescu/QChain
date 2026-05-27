@@ -41,10 +41,10 @@ internal abstract partial class QueryShape<T, Q> : QueryShape<T>
 
     public override IQueryable<T> Project() => Source.Select(Shape);
 
-    public Expression<Func<Q, TResult>> Translate<TResult>(Expression<Func<T, TResult>> expression) =>
+    public virtual Expression<Func<Q, TResult>> Translate<TResult>(Expression<Func<T, TResult>> expression) =>
         ComposeInternal(expression);
 
-    protected Expression<Func<Q, R>> ComposeInternal<R>(Expression<Func<T, R>> outer)
+    protected virtual Expression<Func<Q, R>> ComposeInternal<R>(Expression<Func<T, R>> outer)
     {
         var body = ReplaceExpressionVisitor.Replace(outer.Body, outer.Parameters[0], Shape.Body);
 
