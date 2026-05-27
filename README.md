@@ -7,7 +7,7 @@
 
 # QChain
 
-**LINQ specification pattern for building reusable and composable query pipelines.**
+**LINQ specification pattern for building reusable and composable DAL query pipelines.**
 
 QChain lets you build reusable, composable, and expressive query pipelines on top of LINQ.  
 Instead of duplicating query logic across repositories and services, you define query fragments once and chain them together.
@@ -179,7 +179,7 @@ var activeEuropeanAccounts = await unitOfWork.Query(db => db.Accounts
 
 ```csharp
 var activeEuropeanAccountOrders = await unitOfWork.Query(db => db.Accounts
-        .Join(db.Orders, a => a.AccountId, o => o.AccountId, a, o) => ValueTuple.Create(a, o))
+        .Join(db.Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o))
         .Where(x => x.account.IsActive().And(x.order.InLastMonth())))
     .ToArrayAsync(ct);
 ```
