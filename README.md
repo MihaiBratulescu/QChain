@@ -70,7 +70,7 @@ Readable, reusable, and aligned with your domain. QChain keeps intermediate quer
 public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
 {
     return db.Customers
-        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
+        .Where(c => c.IsActive().And(c.FromEurope()))  // composable predicates
         .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
         .WithPayments();                               // Tuple<(Customer c, Order o, Payment p)>
 }
@@ -78,7 +78,7 @@ public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalance
 public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
 {
     return db.Customers
-        .Where(c => c.IsActive().And(c.FromEurope()))  //composable predicates
+        .Where(c => c.IsActive().And(c.FromEurope()))  // composable predicates
         .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
         .WithPayments(db.Payments.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
 }
