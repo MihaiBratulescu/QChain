@@ -38,25 +38,23 @@ Large EF Core applications often end up with long methods, and duplicated, tight
 - Pagination, sorting, or extra filters require more repository methods and a wider API surface.
 
 ```csharp
-public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerBalancesAsync(DateTime from, CancellationToken ct)
+public Task<List<CustomerBalanceDto>> GetActiveEuropeanCustomerPaymentsAsync(CancellationToken ct)
 {
     return db.Customers
         .Where(c => c.IsActive && c.Region == "EU")                                     // duplicated predicates
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
-        .Where(x => x.o.CreatedAt >= from)
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping baked into DAL layer
         .ToArrayAsync(ct);                                                  // no pagination support
 }
 
-public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime from, CancellationToken ct)
+public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(decimal threshold, CancellationToken ct)
 {
     return db.Customers
         .Where(c => c.IsActive && c.Region == "EU")                                     // duplicated predicates
         .Join(db.Orders, c => c.Id, o => o.CustomerId, (c, o) => new { c, o })          // anonymous<Customer, Order>
         .Join(db.Payments, x => x.o.Id, p => p.OrderId, (x, p) => new { x.c, x.o, p })  // anonymous<Customer, Order, Payment>
-        .Where(x => x.o.CreatedAt >= from)
-        .Where(x => x.p.Amount >= 10000)
+        .Where(x => x.p.Amount >= threshold)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping baked into DAL layer
         .ToArrayAsync(ct);                                                 // no pagination support
 }
@@ -67,20 +65,26 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(DateTime 
 Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes as named tuples instead of anonymous types.
 
 ```csharp
-public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerBalances(DateTime from)
+public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerPayments()
 {
-    return db.Customers
-        .Where(c => c.IsActive().And(c.FromEurope()))  // composable predicates
-        .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
-        .WithPayments();                               // Tuple<(Customer c, Order o, Payment p)>
+    return CustomerPayments()       // reusable joined query shape
+        .Where(x => x.c.IsActive()  // composable predicates
+            .And(x.c.FromEurope()));
 }
 
-public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(DateTime from)
+public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(decimal threshold)
+{
+    return GetActiveEuropeanCustomerPayments()  // Tuple<(Customer c, Order o, Payment p)>
+        .Where(x => x.p.Amount >= threshold));
+}
+
+private IQuery<(Customer c, Order o, Payment p)> CustomerPayments()
 {
     return db.Customers
-        .Where(c => c.IsActive().And(c.FromEurope()))  // composable predicates
-        .WithOrders(db.Orders.CreatedAfter(from))      // Tuple<(Customer c, Order o)>
-        .WithPayments(db.Payments.AmountOver(10000));  // Tuple<(Customer c, Order o, Payment p)>
+        .Join(db.Orders, c => c.Id, o => o.CustomerId,
+            (c, o) => new ValueTuple<Customer, Order>(c, o))
+        .Join(db.Payments, x => x.Item2.Id, p => p.OrderId,
+            (x, p) => new ValueTuple<Customer, Order, Payment>(x.Item1, x.Item2, p));
 }
 ```
 
@@ -90,13 +94,13 @@ Mapping and pagination compose externally. Query composition is reusable while e
 
 ```csharp
 var balances = await unitOfWork.Query(db => db.Customers
-        .GetActiveEuropeanCustomerBalances(from)
+        .GetActiveEuropeanCustomerBalances()
         .Select(x => new CustomerBalanceDto(x.c.Id, x.c.Name, x.p.Amount))  // mapping remains at the calling layer
         .Page(index, size))                                                 // pagination is applied as a query extension 
     .ToArrayAsync(ct);
 
 var risks = await unitOfWork.Query(db => db.Customers
-        .GetRecentEuropeanCustomerRisks(from)
+        .GetRecentEuropeanCustomerRisks(threshold: 10_000)
         .Select(x => new CustomerRiskDto(x.c.Id, x.c.Name, risk: "High"))  // mapping remains at the calling layer
         .Page(index, size))                                                // pagination is applied as a query extension 
     .ToArrayAsync(ct);
