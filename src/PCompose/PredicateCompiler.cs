@@ -7,40 +7,41 @@ namespace PCompose;
 
 public static class PredicateCompiler
 {
-    public static Expression<Func<T, bool>> Compile<T>(Func<T, Predicate> predicate)
+    extension<T>(Func<T, Predicate> predicate)
     {
-        var parameter = Expression.Parameter(typeof(T), "x");
+        public Expression<Func<T, bool>> Compile()
+        {
+            var parameter = Expression.Parameter(typeof(T), "x");
 
-        var tree = predicate(default(T)!);
+            var tree = predicate(default(T)!);
 
-        var body = Compile(tree, parameter);
+            var body = CompilePredicate(tree, parameter);
 
-        return Expression.Lambda<Func<T, bool>>(body, parameter);
+            return Expression.Lambda<Func<T, bool>>(body, parameter);
+        }
     }
 
-    public static Expression Compile(Predicate predicate, ParameterExpression root)
+    private static Expression CompilePredicate(Predicate predicate, ParameterExpression root)
     {
         return predicate switch
         {
             ConditionPredicate c => ApplyCondition(c.Expression, root),
 
             AndPredicate a => Expression.AndAlso(
-                Compile(a.Left, root),
-                Compile(a.Right, root)),
+                CompilePredicate(a.Left, root),
+                CompilePredicate(a.Right, root)),
 
             OrPredicate o => Expression.OrElse(
-                Compile(o.Left, root),
-                Compile(o.Right, root)),
+                CompilePredicate(o.Left, root),
+                CompilePredicate(o.Right, root)),
 
-            NotPredicate n => Expression.Not(Compile(n.Inner, root)),
+            NotPredicate n => Expression.Not(CompilePredicate(n.Inner, root)),
 
             _ => throw new NotSupportedException(predicate.GetType().Name)
         };
     }
 
-    private static Expression ApplyCondition(
-        LambdaExpression condition,
-        ParameterExpression root)
+    private static Expression ApplyCondition(LambdaExpression condition, ParameterExpression root)
     {
         var entityType = condition.Parameters[0].Type;
 
