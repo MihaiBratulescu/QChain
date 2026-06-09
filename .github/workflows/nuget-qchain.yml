@@ -64,5 +64,5 @@ jobs:
         run: |
           dotnet nuget push "./artifacts/*.nupkg" \
             --source "https://api.nuget.org/v3/index.json" \
-            --api-key "${{ secrets.PCompose_ NUGET_API_KEY }}" \
+            --api-key "${{ secrets.PCompose_NUGET_API_KEY }}" \
             --skip-duplicate
