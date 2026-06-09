@@ -1,4 +1,4 @@
-name: NuGet
+name: NuGet QChain
 
 on:
   workflow_dispatch:

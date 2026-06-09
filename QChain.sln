@@ -19,7 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "02. samples", "02. samples"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "04. workflows", "04. workflows", "{58112C02-D1E3-40F9-86D2-67E71D8982F3}"
 	ProjectSection(SolutionItems) = preProject
-		.github\workflows\nuget.yml = .github\workflows\nuget.yml
+		.github\workflows\nuget-pcompose.yml = .github\workflows\nuget-pcompose.yml
+		.github\workflows\nuget-qchain.yml = .github\workflows\nuget-qchain.yml
 		.github\workflows\tests.yml = .github\workflows\tests.yml
 	EndProjectSection
 EndProject
