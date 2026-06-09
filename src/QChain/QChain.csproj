@@ -4,6 +4,10 @@
    	<InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
    </ItemGroup>
 
+   <ItemGroup>
+     <ProjectReference Include="..\..\PCompose\PCompose.csproj" />
+   </ItemGroup>
+
    <PropertyGroup>
      <PackageId>QChain</PackageId>
      <Description>Composable query building library for .NET</Description>

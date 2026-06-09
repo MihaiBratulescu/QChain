@@ -1,4 +1,4 @@
-﻿using QChain.Predicates;
+﻿using PCompose;
 
 namespace QChain;
 

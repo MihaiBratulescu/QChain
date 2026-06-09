@@ -1,8 +1,9 @@
-﻿using QChain.Internal.Visitors;
+﻿using PCompose.Internal;
+using PCompose.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace QChain.Predicates;
+namespace PCompose;
 
 public static class PredicateCompiler
 {
@@ -15,8 +16,7 @@ public static class PredicateCompiler
         var body = Compile(tree, parameter);
 
         return Expression.Lambda<Func<T, bool>>(body, parameter);
-    }    
-
+    }
 
     public static Expression Compile(Predicate predicate, ParameterExpression root)
     {

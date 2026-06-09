@@ -1,4 +1,4 @@
-using QChain.Predicates;
+using PCompose;
 using System.Linq.Expressions;
 
 namespace QChain;

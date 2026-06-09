@@ -1,7 +1,7 @@
 ﻿using QChain.Internal.Grouping;
 using QChain.Internal.Operations;
 using QChain.Internal.Shapes;
-using QChain.Predicates;
+using PCompose;
 using System.Linq.Expressions;
 
 namespace QChain;

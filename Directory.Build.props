@@ -28,4 +28,9 @@
     <None Pack="true" PackagePath="\" Visible="false" Include="..\..\README.md" />
 	<None Pack="true" PackagePath="\" Visible="false" Include="..\..\resources\qchain_icon_128.png" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PCompose'">
+    <InternalsVisibleTo Include="QChain" />
+    <InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
+  </ItemGroup>
 </Project>

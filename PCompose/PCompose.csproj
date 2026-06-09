@@ -1,0 +1,8 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	
+   <PropertyGroup>
+   	<PackageId>PCompose</PackageId>
+   	<Description>Composable expression predicates library for .NET</Description>
+   </PropertyGroup>
+
+</Project>

@@ -1,6 +1,7 @@
-﻿using System.Linq.Expressions;
+﻿using PCompose.Internal;
+using System.Linq.Expressions;
 
-namespace QChain.Predicates;
+namespace PCompose;
 
 public abstract record Predicate
 {
