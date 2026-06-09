@@ -23,13 +23,13 @@ jobs:
             10.0.x
 
       - name: Restore
-        run: dotnet restore PCompose/PCompose.csproj
+        run: dotnet restore src/PCompose/PCompose.csproj
 
       - name: Build
-        run: dotnet build PCompose/PCompose.csproj --configuration Release --no-restore
+        run: dotnet build src/PCompose/PCompose.csproj --configuration Release --no-restore
 
       - name: Pack
-        run: dotnet pack PCompose/PCompose.csproj --configuration Release --no-build --output ./artifacts
+        run: dotnet pack src/PCompose/PCompose.csproj --configuration Release --no-build --output ./artifacts
 
       - name: Publish to NuGet
         run: dotnet nuget push "./artifacts/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate
