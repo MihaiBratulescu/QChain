@@ -1,9 +1,6 @@
 name: Nuget PCompose
 
 on:
-  push:
-    tags:
-      - "pcompose-v*"
   workflow_dispatch:
 
 jobs:
