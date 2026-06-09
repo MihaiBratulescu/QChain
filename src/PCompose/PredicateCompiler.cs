@@ -32,6 +32,8 @@ public static class PredicateCompiler
                 Compile(o.Left, root),
                 Compile(o.Right, root)),
 
+            NotPredicate n => Expression.Not(Compile(n.Inner, root)),
+
             _ => throw new NotSupportedException(predicate.GetType().Name)
         };
     }

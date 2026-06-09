@@ -3,6 +3,11 @@
    <PropertyGroup>
    	<PackageId>PCompose</PackageId>
    	<Description>Composable expression predicates library for .NET</Description>
+	<PackageIcon>PCompose_final_128.png</PackageIcon>
    </PropertyGroup>
+
+	<ItemGroup>
+		<None Pack="true" PackagePath="\" Visible="false" Include="..\..\resources\PCompose_final_128.png" />
+	</ItemGroup>
 
 </Project>
