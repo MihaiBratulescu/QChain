@@ -1,4 +1,4 @@
-﻿using QChain.Predicates;
+using PCompose;
 
 namespace QChain;
 
@@ -10,7 +10,7 @@ public static class PredicateExtensions
         public Task<bool> AnyAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
             Query(query, predicate).AnyAsync(ct);
         public Task<bool> AllAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
-            query.AllAsync(PredicateCompiler.Compile(predicate), ct);
+            query.AllAsync(predicate.Compile(), ct);
 
         public Task<int> CountAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
            Query(query, predicate).CountAsync(ct);
@@ -41,7 +41,7 @@ public static class PredicateExtensions
         public bool Any(Func<T, Predicate> predicate) =>
             Query(query, predicate).Any();
         public bool All(Func<T, Predicate> predicate) =>
-            query.All(PredicateCompiler.Compile(predicate));
+            query.All(predicate.Compile());
 
         public int Count(Func<T, Predicate> predicate) =>
            Query(query, predicate).Count();

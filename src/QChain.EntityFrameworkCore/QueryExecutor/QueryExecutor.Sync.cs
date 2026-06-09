@@ -1,4 +1,4 @@
-using QChain.Predicates;
+using PCompose;
 using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
@@ -9,11 +9,11 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
 
     public bool Any(Expression<Func<T, bool>> predicate) => query.Any(predicate);
 
-    public bool Any(Func<T, Predicate> predicate) => Any(PredicateCompiler.Compile(predicate));
+    public bool Any(Func<T, Predicate> predicate) => Any(predicate.Compile());
 
     public bool All(Expression<Func<T, bool>> predicate) => query.All(predicate);
 
-    public bool All(Func<T, Predicate> predicate) => All(PredicateCompiler.Compile(predicate));
+    public bool All(Func<T, Predicate> predicate) => All(predicate.Compile());
 
     public int Count() => query.Count();
 
@@ -21,7 +21,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.Count(predicate);
 
     public int Count(Func<T, Predicate> predicate)
-        => Count(PredicateCompiler.Compile(predicate));
+        => Count(predicate.Compile());
 
     public long LongCount() => query.LongCount();
 
@@ -29,7 +29,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.LongCount(predicate);
 
     public long LongCount(Func<T, Predicate> predicate)
-        => LongCount(PredicateCompiler.Compile(predicate));
+        => LongCount(predicate.Compile());
 
     public T ElementAt(int index)
         => query.ElementAt(index);
@@ -46,7 +46,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.First(predicate);
 
     public T First(Func<T, Predicate> predicate)
-        => First(PredicateCompiler.Compile(predicate));
+        => First(predicate.Compile());
 
     public T? FirstOrDefault() => query.FirstOrDefault();
 
@@ -54,7 +54,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.FirstOrDefault(predicate);
 
     public T? FirstOrDefault(Func<T, Predicate> predicate)
-        => FirstOrDefault(PredicateCompiler.Compile(predicate));
+        => FirstOrDefault(predicate.Compile());
 
     public T Last() => query.Last();
 
@@ -62,7 +62,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.Last(predicate);
 
     public T Last(Func<T, Predicate> predicate)
-        => Last(PredicateCompiler.Compile(predicate));
+        => Last(predicate.Compile());
 
     public T? LastOrDefault() => query.LastOrDefault();
 
@@ -70,7 +70,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.LastOrDefault(predicate);
 
     public T? LastOrDefault(Func<T, Predicate> predicate)
-        => LastOrDefault(PredicateCompiler.Compile(predicate));
+        => LastOrDefault(predicate.Compile());
 
     public T Single() => query.Single();
 
@@ -78,7 +78,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.Single(predicate);
 
     public T Single(Func<T, Predicate> predicate)
-        => Single(PredicateCompiler.Compile(predicate));
+        => Single(predicate.Compile());
 
     public T? SingleOrDefault()
         => query.SingleOrDefault();
@@ -87,7 +87,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.SingleOrDefault(predicate);
 
     public T? SingleOrDefault(Func<T, Predicate> predicate)
-        => SingleOrDefault(PredicateCompiler.Compile(predicate));
+        => SingleOrDefault(predicate.Compile());
 
     public T? Min() => query.Min();
 

@@ -1,4 +1,4 @@
-using QChain.Predicates;
+using PCompose;
 using System.Linq.Expressions;
 
 namespace QChain.EntityFrameworkCore;
@@ -9,7 +9,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.AllAsync(predicate, ct);
 
     public Task<bool> AllAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => AllAsync(PredicateCompiler.Compile(predicate), ct);
+        => AllAsync(predicate.Compile(), ct);
 
     public Task<bool> AnyAsync(CancellationToken ct = default)
         => query.AnyAsync(ct);
@@ -18,7 +18,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.AnyAsync(predicate, ct);
 
     public Task<bool> AnyAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => AnyAsync(PredicateCompiler.Compile(predicate), ct);
+        => AnyAsync(predicate.Compile(), ct);
 
     public Task<int> CountAsync(CancellationToken ct = default)
         => query.CountAsync(ct);
@@ -27,7 +27,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.CountAsync(predicate, ct);
 
     public Task<int> CountAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => CountAsync(PredicateCompiler.Compile(predicate), ct);
+        => CountAsync(predicate.Compile(), ct);
 
     public Task<long> LongCountAsync(CancellationToken ct = default)
         => query.LongCountAsync(ct);
@@ -36,7 +36,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.LongCountAsync(predicate, ct);
 
     public Task<long> LongCountAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => LongCountAsync(PredicateCompiler.Compile(predicate), ct);
+        => LongCountAsync(predicate.Compile(), ct);
 
     public Task<T> ElementAtAsync(int index, CancellationToken ct = default)
         => query.ElementAtAsync(index, ct);
@@ -60,7 +60,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.FirstAsync(predicate, ct);
 
     public Task<T> FirstAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => FirstAsync(PredicateCompiler.Compile(predicate), ct);
+        => FirstAsync(predicate.Compile(), ct);
 
     public Task<T?> FirstOrDefaultAsync(CancellationToken ct = default)
         => query.FirstOrDefaultAsync(ct);
@@ -69,7 +69,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.FirstOrDefaultAsync(predicate, ct);
 
     public Task<T?> FirstOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => FirstOrDefaultAsync(PredicateCompiler.Compile(predicate), ct);
+        => FirstOrDefaultAsync(predicate.Compile(), ct);
 
     public Task<T> SingleAsync(CancellationToken ct = default)
         => query.SingleAsync(ct);
@@ -78,7 +78,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.SingleAsync(predicate, ct);
 
     public Task<T> SingleAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => SingleAsync(PredicateCompiler.Compile(predicate), ct);
+        => SingleAsync(predicate.Compile(), ct);
 
     public Task<T?> SingleOrDefaultAsync(CancellationToken ct = default)
         => query.SingleOrDefaultAsync(ct);
@@ -87,7 +87,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.SingleOrDefaultAsync(predicate, ct);
 
     public Task<T?> SingleOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => SingleOrDefaultAsync(PredicateCompiler.Compile(predicate), ct);
+        => SingleOrDefaultAsync(predicate.Compile(), ct);
 
     public Task<T> LastAsync(CancellationToken ct = default)
         => query.LastAsync(ct);
@@ -96,7 +96,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.LastAsync(predicate, ct);
 
     public Task<T> LastAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => LastAsync(PredicateCompiler.Compile(predicate), ct);
+        => LastAsync(predicate.Compile(), ct);
 
     public Task<T?> LastOrDefaultAsync(CancellationToken ct = default)
         => query.LastOrDefaultAsync(ct);
@@ -105,7 +105,7 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
         => query.LastOrDefaultAsync(predicate, ct);
 
     public Task<T?> LastOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default)
-        => LastOrDefaultAsync(PredicateCompiler.Compile(predicate), ct);
+        => LastOrDefaultAsync(predicate.Compile(), ct);
 
     public Task<T?> MinAsync(CancellationToken ct = default)
         => query.MinAsync(ct);

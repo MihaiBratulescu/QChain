@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	
-  <PropertyGroup>
-    <PackageId>QChain.EntityFrameworkCore</PackageId>
-    <Description>Composable query building library for .NET</Description>
-  </PropertyGroup>
   <ItemGroup>
   	<PackageReference Include="Microsoft.EntityFrameworkCore" />
   	<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
@@ -11,6 +7,26 @@
 	
   <ItemGroup>
     <ProjectReference Include="..\QChain\QChain.csproj" />
+  </ItemGroup>
+	
+  <PropertyGroup>
+	<Version>1.0.0</Version>
+
+	<PackageTags>linq query composable efcore repository unitofwork</PackageTags>
+	  
+	<PackageId>QChain.EntityFrameworkCore</PackageId>
+    <Description>Composable query building library for .NET</Description>
+	  	  
+    <RepositoryUrl>https://github.com/MihaiBratulescu/QChain</RepositoryUrl>
+	<PackageIcon>qchain_icon_128.png</PackageIcon>
+
+	<PackageReadmeFile>README.md</PackageReadmeFile>
+
+  </PropertyGroup>
+
+  <ItemGroup>
+  	<None Pack="true" PackagePath="\" Visible="false" Include="..\..\README.md" />
+  	<None Pack="true" PackagePath="\" Visible="false" Include="..\..\resources\qchain_icon_128.png" />
   </ItemGroup>
 	
 </Project>

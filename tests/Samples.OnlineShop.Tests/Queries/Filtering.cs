@@ -1,4 +1,4 @@
-﻿using QChain.Predicates;
+﻿using PCompose;
 using Samples.OnlineShop.DatabaseModels;
 using System.Linq.Expressions;
 using Xunit.Abstractions;

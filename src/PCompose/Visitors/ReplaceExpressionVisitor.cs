@@ -1,21 +1,20 @@
-using QChain.Internal.Helpers;
 using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 
-namespace QChain.Internal.Visitors;
+namespace PCompose.Visitors;
 
 internal sealed class ReplaceExpressionVisitor : ExpressionVisitor
 {
     private readonly IReadOnlyDictionary<Expression, Expression> _map;
 
     public ReplaceExpressionVisitor(Expression from, Expression to)
-        : this(new Dictionary<Expression, Expression>(Helpers.ReferenceEqualityComparer.Instance) { [from] = to })
+        : this(new Dictionary<Expression, Expression>(ReferenceEqualityComparer.Instance) { [from] = to })
     {
     }
 
     public ReplaceExpressionVisitor(IReadOnlyDictionary<Expression, Expression> map)
     {
-        var normalized = new Dictionary<Expression, Expression>(map.Count, Helpers.ReferenceEqualityComparer.Instance);
+        var normalized = new Dictionary<Expression, Expression>(map.Count, ReferenceEqualityComparer.Instance);
         foreach (var pair in map)
             normalized[pair.Key] = pair.Value;
 

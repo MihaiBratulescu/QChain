@@ -1,6 +1,6 @@
 ﻿using System.Linq.Expressions;
 
-namespace QChain.Predicates;
+namespace PCompose.Internal;
 
 internal sealed record ConditionPredicate(LambdaExpression Expression)
     : Predicate;

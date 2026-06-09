@@ -1,7 +1,7 @@
 ﻿using QChain.Internal.Grouping;
 using QChain.Internal.Operations;
 using QChain.Internal.Shapes;
-using QChain.Predicates;
+using PCompose;
 using System.Linq.Expressions;
 
 namespace QChain;
@@ -36,7 +36,7 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
         Next(QueryShape.Where(predicate));
 
     public IQuery<T> Where(Func<T, Predicate> predicate) =>
-        Where(PredicateCompiler.Compile(predicate));
+        Where(predicate.Compile());
     #endregion
 
     #region Grouping

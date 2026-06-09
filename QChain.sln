@@ -19,7 +19,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "02. samples", "02. samples"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "04. workflows", "04. workflows", "{58112C02-D1E3-40F9-86D2-67E71D8982F3}"
 	ProjectSection(SolutionItems) = preProject
-		.github\workflows\nuget.yml = .github\workflows\nuget.yml
+		.github\workflows\nuget-pcompose.yml = .github\workflows\nuget-pcompose.yml
+		.github\workflows\nuget-qchain.yml = .github\workflows\nuget-qchain.yml
 		.github\workflows\tests.yml = .github\workflows\tests.yml
 	EndProjectSection
 EndProject
@@ -28,6 +29,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples.OnlineShop", "samples\Samples.OnlineShop\Samples.OnlineShop.csproj", "{B2ABA111-094F-1855-8EB1-C8D50C2B566E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples.OnlineShop.Tests", "tests\Samples.OnlineShop.Tests\Samples.OnlineShop.Tests.csproj", "{6916EC18-3FF1-C21E-5037-5E624EF00C7C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PCompose", "src\PCompose\PCompose.csproj", "{72B8A968-A464-0D54-6252-AF977C3EC61E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +54,10 @@ Global
 		{6916EC18-3FF1-C21E-5037-5E624EF00C7C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6916EC18-3FF1-C21E-5037-5E624EF00C7C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{6916EC18-3FF1-C21E-5037-5E624EF00C7C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{72B8A968-A464-0D54-6252-AF977C3EC61E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{72B8A968-A464-0D54-6252-AF977C3EC61E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{72B8A968-A464-0D54-6252-AF977C3EC61E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{72B8A968-A464-0D54-6252-AF977C3EC61E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -60,6 +67,7 @@ Global
 		{0443F863-BFF4-8EBD-8D3D-D1DFFBACB213} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{B2ABA111-094F-1855-8EB1-C8D50C2B566E} = {00CE4CEB-54B3-4927-AEC9-F6F364F43AC1}
 		{6916EC18-3FF1-C21E-5037-5E624EF00C7C} = {132581BC-86CA-4C09-87F6-7D76847951AE}
+		{72B8A968-A464-0D54-6252-AF977C3EC61E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F3F52706-824C-4632-BE5F-53CD7C022C84}
