@@ -5,36 +5,36 @@ public static class IQueryableHandlers
     extension<T>(IQueryable<T> query)
     {
         public IQueryable<T> Where(Func<T, Predicate> predicate) =>
-            Queryable.Where(query, predicate.Compile());
+            query.Where(predicate.Compile());
 
         public bool Any(Func<T, Predicate> predicate) =>
-            Queryable.Any(query, predicate.Compile());
+            query.Any(predicate.Compile());
 
         public bool All(Func<T, Predicate> predicate) =>
-            Queryable.All(query, predicate.Compile());
+            query.All(predicate.Compile());
 
         public int Count(Func<T, Predicate> predicate) =>
-            Queryable.Count(query, predicate.Compile());
+            query.Count(predicate.Compile());
 
         public long LongCount(Func<T, Predicate> predicate) =>
-            Queryable.LongCount(query, predicate.Compile());
+            query.LongCount(predicate.Compile());
 
         public T First(Func<T, Predicate> predicate) =>
-            Queryable.First(query, predicate.Compile());
+            query.First(predicate.Compile());
 
         public T? FirstOrDefault(Func<T, Predicate> predicate) =>
-            Queryable.FirstOrDefault(query, predicate.Compile());
+            query.FirstOrDefault(predicate.Compile());
 
         public T Last(Func<T, Predicate> predicate) =>
-            Queryable.Last(query, predicate.Compile());
+            query.Last(predicate.Compile());
 
         public T? LastOrDefault(Func<T, Predicate> predicate) =>
-            Queryable.LastOrDefault(query, predicate.Compile());
+            query.LastOrDefault(predicate.Compile());
 
         public T Single(Func<T, Predicate> predicate) =>
-            Queryable.Single(query, predicate.Compile());
+            query.Single(predicate.Compile());
 
         public T? SingleOrDefault(Func<T, Predicate> predicate) =>
-            Queryable.SingleOrDefault(query, predicate.Compile());
+            query.SingleOrDefault(predicate.Compile());
     }
 }
