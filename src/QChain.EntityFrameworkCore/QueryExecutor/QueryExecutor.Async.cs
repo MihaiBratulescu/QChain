@@ -44,10 +44,10 @@ public partial class QueryExecutor<T> : IQueryExecutor<T>
     public Task<T?> ElementAtOrDefaultAsync(int index, CancellationToken ct = default)
         => query.ElementAtOrDefaultAsync(index, ct);
 
-    public Task<R?> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
+    public Task<R?> MaxAsync<R>(Expression<Func<T, R?>> selector, CancellationToken ct = default)
         => query.MaxAsync(selector, ct);
 
-    public Task<R?> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default)
+    public Task<R?> MinAsync<R>(Expression<Func<T, R?>> selector, CancellationToken ct = default)
         => query.MinAsync(selector, ct);
 
     public Task<bool> ContainsAsync(T item, CancellationToken ct = default)

@@ -61,9 +61,9 @@ public interface IAsyncQueryExecutor<T>
 
     #region Min/Max
     public Task<T?> MinAsync(CancellationToken ct = default);
-    public Task<R?> MinAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
+    public Task<R?> MinAsync<R>(Expression<Func<T, R?>> selector, CancellationToken ct = default);
     public Task<T?> MaxAsync(CancellationToken ct = default);
-    public Task<R?> MaxAsync<R>(Expression<Func<T, R>> selector, CancellationToken ct = default);
+    public Task<R?> MaxAsync<R>(Expression<Func<T, R?>> selector, CancellationToken ct = default);
     #endregion
 
     #region Sum
