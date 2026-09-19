@@ -52,10 +52,10 @@ public class PredicateTargetTests
         }.AsQueryable();
 
         var result = items
-            .Where(row => row.a2.IsActive().And(row.a3.IsActive()))
+            .Where(row => row.a2.IsActive().And(row.a3.IsActive().Not()))
             .ToArray();
 
-        Assert.Equal([(null, new Account(true), new Account(true))], result);
+        Assert.Equal([(null, new Account(true), new Account(false))], result);
     }
 }
 

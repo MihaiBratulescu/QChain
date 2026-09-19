@@ -35,8 +35,8 @@ public partial class Query<T, Q> : IQuery<T>, IOrderedQuery<T>, IUntypedQuery
     public IQuery<T> Where(Expression<Func<T, bool>> predicate) =>
         Next(QueryShape.Where(predicate));
 
-    public IQuery<T> Where(Func<T, Predicate> predicate) =>
-        Where(predicate.Compile());
+    public IQuery<T> Where(Expression<Func<T, Predicate>> predicate) =>
+        Where(PredicateCompiler.Compile(predicate));
     #endregion
 
     #region Grouping

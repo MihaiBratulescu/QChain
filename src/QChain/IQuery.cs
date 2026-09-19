@@ -12,7 +12,7 @@ public interface IQuery<T>
     IQuery<T> Distinct();
 
     #region Filtering
-    IQuery<T> Where(Func<T, Predicate> predicate);
+    IQuery<T> Where(Expression<Func<T, Predicate>> predicate);
     IQuery<T> Where(Expression<Func<T, bool>> predicate);
     #endregion
 

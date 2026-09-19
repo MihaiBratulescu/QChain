@@ -2,72 +2,74 @@ using PCompose;
 
 namespace QChain;
 
+using System.Linq.Expressions;
+
 public static class PredicateExtensions
 {
     extension<T>(IQuery<T> query)
     {
         #region Async
-        public Task<bool> AnyAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<bool> AnyAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).AnyAsync(ct);
-        public Task<bool> AllAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
-            query.AllAsync(predicate.Compile(), ct);
+        public Task<bool> AllAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
+            query.AllAsync(PredicateCompiler.Compile(predicate), ct);
 
-        public Task<int> CountAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<int> CountAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
            Query(query, predicate).CountAsync(ct);
 
-        public Task<long> LongCountAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<long> LongCountAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).LongCountAsync(ct);
 
-        public Task<T> FirstAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T> FirstAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).FirstAsync(ct);
 
-        public Task<T?> FirstOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T?> FirstOrDefaultAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).FirstOrDefaultAsync(ct);
 
-        public Task<T> LastAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T> LastAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).LastAsync(ct);
 
-        public Task<T?> LastOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T?> LastOrDefaultAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).LastOrDefaultAsync(ct);
 
-        public Task<T> SingleAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T> SingleAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).SingleAsync(ct);
 
-        public Task<T?> SingleOrDefaultAsync(Func<T, Predicate> predicate, CancellationToken ct = default) =>
+        public Task<T?> SingleOrDefaultAsync(Expression<Func<T, Predicate>> predicate, CancellationToken ct = default) =>
             Query(query, predicate).SingleOrDefaultAsync(ct);
         #endregion
 
         #region Sync
-        public bool Any(Func<T, Predicate> predicate) =>
+        public bool Any(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).Any();
-        public bool All(Func<T, Predicate> predicate) =>
-            query.All(predicate.Compile());
+        public bool All(Expression<Func<T, Predicate>> predicate) =>
+            query.All(PredicateCompiler.Compile(predicate));
 
-        public int Count(Func<T, Predicate> predicate) =>
+        public int Count(Expression<Func<T, Predicate>> predicate) =>
            Query(query, predicate).Count();
 
-        public long LongCount(Func<T, Predicate> predicate) =>
+        public long LongCount(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).LongCount();
 
-        public T First(Func<T, Predicate> predicate) =>
+        public T First(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).First();
 
-        public T? FirstOrDefault(Func<T, Predicate> predicate) =>
+        public T? FirstOrDefault(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).FirstOrDefault();
 
-        public T Last(Func<T, Predicate> predicate) =>
+        public T Last(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).Last();
 
-        public T? LastOrDefault(Func<T, Predicate> predicate) =>
+        public T? LastOrDefault(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).LastOrDefault();
 
-        public T Single(Func<T, Predicate> predicate) =>
+        public T Single(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).Single();
 
-        public T? SingleOrDefault(Func<T, Predicate> predicate) =>
+        public T? SingleOrDefault(Expression<Func<T, Predicate>> predicate) =>
             Query(query, predicate).SingleOrDefault();
         #endregion
 
-        private IQuery<T> Query(Func<T, Predicate> predicate) => query.Where(predicate);
+        private IQuery<T> Query(Expression<Func<T, Predicate>> predicate) => query.Where(predicate);
     }
 }
