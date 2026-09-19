@@ -2,6 +2,8 @@
 using PCompose.Internal;
 using PCompose.Visitors;
 using System.Linq.Expressions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace PCompose;
 
@@ -47,6 +49,23 @@ public static class PredicateCompiler
         var parameter = condition.Parameters[0];
         if (parameter.Type == root.Type)
             return ReplaceExpressionVisitor.Replace(condition.Body, parameter, root);
+
+        if (root.Type.Assembly == typeof(ValueTuple).Assembly && typeof(ITuple).IsAssignableFrom(root.Type))
+        {
+            var matches = root.Type.GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .Cast<MemberInfo>()
+                .Concat(root.Type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                .Select(member => Expression.MakeMemberAccess(root, member))
+                .Where(member => member.Type == parameter.Type)
+                .ToArray();
+
+            if (matches.Length > 1)
+                throw new InvalidOperationException(
+                    $"Ambiguous argument type: multiple tuple elements have type {parameter.Type.Name}.");
+
+            if (matches.Length == 1)
+                return ReplaceExpressionVisitor.Replace(condition.Body, parameter, matches[0]);
+        }
 
         throw new InvalidOperationException(
             $"Invalid argument type: expected {root.Type.Name}, but received {parameter.Type.Name}.");
