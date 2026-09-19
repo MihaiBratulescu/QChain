@@ -92,14 +92,23 @@ public static class PredicateCompiler
 
             if (call.Method.IsDefined(typeof(ExtensionAttribute), false) &&
                 typeof(LambdaExpression).IsAssignableFrom(call.Type) &&
-                ReferencesParameter(call.Arguments[0], root))
+                call.Arguments.Any(argument => ReferencesParameter(argument, root)))
             {
-                var target = call.Arguments[0];
-                // The factory returns a template; preserve its receiver path for substitution.
+                var parameterCount = call.Type.IsGenericType && call.Type.GetGenericTypeDefinition() == typeof(Expression<>)
+                    ? call.Type.GenericTypeArguments[0].GetMethod("Invoke")!.GetParameters().Length
+                    : 1;
+
+                if (parameterCount > 1 && parameterCount != call.Arguments.Count)
+                    throw new InvalidOperationException(
+                        $"Invalid number of arguments: expected {parameterCount}, but received {call.Arguments.Count}.");
+
+                // Template parameters bind to the receiver and explicit argument paths in call order.
                 var factory = call.Update(null, call.Arguments.Select((argument, index) =>
-                    index == 0 ? Expression.Default(argument.Type) : argument));
+                    index < parameterCount ? Expression.Default(argument.Type) : argument));
                 var condition = (LambdaExpression)Evaluate(factory, root)!;
-                return ApplyCondition(condition, target, allowMemberLookup: false);
+                return parameterCount > 1
+                    ? BindArguments(condition, call.Arguments)
+                    : ApplyCondition(condition, call.Arguments[0], allowMemberLookup: false);
             }
         }
 
@@ -109,6 +118,27 @@ public static class PredicateCompiler
             LambdaExpression condition => ApplyCondition(condition, root),
             _ => throw new InvalidOperationException("Expected a predicate or a predicate expression.")
         };
+    }
+
+    private static Expression BindArguments(LambdaExpression condition, IReadOnlyList<Expression> arguments)
+    {
+        if (condition.Parameters.Count != arguments.Count)
+            throw new InvalidOperationException(
+                $"Invalid number of arguments: expected {condition.Parameters.Count}, but received {arguments.Count}.");
+
+        var replacements = new Dictionary<Expression, Expression>();
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            var parameter = condition.Parameters[index];
+            var argument = arguments[index];
+            if (parameter.Type != argument.Type)
+                throw new InvalidOperationException(
+                    $"Invalid argument type at position {index + 1}: expected {parameter.Type.Name}, but received {argument.Type.Name}.");
+
+            replacements.Add(parameter, argument);
+        }
+
+        return ReplaceExpressionVisitor.ReplaceMany(condition.Body, replacements);
     }
 
     private static object? Evaluate(Expression expression, ParameterExpression root)
