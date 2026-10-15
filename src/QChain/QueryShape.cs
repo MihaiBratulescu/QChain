@@ -8,7 +8,7 @@ internal interface IQueryShape
     LambdaExpression Shape { get; }
 }
 
-internal sealed class QueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) : IQueryShape
+internal class QueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, T>> shape) : IQueryShape
 {
     public IQueryable<Q> Source { get; } = source;
     public Expression<Func<Q, T>> Shape { get; } = shape;
@@ -16,3 +16,5 @@ internal sealed class QueryShape<T, Q>(IQueryable<Q> source, Expression<Func<Q, 
     IQueryable IQueryShape.Source => Source;
     LambdaExpression IQueryShape.Shape => Shape;
 }
+
+internal class QueryShape<T>(IQueryable<T> source) : QueryShape<T, T>(source, x => x);

@@ -2,7 +2,7 @@
 
 namespace QChain;
 
-internal class QueryProvider(IQueryProvider provider) : IQueryProvider
+internal class QueryProvider(IQueryProvider provider, IQueryShape queryShape) : IQueryProvider
 {
     public IQueryable CreateQuery(Expression expression)
     {
@@ -20,7 +20,9 @@ internal class QueryProvider(IQueryProvider provider) : IQueryProvider
     }
 
     public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
-        => new Query<TElement>(this, expression);
+    {
+        return new Query<TElement>(new QueryProvider(provider, queryShape), expression);
+    }
 
     public object? Execute(Expression expression)
         => provider.Execute(expression);
