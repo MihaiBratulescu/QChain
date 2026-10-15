@@ -16,17 +16,30 @@ internal class QueryProvider(IQueryProvider provider, IQueryShape queryShape) : 
         var queryType = typeof(Query<>).MakeGenericType(elementType);
 
         return (IQueryable)Activator.CreateInstance(
-            queryType, this, expression)!;
+            queryType, new QueryProvider(provider, queryShape.Apply((MethodCallExpression)expression)), expression)!;
     }
 
     public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
     {
-        return new Query<TElement>(new QueryProvider(provider, queryShape), expression);
+        var nextShape = queryShape.Apply((MethodCallExpression)expression);
+        return new Query<TElement>(new QueryProvider(provider, nextShape), expression);
     }
 
     public object? Execute(Expression expression)
-        => provider.Execute(expression);
+        => provider.Execute(TranslateExecution(expression));
 
     public TResult Execute<TResult>(Expression expression)
-        => provider.Execute<TResult>(expression);
+        => provider.Execute<TResult>(TranslateExecution(expression));
+
+    private Expression TranslateExecution(Expression expression)
+    {
+        var projected = queryShape.Project().Expression;
+        if (typeof(IQueryable).IsAssignableFrom(expression.Type))
+            return projected;
+
+        if (expression is MethodCallExpression call && call.Method.DeclaringType == typeof(Queryable))
+            return call.Update(call.Object, new[] { projected }.Concat(call.Arguments.Skip(1)));
+
+        throw new NotSupportedException("Unsupported execution expression.");
+    }
 }

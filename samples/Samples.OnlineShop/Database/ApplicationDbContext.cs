@@ -10,7 +10,7 @@ public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
     public IQueryable<AccountProfile> AccountProfiles => Set<AccountProfile>().AsQuery();
     public IQueryable<Order> Orders => Set<Order>().AsQuery();
     public IQueryable<Transaction> Transactions => Set<Transaction>().AsQuery();
-    public IQueryable<Currency> Currencys => Set<Currency>().AsQuery();
+    public IQueryable<Currency> Currencies => Set<Currency>().AsQuery();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
