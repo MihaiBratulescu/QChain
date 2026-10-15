@@ -27,10 +27,4 @@ internal class QueryProvider(IQueryProvider provider) : IQueryProvider
 
     public TResult Execute<TResult>(Expression expression)
         => provider.Execute<TResult>(expression);
-
-}
-
-internal class QueryShape<T, Q>
-{
-
 }

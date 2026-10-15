@@ -14,8 +14,6 @@ public class TestBase : IClassFixture<SqliteFixture>
         _fixture.output = output;
     }
 
-
-
     public Task<T[]> Query<T>(Func<ApplicationDbContext, IQueryable<T>> query) =>
         query(_fixture.db).ToArrayAsync();
 }
