@@ -10,7 +10,6 @@
   </ItemGroup>
 	
   <ItemGroup>
-    <ProjectReference Include="..\..\src\QChain.EntityFrameworkCore\QChain.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\QChain\QChain.csproj" />
   </ItemGroup>
 	

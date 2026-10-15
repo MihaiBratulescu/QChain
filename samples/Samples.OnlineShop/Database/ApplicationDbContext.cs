@@ -1,23 +1,16 @@
-﻿using QChain;
-
-using Microsoft.EntityFrameworkCore;
-
+﻿using Microsoft.EntityFrameworkCore;
+using QChain;
 using Samples.OnlineShop.DatabaseModels;
-using Samples.OnlineShop.Repositories;
-using QChain.EntityFrameworkCore;
 
 namespace Samples.OnlineShop.Database;
 
-public class ApplicationDbContext(DbContextOptions options) : DbContext(options), IUnitOfWork
+public class ApplicationDbContext(DbContextOptions options) : DbContext(options)
 {
-    public IAccountsRepository Accounts => new AccountsRepository(Set<Account>());
-    public IOrdersRepository Orders => new OrdersRepository(Set<Order>());
-    public ITransactionsRepository Transactions => new TransactionsRepository(Set<Transaction>());
-    public IQuery<Currency> Currencies => new Query<Currency>(Set<Currency>());
-
-    public T Query<T>(Func<IUnitOfWork, T> query) => query(this);
-    public Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query) => query(this);
-    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) => new QueryExecutor<T>(query(this));
+    public IQueryable<Account> Accounts => Set<Account>().AsQuery();
+    public IQueryable<AccountProfile> AccountProfiles => Set<AccountProfile>().AsQuery();
+    public IQueryable<Order> Orders => Set<Order>().AsQuery();
+    public IQueryable<Transaction> Transactions => Set<Transaction>().AsQuery();
+    public IQueryable<Currency> Currencys => Set<Currency>().AsQuery();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
