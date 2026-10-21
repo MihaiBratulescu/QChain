@@ -37,6 +37,17 @@ public class AsyncQueryProvider
         Assert.Equal(3, query.Count());
     }
 
+    [Fact]
+    public async Task Rejects_Async_Enumeration_When_Underlying_Query_Is_Synchronous()
+    {
+        var query = new[] { 1, 2, 3 }.AsQueryable().AsQuery();
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => query.ToListAsync());
+
+        Assert.Equal("The underlying query does not support asynchronous enumeration.", error.Message);
+        Assert.Equal([1, 2, 3], query.ToArray());
+    }
+
     private sealed class RecordingQuery<T>(IQueryable<T> source, IQueryProvider provider) : IQueryable<T>
     {
         public Type ElementType => typeof(T);

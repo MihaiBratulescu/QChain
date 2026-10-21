@@ -22,7 +22,7 @@ public class LargeTuples(SqliteFixture fixture, ITestOutputHelper output) : Test
     public void Packing_Preserves_All_Items_And_Caps_Each_Carrier(int arity, int rootArity)
     {
         var query = Project(new[] { 1, 1, 2 }.AsQueryable().AsQuery(), arity);
-        var carrier = ((IShapedQuery)query).QueryShape.SourceType;
+        var carrier = ((IShapedQuery)query).QueryShape.Source.ElementType;
         Assert.Equal(rootArity, carrier.GetGenericArguments().Length);
         AssertCarrierArities(carrier);
         if (arity == 14)
@@ -108,7 +108,7 @@ public class LargeTuples(SqliteFixture fixture, ITestOutputHelper output) : Test
         var created = source.Select(x => ValueTuple.Create(x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, x + 7));
         var constructed = source.Select(x => new ValueTuple<int, int, int, int, int, int, int, ValueTuple<int>>(
             x, x + 1, x + 2, x + 3, x + 4, x + 5, x + 6, new ValueTuple<int>(x + 7)));
-        Assert.Equal(((IShapedQuery)created).QueryShape.SourceType, ((IShapedQuery)constructed).QueryShape.SourceType);
+        Assert.Equal(((IShapedQuery)created).QueryShape.Source.ElementType, ((IShapedQuery)constructed).QueryShape.Source.ElementType);
         Assert.Equal(created.ToArray(), created.Union(constructed).OrderBy(x => x.Item1).ToArray());
         Assert.Equal([8, 9], created.Join(constructed, left => left.Rest.Item1, right => right.Rest.Item1,
             (left, right) => right.Rest.Item1).OrderBy(x => x).ToArray());

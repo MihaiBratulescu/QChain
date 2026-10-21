@@ -1,4 +1,5 @@
 using QChain.Internal.Helpers;
+using QChain.Internal.Types;
 using System.Collections;
 using System.Linq.Expressions;
 
@@ -26,8 +27,8 @@ public class QueryableProvider
             [tupleType], projected.Expression));
 
         var shape = ((IShapedQuery)distinct).QueryShape;
-        Assert.True(CarrierProjection.IsCarrier(shape.SourceType));
-        Assert.Equal(arity, shape.SourceType.GetGenericArguments().Length);
+        Assert.True(CarrierProjection.IsCarrier(shape.Source.ElementType));
+        Assert.Equal(arity, shape.Source.ElementType.GetGenericArguments().Length);
         var rows = ((IEnumerable)distinct).Cast<object>().ToArray();
         Assert.Equal(2, rows.Length);
         Assert.Equal(2, tupleType.GetField($"Item{arity}")!.GetValue(rows[1]));
@@ -69,7 +70,7 @@ public class QueryableProvider
             .Join(source, x => x.Item1, x => x, (a, b) => ValueTuple.Create(a.Item1, a.Item2, a.Item3, a.Item4, a.Item5, b))
             .Join(source, x => x.Item1, x => x, (a, b) => ValueTuple.Create(a.Item1, a.Item2, a.Item3, a.Item4, a.Item5, a.Item6, b));
 
-        Assert.Equal(7, ((IShapedQuery)seven).QueryShape.SourceType.GetGenericArguments().Length);
+        Assert.Equal(7, ((IShapedQuery)seven).QueryShape.Source.ElementType.GetGenericArguments().Length);
         Assert.Equal([(1, 1, 1, 1, 1, 1, 1), (2, 2, 2, 2, 2, 2, 2)], seven.ToArray());
         Assert.Equal([(1, 1), (2, 2)], first.ToArray());
         Assert.Equal([1, 2], source.ToArray());
@@ -101,6 +102,50 @@ public class QueryableProvider
         Assert.Equal((2, 20), source.ElementAt(1));
         Assert.Contains((2, 20), source);
         Assert.Throws<InvalidOperationException>(() => source.Single());
+    }
+
+    [Fact]
+    public void Empty_Tuple_Create_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple>> selector = value => ValueTuple.Create();
+
+        var expected = source.Select(selector).Distinct().ToArray();
+        var actual = source.AsQuery().Select(selector).Distinct().ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Default_Tuple_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>>> selector = value => default(ValueTuple<int, int>);
+
+        var expected = source.Select(selector).Distinct().ToArray();
+        var actual = source.AsQuery().Select(selector).Distinct().ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void New_Tuple_Array_Preserves_Component_Defaults(int length)
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>[]>> selector = value => new ValueTuple<int, int>[length];
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        var expectedRows = expected.ToArray();
+        var actualRows = actual.ToArray();
+        Assert.Equal(expectedRows.Length, actualRows.Length);
+        for (var index = 0; index < expectedRows.Length; index++)
+            Assert.Equal(expectedRows[index], actualRows[index]);
+
+        Assert.Equal(expected.SelectMany(items => items).Select(item => item.Item1).ToArray(),
+            actual.SelectMany(items => items).Select(item => item.Item1).ToArray());
     }
 
     [Fact]
@@ -140,6 +185,28 @@ public class QueryableProvider
         var terminal = Expression.Call(typeof(Queryable), nameof(Queryable.Count), [typeof(int)], filtered.Expression);
         Assert.Equal(2, source.Provider.Execute(terminal));
         Assert.Same(source, source.AsQuery());
+    }
+
+    [Fact]
+    public void NonGeneric_CreateQuery_Preserves_Original_Provider_Exception()
+    {
+        var source = new[] { 1, 2, 3 }.AsQueryable();
+        var expected = new NotSupportedException("The provider rejected this query.");
+        IQueryProvider provider = new QueryProvider(new ThrowingProvider(expected), new QueryShape<int>(source));
+        var expression = source.Where(value => value > 1).Expression;
+
+        var error = Assert.Throws<NotSupportedException>(() => provider.CreateQuery(expression));
+
+        Assert.Same(expected, error);
+        Assert.Contains(nameof(ThrowingProvider.CreateQuery), error.StackTrace);
+    }
+
+    private sealed class ThrowingProvider(Exception error) : IQueryProvider
+    {
+        public IQueryable CreateQuery(Expression expression) => throw error;
+        public IQueryable<TElement> CreateQuery<TElement>(Expression expression) => throw error;
+        public object? Execute(Expression expression) => throw error;
+        public TResult Execute<TResult>(Expression expression) => throw error;
     }
 
     private static readonly Type[] TupleDefinitions =

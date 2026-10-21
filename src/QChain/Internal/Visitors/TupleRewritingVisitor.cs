@@ -131,7 +131,7 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
         var arguments = node.Arguments.Select(argument => Visit(argument)).ToArray();
-        if (node.Method.DeclaringType == typeof(ValueTuple) && node.Method.Name == nameof(ValueTuple.Create))
+        if (node.Method.DeclaringType == typeof(ValueTuple) && node.Method.Name == nameof(ValueTuple.Create) && arguments.Length > 0)
             return CarrierProjection.Create(arguments);
 
         if (node.Method.DeclaringType is { } declaring && (declaring == typeof(Queryable) || declaring == typeof(Enumerable)) &&
@@ -220,7 +220,7 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
 
     protected override Expression VisitNewArray(NewArrayExpression node) => node.NodeType == ExpressionType.NewArrayInit
         ? Expression.NewArrayInit(CarrierProjection.RewriteType(node.Type.GetElementType()!), node.Expressions.Select(expression => Visit(expression)))
-        : Expression.NewArrayBounds(CarrierProjection.RewriteType(node.Type.GetElementType()!), node.Expressions.Select(expression => Visit(expression)));
+        : CarrierProjection.Lower(node.Update(node.Expressions.Select(expression => Visit(expression))));
 
     protected override ElementInit VisitElementInit(ElementInit node)
     {
