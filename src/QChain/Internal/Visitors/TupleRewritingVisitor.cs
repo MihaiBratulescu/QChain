@@ -88,6 +88,10 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         }
         var member = target is not null && target.Type != node.Expression!.Type
             ? RebindMember(node.Member, target.Type) : node.Member;
+        // Value has a presence check; inlining its initializer would discard that check.
+        if (member.Name == nameof(DefaultIfEmptyValue<int>.Value) &&
+            member.DeclaringType is { IsGenericType: true } declaring && declaring.GetGenericTypeDefinition() == typeof(DefaultIfEmptyValue<>))
+            return Expression.MakeMemberAccess(target, member);
         if (target is not null && ProjectionReduction.TryInlineMemberAccess(target, member, out var value))
             return value;
         return CarrierProjection.Lower(Expression.MakeMemberAccess(target, member));
@@ -141,10 +145,11 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
 
         var target = Visit(node.Object);
         var sequenceOperator = node.Method.DeclaringType == typeof(Queryable) || node.Method.DeclaringType == typeof(Enumerable) ||
+            node.Method.DeclaringType == typeof(MemoryExtensions) || IsSpan(node.Method.DeclaringType!) ||
             typeof(IQueryable).IsAssignableFrom(node.Type);
         var method = sequenceOperator ? RebindMethod(node.Method) : node.Method;
         if (target is not null)
-            target = CarrierProjection.Rebuild(target, node.Object!.Type);
+            target = CarrierProjection.Rebuild(target, method.DeclaringType!);
         var expected = method.GetParameters();
         arguments = arguments.Select((argument, index) => CarrierProjection.Rebuild(argument, expected[index].ParameterType)).ToArray();
         return CarrierProjection.Lower(Expression.Call(target, method, arguments));
@@ -166,7 +171,12 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
             if (operand.Type == type)
                 return operand;
             if (Nullable.GetUnderlyingType(node.Type) is { } underlying && CarrierProjection.IsTuple(underlying))
-                return CarrierProjection.NullableValue(operand);
+            {
+                if (IsNull(node.Operand))
+                    return Expression.Default(type);
+                if (CarrierProjection.IsTuple(node.Operand.Type))
+                    return CarrierProjection.NullableValue(operand);
+            }
             if (Nullable.GetUnderlyingType(node.Operand.Type) is { } sourceTuple && CarrierProjection.IsTuple(sourceTuple) &&
                 node.Type == sourceTuple)
                 return Expression.Property(operand, "Value");
@@ -240,6 +250,9 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
             .Single(candidate => candidate.MemberType == member.MemberType || member is FieldInfo && candidate is PropertyInfo);
 
     private static Type MemberType(MemberInfo member) => member is PropertyInfo property ? property.PropertyType : ((FieldInfo)member).FieldType;
+
+    private static bool IsSpan(Type type) => type.IsGenericType &&
+        (type.GetGenericTypeDefinition() == typeof(Span<>) || type.GetGenericTypeDefinition() == typeof(ReadOnlySpan<>));
 
     private static MethodInfo RebindMethod(MethodInfo method)
     {

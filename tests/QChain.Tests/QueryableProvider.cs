@@ -149,6 +149,248 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Tuple_Member_Initializer_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>>> selector = value => new ValueTuple<int, int>
+        {
+            Item1 = value,
+            Item2 = value + 10
+        };
+        var expected = source.Select(selector).Distinct();
+        var actual = source.AsQuery().Select(selector).Distinct();
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray(),
+            actual.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_Partial_Initializer_Preserves_Unassigned_Defaults()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>>> selector = value => new ValueTuple<int, int> { Item2 = value + 10 };
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.Item1).ToArray(), actual.Select(pair => pair.Item1).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_Initializer_Overrides_Constructor_Values()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>>> selector = value => new ValueTuple<int, int>(value, 99)
+        {
+            Item2 = value + 10
+        };
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Nested_Tuple_Initializer_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, ValueTuple<int, int>>>> selector = value => new ValueTuple<int, ValueTuple<int, int>>
+        {
+            Item1 = value,
+            Item2 = new ValueTuple<int, int> { Item1 = value + 10, Item2 = value + 20 }
+        };
+        var expected = source.Select(selector).Distinct();
+        var actual = source.AsQuery().Select(selector).Distinct();
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.Item2.Item1 > 11).Select(pair => pair.Item2.Item2).ToArray(),
+            actual.Where(pair => pair.Item2.Item1 > 11).Select(pair => pair.Item2.Item2).ToArray());
+    }
+
+    [Fact]
+    public void Large_Tuple_Rest_Initializer_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        var value = Expression.Parameter(typeof(int), "value");
+        var tupleType = typeof(ValueTuple<int, int, int, int, int, int, int, ValueTuple<int>>);
+        var restType = typeof(ValueTuple<int>);
+        var initializer = Expression.MemberInit(Expression.New(tupleType),
+            Expression.Bind(tupleType.GetField("Item1")!, value),
+            Expression.Bind(tupleType.GetField("Item7")!, Expression.Add(value, Expression.Constant(6))),
+            Expression.Bind(tupleType.GetField("Rest")!, Expression.MemberInit(Expression.New(restType),
+                Expression.Bind(restType.GetField("Item1")!, Expression.Add(value, Expression.Constant(7))))));
+        var selector = Expression.Lambda<Func<int, (int, int, int, int, int, int, int, int)>>(initializer, value);
+        var expected = source.Select(selector).Distinct();
+        var actual = source.AsQuery().Select(selector).Distinct();
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.Rest.Item1 > 8).Select(pair => pair.Item7).ToArray(),
+            actual.Where(pair => pair.Rest.Item1 > 8).Select(pair => pair.Item7).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_Array_Initializer_And_Indexing_Match_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>[]>> selector = value => new[]
+        {
+            new ValueTuple<int, int> { Item1 = value, Item2 = value + 10 },
+            ValueTuple.Create(value + 1, value + 11)
+        };
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(items => items[1].Item2).ToArray(),
+            actual.Select(items => items[1].Item2).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_List_Initializer_And_Indexing_Match_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, List<ValueTuple<int, int>>>> selector = value => new List<ValueTuple<int, int>>
+        {
+            new ValueTuple<int, int> { Item1 = value, Item2 = value + 10 },
+            ValueTuple.Create(value + 1, value + 11)
+        };
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(items => items[1].Item2).ToArray(),
+            actual.Select(items => items[1].Item2).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Preserves_Present_And_Absent_Values()
+    {
+        var source = new[] { 0, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>?>> selector = value => value == 0
+            ? (ValueTuple<int, int>?)null : ValueTuple.Create(value, value + 10);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(value => value.HasValue).ToArray(),
+            actual.Select(value => value.HasValue).ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Nullable_Tuple_Value_Matches_Ordinary_Linq(bool hasValue)
+    {
+        var source = new (int, int)?[] { hasValue ? (1, 2) : null }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, ValueTuple<int, int>>> selector = value => value!.Value;
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        if (hasValue)
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        else
+        {
+            var expectedError = Assert.Throws<InvalidOperationException>(() => expected.ToArray());
+            var actualError = Assert.Throws<InvalidOperationException>(() => actual.ToArray());
+            Assert.Equal(expectedError.Message, actualError.Message);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Nullable_Tuple_Cast_Matches_Ordinary_Linq(bool hasValue)
+    {
+        var source = new (int, int)?[] { hasValue ? (1, 2) : null }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, ValueTuple<int, int>>> selector = value => (ValueTuple<int, int>)value!;
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        if (hasValue)
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        else
+        {
+            var expectedError = Assert.Throws<InvalidOperationException>(() => expected.ToArray());
+            var actualError = Assert.Throws<InvalidOperationException>(() => actual.ToArray());
+            Assert.Equal(expectedError.Message, actualError.Message);
+        }
+    }
+
+    [Fact]
+    public void Boxed_Nullable_Tuple_Conversion_Matches_Ordinary_Linq()
+    {
+        var source = new object?[] { null, (1, 2) }.AsQueryable();
+        Expression<Func<object?, ValueTuple<int, int>?>> selector = value => (ValueTuple<int, int>?)value;
+
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(value => value.HasValue).ToArray(),
+            actual.Select(value => value.HasValue).ToArray());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Captured_Nullable_Tuple_Value_Preserves_Check_After_Composition(bool hasValue)
+    {
+        var source = new[] { 1 }.AsQueryable();
+        (int, int)? captured = hasValue ? (1, 2) : null;
+        Expression<Func<int, ValueTuple<int, int>>> selector = value => captured!.Value;
+        var expected = source.Select(selector).Select(value => value.Item1);
+        var actual = source.AsQuery().Select(selector).Select(value => value.Item1);
+
+        if (hasValue)
+            Assert.Equal(expected.ToArray(), actual.ToArray());
+        else
+        {
+            var expectedError = Assert.Throws<InvalidOperationException>(() => expected.ToArray());
+            var actualError = Assert.Throws<InvalidOperationException>(() => actual.ToArray());
+            Assert.Equal(expectedError.Message, actualError.Message);
+        }
+    }
+
+    [Fact]
+    public void Nullable_Tuple_GetValueOrDefault_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, ValueTuple<int, int>>> selector = value => value.GetValueOrDefault();
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_GetValueOrDefault_With_Fallback_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, ValueTuple<int, int>>> selector = value =>
+            value.GetValueOrDefault(ValueTuple.Create(3, 4));
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Coalesce_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, ValueTuple<int, int>>> selector = value => value ?? ValueTuple.Create(3, 4);
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Guarded_Access_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        Expression<Func<ValueTuple<int, int>?, bool>> predicate = value => value.HasValue && value.Value.Item1 > 0;
+
+        var expected = source.Where(predicate).Select(value => value!.Value).ToArray();
+        var actual = source.AsQuery().Where(predicate).Select(value => value!.Value).ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
     public void DefaultIfEmpty_Rebuilds_Empty_And_Present_Tuples()
     {
         var source = Array.Empty<int>().AsQueryable().AsQuery();
