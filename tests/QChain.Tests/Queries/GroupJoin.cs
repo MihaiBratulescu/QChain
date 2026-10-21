@@ -1,17 +1,19 @@
-﻿using QChain;
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
+using QChain;
 using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
-namespace Samples.OnlineShop.Tests.Queries;
+namespace QChain.Tests.Queries;
 
-public class GroupJoin(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+public class GroupJoin(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {
     [Fact]
     public async Task Preserves_Outer_Items()
     {
         var rows = await Query(q =>
             q.Accounts
-                .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+                .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
                 .Select(x => ValueTuple.Create(
                     x.Item1.AccountId,
                     x.Item2.Count())));
@@ -48,12 +50,12 @@ public class GroupJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task GroupJoin_And_SelectMany_Are_Equivalent()
     {
         var flattened = await Query(q => q.Accounts
-            .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .SelectMany(x => x.Item2)
             .Select(o => o.OrderId));
 
         var joined = await Query(q => q.Accounts
-            .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+            .Join(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .Select(x => x.Item2.OrderId));
 
         Assert.Equal(
@@ -61,5 +63,3 @@ public class GroupJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
             flattened.OrderBy(x => x));
     }
 }
-
-

@@ -1,8 +1,10 @@
-﻿using Samples.OnlineShop.DatabaseModels;
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
+using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
-namespace Samples.OnlineShop.Tests.Queries;
-public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+namespace QChain.Tests.Queries;
+public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {
     [Fact]
     public async Task NotEmpty_ReturnsRows()
@@ -167,7 +169,7 @@ public class DefaultIfEmpty(SqliteFixture fixture, ITestOutputHelper output) : Q
     public async Task GroupJoin()
     {
         (Account acc, Order? order)[] items = await Query(q => q.Accounts
-            .GroupJoin(q.Orders.Where(o => o.OrderId > 100), a => a.AccountId, o => o.AccountId)
+            .GroupJoin(q.Orders.Where(o => o.OrderId > 100), a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .SelectMany(x => x.Item2.DefaultIfEmpty(), 
                         (x, order) => ValueTuple.Create(x.Item1, order)));
 

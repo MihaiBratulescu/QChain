@@ -1,8 +1,10 @@
-﻿using Xunit.Abstractions;
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
+using Xunit.Abstractions;
 
-namespace Samples.OnlineShop.Tests.Queries;
+namespace QChain.Tests.Queries;
 
-public class Map(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+public class Map(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {
     [Fact]
     public async Task SingleColumn()
@@ -25,7 +27,7 @@ public class Map(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
     {
         var results = await Query(q =>
             q.Accounts
-             .Join(q.Orders, a => a.AccountId, o => o.AccountId)
+             .Join(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
              .Select(j => new { j.Item1.AccountId, orderAccountId = j.Item2.AccountId, j.Item2.OrderId }));
 
         Assert.NotEmpty(results);
@@ -37,7 +39,7 @@ public class Map(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegr
     {
         var results = await Query(q =>
             q.Accounts
-             .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+             .GroupJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
              .Select(j => new 
              { 
                  j.Item1.AccountId, 

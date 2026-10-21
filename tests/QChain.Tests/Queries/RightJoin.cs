@@ -1,15 +1,17 @@
-﻿using Samples.OnlineShop.DatabaseModels;
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
+using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
-namespace Samples.OnlineShop.Tests.Queries;
+namespace QChain.Tests.Queries;
 
-public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {
     [Fact]
     public async Task Basic_ReturnsOrdersWithAccounts()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId));
+            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.NotNull(x.Item2));
@@ -19,7 +21,7 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task Basic_ReturnsOrdersWithoutAccounts()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => 0, o => o.AccountId));
+            .RightJoin(q.Orders, a => 0, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.Null(x.Item1));
@@ -32,7 +34,7 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
         var items = await Query(q => q.Accounts
             .RightJoin(
                 q.Orders.Where(o => o.CurrencyId == CurrencyType.EUR),
-                a => a.AccountId, o => o.AccountId));
+                a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.Equal(CurrencyType.EUR, x.Item2.CurrencyId));
@@ -42,7 +44,7 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task CanProjectResult()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => 0, o => o.AccountId)
+            .RightJoin(q.Orders, a => 0, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .Select(x => new
             {
                 AccountId = x.Item1 == null 
@@ -59,8 +61,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RightJoin_Twice()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId));
+            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
         Assert.All(items, x =>
@@ -74,8 +76,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RightJoin_Twice_WithProjection()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId)
+            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .Select(x => new
             {
                 AccountId = x.Item1.Item1 == null 
@@ -92,8 +94,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task LeftJoin_Then_RightJoin()
     {
         var items = await Query(q => q.Accounts
-            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId));
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
     }
@@ -102,8 +104,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RightJoin_Then_RightJoin()
     {
         var items = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId));
+            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
     }
@@ -112,7 +114,7 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task JoinDoesNotMatch_ReturnsNullRight()
     {
         var items = await Query(q => q.Accounts
-            .LeftJoin(q.Orders, a => a.AccountId, o => 0));
+            .LeftJoin(q.Orders, a => a.AccountId, o => 0, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.Null(x.Item2));
@@ -123,9 +125,9 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     {
         (Account? account, Order order, Currency currency, Transaction? transaction)[] items =
             await Query(q => q.Accounts
-                .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-                .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId)
-                .LeftJoin(q.Transactions, x => x.Item1.Item2.OrderId, t => t.OrderId)
+                .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+                .RightJoin(q.Currencies, x => x.Item2.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+                .LeftJoin(q.Transactions, x => x.Item1.Item2.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
                 .Select(x => ValueTuple.Create(x.Item1.Item1.Item1, x.Item1.Item1.Item2, x.Item1.Item2, x.Item2)));
 
         Assert.NotEmpty(items);
@@ -145,8 +147,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RightJoin_RightJoin()
     {
         var rows = await Query(q => q.Accounts
-            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-            .RightJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+            .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .Select(x => ValueTuple.Create(
                 x.Item1!.Item2.OrderId,
                 x.Item2.OrderId)));
@@ -159,8 +161,8 @@ public class RightJoin(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RightJoin_LeftJoin()
     {
         var rows = await Query(q => q.Accounts
-        .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId)
-        .LeftJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId)
+        .RightJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+        .LeftJoin(q.Transactions, x => x.Item2.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
         .Select(x => ValueTuple.Create(
             (int?)x.Item1.Item2.OrderId,
             x.Item2 == null ? null : (int?)x.Item2.OrderId)));
