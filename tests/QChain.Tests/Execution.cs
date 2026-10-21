@@ -1,9 +1,7 @@
 using QChain.Tests.TestBench;
 using Microsoft.EntityFrameworkCore;
 using QChain;
-using PCompose;
 using Samples.OnlineShop.DatabaseModels;
-using System.Linq.Expressions;
 using Xunit.Abstractions;
 
 namespace QChain.Tests;
@@ -128,32 +126,25 @@ public class Execution(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     [Fact]
     public async Task TerminalPredicate_Async()
     {
-        Expression<Func<Account, bool>> active = a => a.IsActive;
-        Expression<Func<Account, bool>> evenId = a => a.AccountId % 2 == 0;
-        Expression<Func<Account, bool>> account2 = a => a.AccountId == 2;
-
         var accounts = Accounts.OrderBy(a => a.AccountId).Select(a => a);
 
-        Assert.True(await accounts.AnyAsync(x => active.And(evenId), default));
-        Assert.Equal(3, await accounts.CountAsync(x => active.And(evenId), default));
-        Assert.Equal(3L, await accounts.LongCountAsync(x => active.And(evenId), default));
-        Assert.Equal(2, (await accounts.FirstAsync(x => active.And(evenId), default)).AccountId);
-        Assert.Equal(6, (await accounts.LastAsync(x => active.And(evenId), default)).AccountId);
-        Assert.Equal(2, (await accounts.SingleAsync(x => active.And(account2), default)).AccountId);
+        Assert.True(await accounts.AnyAsync(a => a.IsActive && a.AccountId % 2 == 0, default));
+        Assert.Equal(3, await accounts.CountAsync(a => a.IsActive && a.AccountId % 2 == 0, default));
+        Assert.Equal(3L, await accounts.LongCountAsync(a => a.IsActive && a.AccountId % 2 == 0, default));
+        Assert.Equal(2, (await accounts.FirstAsync(a => a.IsActive && a.AccountId % 2 == 0, default)).AccountId);
+        Assert.Equal(6, (await accounts.LastAsync(a => a.IsActive && a.AccountId % 2 == 0, default)).AccountId);
+        Assert.Equal(2, (await accounts.SingleAsync(a => a.IsActive && a.AccountId == 2, default)).AccountId);
     }
 
     [Fact]
     public void TerminalPredicate_Sync_AfterJoin()
     {
-        Expression<Func<Account, bool>> active = a => a.IsActive;
-        Expression<Func<Order, bool>> euro = o => o.CurrencyId == CurrencyType.EUR;
-
         IQueryable<(Account account, Order order)> joined = _fixture.db.Accounts
             .Join(_fixture.db.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow));
 
-        Assert.True(joined.Any(x => active.And(euro)));
-        Assert.Equal(2, joined.Count(x => active.And(euro)));
-        Assert.NotNull(joined.FirstOrDefault(x => active.And(euro)).account);
+        Assert.True(joined.Any(x => x.account.IsActive && x.order.CurrencyId == CurrencyType.EUR));
+        Assert.Equal(2, joined.Count(x => x.account.IsActive && x.order.CurrencyId == CurrencyType.EUR));
+        Assert.NotNull(joined.FirstOrDefault(x => x.account.IsActive && x.order.CurrencyId == CurrencyType.EUR).account);
     }
 
     [Fact]

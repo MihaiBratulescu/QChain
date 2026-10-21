@@ -1,6 +1,4 @@
-using System.Linq.Expressions;
 using Samples.OnlineShop.DatabaseModels;
-using PCompose;
 using Microsoft.EntityFrameworkCore;
 using QChain.Tests.TestBench;
 using Xunit.Abstractions;
@@ -82,13 +80,9 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     [Fact]
     public async Task Where_Predicate()
     {
-        Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
-        Expression<Func<Account, bool>> even = a => a.AccountId % 2 == 0;
-        Expression<Func<Order, bool>> euro = o => o.CurrencyId == CurrencyType.EUR;
-
         (Account a, Order p)[] predicate = await Query(q => q.Accounts
             .Join(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
-            .Where(x => inactive.And(even).Or(euro)));
+            .Where(x => (!x.Item1.IsActive && x.Item1.AccountId % 2 == 0) || x.Item2.CurrencyId == CurrencyType.EUR));
 
         Assert.NotEmpty(predicate);
     }
@@ -96,54 +90,31 @@ public class Filtering(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     [Fact]
     public async Task Where_Predicate_ThenJoin()
     {
-        Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
-        Expression<Func<Account, bool>> even = a => a.AccountId % 2 == 0;
-        Expression<Func<Order, bool>> euro = o => o.CurrencyId == CurrencyType.EUR;
-
         var predicate = await Query(q => q.Accounts
             .Join(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
-            .Where(x => inactive.And(even).Or(euro))
+            .Where(x => (!x.Item1.IsActive && x.Item1.AccountId % 2 == 0) || x.Item2.CurrencyId == CurrencyType.EUR)
             .Join(q.Transactions, x => x.Item2.OrderId, t => t.TransactionId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(predicate);
     }
 
     [Fact]
-    public async Task Where_InvalidPredicate_Throws()
+    public async Task Where_And()
     {
-        Expression<Func<Account, bool>> inactive = a => a.IsActive == false;
-        Expression<Func<Transaction, bool>> invalid = t => t.Amount > 100;
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Query(q => q.Accounts
-                .Join(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
-                .Where(x => inactive.And(invalid)))
-        );
-    }
-
-    [Fact]
-    public async Task And_ComposesPredicates()
-    {
-        Expression<Func<Account, bool>> active = a => a.IsActive;
-        Expression<Func<Account, bool>> evenId = a => a.AccountId % 2 == 0;
-
         Account[] accounts = await Query(q =>
             q.Accounts
-                .Where(x => active.And(evenId))
+                .Where(a => a.IsActive && a.AccountId % 2 == 0)
                 .OrderBy(a => a.AccountId));
 
         Assert.Equal([2, 4, 6], accounts.Select(a => a.AccountId));
     }
 
     [Fact]
-    public async Task Or_ComposesPredicates()
+    public async Task Where_Or()
     {
-        Expression<Func<Account, bool>> inactive = a => !a.IsActive;
-        Expression<Func<Account, bool>> nullEmail = a => a.Email == null;
-
         Account[] accounts = await Query(q =>
             q.Accounts
-                .Where(x => inactive.Or(nullEmail))
+                .Where(a => !a.IsActive || a.Email == null)
                 .OrderBy(a => a.AccountId));
 
         Assert.Equal([3, 5, 6], accounts.Select(a => a.AccountId));
