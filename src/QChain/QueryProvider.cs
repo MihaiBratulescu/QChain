@@ -1,14 +1,19 @@
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.Internal;
 using QChain.Internal.Helpers;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace QChain;
 
-internal sealed class QueryProvider(IQueryProvider provider, IQueryShape queryShape) : IQueryProvider
+#pragma warning disable EF1001 // EF's tracking extensions require an EntityQueryProvider.
+
+// Every entry point delegates to the wrapped provider, so the base query compiler is unused.
+internal sealed class QueryProvider(IQueryProvider provider, IQueryShape queryShape) : EntityQueryProvider(null!)
 {
     internal IQueryShape QueryShape { get; } = queryShape;
 
-    public IQueryable CreateQuery(Expression expression)
+    public override IQueryable CreateQuery(Expression expression)
     {
         var elementType = expression.Type.GetInterfaces().Append(expression.Type)
             .First(type => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IQueryable<>))
@@ -16,11 +21,19 @@ internal sealed class QueryProvider(IQueryProvider provider, IQueryShape querySh
         return (IQueryable)QueryReflection.Invoke(CreateQueryMethod.MakeGenericMethod(elementType), this, [expression]);
     }
 
-    public IQueryable<TElement> CreateQuery<TElement>(Expression expression) =>
+    public override IQueryable<TElement> CreateQuery<TElement>(Expression expression) =>
         new Query<TElement>(new QueryProvider(provider, Resolve(expression, provider)));
 
-    public object? Execute(Expression expression) => provider.Execute(TranslateExecution(expression));
-    public TResult Execute<TResult>(Expression expression) => provider.Execute<TResult>(TranslateExecution(expression));
+    public override object Execute(Expression expression) => provider.Execute(TranslateExecution(expression))!;
+    public override TResult Execute<TResult>(Expression expression) => provider.Execute<TResult>(TranslateExecution(expression));
+
+    public override TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = default)
+    {
+        if (provider is not IAsyncQueryProvider asyncProvider)
+            throw new InvalidOperationException("The underlying query provider does not support asynchronous execution.");
+
+        return asyncProvider.ExecuteAsync<TResult>(TranslateExecution(expression), cancellationToken);
+    }
 
     internal Expression TranslateExecution(Expression expression)
     {
@@ -45,3 +58,5 @@ internal sealed class QueryProvider(IQueryProvider provider, IQueryShape querySh
     private static readonly MethodInfo CreateQueryMethod = typeof(QueryProvider).GetMethods()
         .Single(method => method.Name == nameof(CreateQuery) && method.IsGenericMethodDefinition);
 }
+
+#pragma warning restore EF1001

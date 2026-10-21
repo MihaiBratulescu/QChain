@@ -41,6 +41,17 @@ public class Execution(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     }
 
     [Fact]
+    public async Task CountAsync_Forwards_Cancellation_AfterProjection()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Accounts
+            .Select(account => ValueTuple.Create(account.AccountId, account.IsActive))
+            .CountAsync(account => account.Item1 > 0, cancellation.Token));
+    }
+
+    [Fact]
     public async Task LongCount_AfterProjection()
     {
         var count = await Accounts
@@ -199,11 +210,45 @@ public class Execution(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     public async Task TrackedEntities()
     {
         _fixture.db.ChangeTracker.Clear();
+        _fixture.db.ChangeTracker.QueryTrackingBehavior = QueryTrackingBehavior.NoTracking;
 
         var items = await Accounts.AsNoTracking().AsTracking().ToArrayAsync(default);
 
         Assert.NotEmpty(items);
         Assert.Equal(items.Length, _fixture.db.ChangeTracker.Entries().Count());
+    }
+
+    [Fact]
+    public async Task NoTracking_AfterJoin_Composes_With_TupleProjection()
+    {
+        _fixture.db.ChangeTracker.Clear();
+
+        var items = await Accounts
+            .Join(_fixture.db.Orders, account => account.AccountId, order => order.AccountId, (account, order) => account)
+            .AsNoTracking()
+            .Where(account => account.AccountId == 1)
+            .Select(account => ValueTuple.Create(account.AccountId, account))
+            .ToArrayAsync();
+
+        Assert.NotEmpty(items);
+        Assert.All(items, item => Assert.Equal(1, item.Item1));
+        Assert.Empty(_fixture.db.ChangeTracker.Entries());
+    }
+
+    [Fact]
+    public async Task NoTrackingWithIdentityResolution_AfterJoin()
+    {
+        _fixture.db.ChangeTracker.Clear();
+
+        var items = await Accounts
+            .Join(_fixture.db.Orders, account => account.AccountId, order => order.AccountId, (account, order) => account)
+            .AsNoTrackingWithIdentityResolution()
+            .Where(account => account.AccountId == 1)
+            .ToArrayAsync();
+
+        Assert.True(items.Length > 1);
+        Assert.All(items, item => Assert.Same(items[0], item));
+        Assert.Empty(_fixture.db.ChangeTracker.Entries());
     }
 
     [Fact]
