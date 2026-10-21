@@ -1,4 +1,4 @@
-using System.Collections;
+using QChain.Internal.Types;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
@@ -169,6 +169,10 @@ internal static class CarrierProjection
     {
         var sourceElement = SequenceElement(expression.Type)!;
         var targetElement = SequenceElement(targetType)!;
+        if (expression.Type.IsSZArray && targetType.IsSZArray)
+            return Expression.Call(typeof(QueryShape<,>).MakeGenericType(targetElement, sourceElement),
+                nameof(QueryShape<object, object>.ProjectArray), Type.EmptyTypes, expression);
+
         var item = Expression.Parameter(sourceElement, "item");
         var selector = Expression.Lambda(Convert(item, targetElement), item);
         var queryable = typeof(IQueryable).IsAssignableFrom(targetType);
@@ -190,13 +194,6 @@ internal static class CarrierProjection
 
     public static bool IsAnonymous(Type type) => type.IsDefined(typeof(CompilerGeneratedAttribute), false) &&
         type.Name.Contains("AnonymousType", StringComparison.Ordinal);
-
-    private sealed class ProjectedGrouping<K, T>(K key, IEnumerable<T> items) : IGrouping<K, T>
-    {
-        public K Key => key;
-        public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-    }
 
     private static readonly Type[] Definitions =
     [

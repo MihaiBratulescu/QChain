@@ -53,7 +53,7 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fi
         var items = await Query(q =>
         q.Accounts
             .Where(a => a.AccountId <= 5)
-            .Union(q.Accounts.Where(a => a.AccountId  <= 7))
+            .Union(q.Accounts.Where(a => a.AccountId <= 7))
             .Join(q.Orders,
                 a => a.AccountId,
                 o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
@@ -253,5 +253,23 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fi
                 .OrderBy(x => x));
 
         Assert.Equal([1, 2], items);
+    }
+
+    [Fact]
+    public async Task Union_Then_GroupBy()
+    {
+        var items = await Query(q =>
+            q.Accounts
+                .Where(a => a.AccountId <= 3)
+                .Select(a => new { a.IsActive, a.AccountId })
+                .Union(q.Accounts
+                    .Where(a => a.AccountId >= 4 && a.AccountId <= 5)
+                    .Select(a => new { a.IsActive, a.AccountId }))
+                .GroupBy(a => a.IsActive)
+                .Select(g => ValueTuple.Create(g.Key, g.Count()))
+                .OrderBy(x => x.Item1));
+
+        Assert.Equal([false, true], items.Select(x => x.Item1));
+        Assert.Equal([2, 3], items.Select(x => x.Item2));
     }
 }

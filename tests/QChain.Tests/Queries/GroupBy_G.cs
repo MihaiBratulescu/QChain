@@ -1,10 +1,11 @@
-﻿using Microsoft.EntityFrameworkCore;
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
 using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
-namespace Samples.OnlineShop.Tests.Queries;
+namespace QChain.Tests.Queries;
 
-public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChainIntegrationTestBench(fixture, output)
+public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {
     [Fact]
     public async Task OnTable()
@@ -84,8 +85,8 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task TupleKey_Projected()
     {
         ((string?, bool), int total)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive),
-                               g => ValueTuple.Create(g.Key, g.Count())));
+            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive))
+            .Select(g => ValueTuple.Create(g.Key, g.Count())));
 
         Assert.NotEmpty(result);
         Assert.All(result, q => Assert.True(q.total > 0));
@@ -95,19 +96,20 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task WithProjection()
     {
         (string? name, int count)[] result = await Query(q =>
-            q.Accounts.GroupBy(a => a.Email, a => ValueTuple.Create(a.Key, a.Count())));
+            q.Accounts.GroupBy(a => a.Email)
+            .Select(a => ValueTuple.Create(a.Key, a.Count())));
 
         Assert.NotEmpty(result);
-        Assert.All(result, q => Assert.True(q.count > 0) );
+        Assert.All(result, q => Assert.True(q.count > 0));
     }
 
     [Fact]
     public async Task WithJoin()
     {
         var result = await Query(q =>
-            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive),
-                               g => new { g.Key, total = g.Count(), first = g.Min(a => a.AccountId) })
-                      .GroupJoin(q.Orders, g => g.first, o => o.AccountId));
+            q.Accounts.GroupBy(a => ValueTuple.Create(a.Email, a.IsActive))
+            .Select(g => new { g.Key, total = g.Count(), first = g.Min(a => a.AccountId) })
+            .GroupJoin(q.Orders, g => g.first, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(result);
     }
@@ -116,7 +118,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task Join_GroupOnTupleKey()
     {
         var result = await Query(q => q.Orders
-            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .GroupBy(x => ValueTuple.Create(x.Item1.CurrencyId, x.Item2.AccountId)));
 
         Assert.NotEmpty(result);
@@ -126,7 +128,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task Join_GroupOnTupleKey_ValueTuple()
     {
         var result = await Query(q => q.Orders
-            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .GroupBy(x => new ValueTuple<CurrencyType, int>(x.Item1.CurrencyId, x.Item2.AccountId)));
 
         Assert.NotEmpty(result);
@@ -141,7 +143,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
             .Join(
                 q.Currencies,
                 x => x.Item1,
-                c => c.CurrencyId));
+                c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(result);
         Assert.All(result, x => Assert.Equal(x.Item1.Item1, x.Item2.CurrencyId));
@@ -157,7 +159,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
             .Join(
                 q.Currencies,
                 x => x.Item1.Item1,
-                c => c.CurrencyId));
+                c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(result);
         Assert.All(result, x => Assert.Equal(x.Item1.Item1.Item1, x.Item2.CurrencyId));
@@ -338,14 +340,13 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     {
         (CurrencyType currencyId, int activeCount, Currency currency)[] result =
             await Query(q => q.Orders
-                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
-                .GroupBy(
-                    x => new { x.Item1.CurrencyId, x.Item2.AccountId },
-                    g => new
-                    {
-                        g.Key,
-                        ActiveCount = g.Count(x => x.Item2.IsActive)
-                    })
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+                .GroupBy(x => new { x.Item1.CurrencyId, x.Item2.AccountId })
+            .Select(g => new
+            {
+                g.Key,
+                ActiveCount = g.Count(x => x.Item2.IsActive)
+            })
                 .Join(q.Currencies,
                     g => g.Key.CurrencyId,
                     c => c.CurrencyId,
@@ -359,14 +360,13 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     {
         (CurrencyType currencyId, int activeCount, Currency currency)[] result =
             await Query(q => q.Orders
-                .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
-                .GroupBy(
-                    x => new { x.Item1.CurrencyId },
-                    g => new
-                    {
-                        g.Key.CurrencyId,
-                        ActiveCount = g.Count(x => x.Item2.IsActive)
-                    })
+                .Join(q.Accounts, o => o.AccountId, a => a.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+                .GroupBy(x => new { x.Item1.CurrencyId })
+            .Select(g => new
+            {
+                g.Key.CurrencyId,
+                ActiveCount = g.Count(x => x.Item2.IsActive)
+            })
                 .Join(q.Currencies,
                     g => g.CurrencyId,
                     c => c.CurrencyId,
@@ -380,9 +380,8 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task Projection_WithSum()
     {
         var result = await Query(q => q.Orders
-            .GroupBy(
-                o => o.CurrencyId,
-                g => ValueTuple.Create(
+            .GroupBy(o => o.CurrencyId)
+            .Select(g => ValueTuple.Create(
                     g.Key,
                     g.Sum(o => o.Total),
                     g.Min(o => o.Total),
@@ -395,13 +394,12 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task TupleKey_Project_ThenJoin_OnKeyMember()
     {
         var result = await Query(q => q.Orders
-            .GroupBy(
-                o => ValueTuple.Create(o.CurrencyId, o.AccountId),
-                g => ValueTuple.Create(g.Key, g.Count()))
+            .GroupBy(o => ValueTuple.Create(o.CurrencyId, o.AccountId))
+            .Select(g => ValueTuple.Create(g.Key, g.Count()))
             .Join(
                 q.Currencies,
                 x => x.Item1.Item1,
-                c => c.CurrencyId));
+                c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
 
         Assert.NotEmpty(result);
         Assert.All(result, x => Assert.Equal(x.Item1.Item1.Item1, x.Item2.CurrencyId));
@@ -411,9 +409,8 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task Projection_WithFilteredCount()
     {
         var result = await Query(q => q.Accounts
-            .GroupBy(
-                a => a.IsActive,
-                g => ValueTuple.Create(
+            .GroupBy(a => a.IsActive)
+            .Select(g => ValueTuple.Create(
                     g.Key,
                     g.Count(a => a.Email != null))));
 
@@ -438,9 +435,8 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task ProjectedGroup_NullableTupleKey_PreservesNullMember()
     {
         var result = await Query(q => q.Accounts
-            .GroupBy(
-                a => ValueTuple.Create(a.ClearanceLevel, a.Email == null),
-                g => ValueTuple.Create(g.Key.Item1, g.Key.Item2, g.Count()))
+            .GroupBy(a => ValueTuple.Create(a.ClearanceLevel, a.Email == null))
+            .Select(g => ValueTuple.Create(g.Key.Item1, g.Key.Item2, g.Count()))
             .OrderBy(x => x.Item2));
 
         Assert.Equal([false, true], result.Select(x => x.Item2));
@@ -452,7 +448,7 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task RawGroup_LeftJoin_NullRight_CanGroupByNullKey()
     {
         var result = await Query(q => q.Accounts
-            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId)
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .GroupBy(x => x.Item2 == null ? null : (int?)x.Item2.CurrencyId)
             .Select(g => ValueTuple.Create(g.Key, g.Count()))
             .OrderBy(x => x.Item1.HasValue)
@@ -466,18 +462,18 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     public async Task TwoJoins_ThenGroupBy_TupleKey_Aggregate()
     {
         var result = await Query(q => q.Orders
-            .Join(q.Accounts, o => o.AccountId, a => a.AccountId)
-            .Join(q.Transactions, x => x.Item1.OrderId, t => t.OrderId)
+            .Join(q.Accounts, o => o.AccountId, a => a.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Join(q.Transactions, x => x.Item1.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
             .GroupBy(
                 x => ValueTuple.Create(
                     x.Item1.Item1.CurrencyId,
-                    x.Item1.Item2.IsActive),
-                g => new
-                {
-                    g.Key,
-                    Count = g.Count(),
-                    Total = g.Sum(x => x.Item1.Item1.Total)
-                }));
+                    x.Item1.Item2.IsActive))
+            .Select(g => new
+            {
+                g.Key,
+                Count = g.Count(),
+                Total = g.Sum(x => x.Item1.Item1.Total)
+            }));
 
         Assert.NotEmpty(result);
     }
@@ -487,14 +483,13 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : QChain
     {
         var result = await Query(q => q.Orders
             .Select(o => new { o.AccountId, o.CurrencyId, o.Total })
-            .GroupBy(
-                x => x.AccountId,
-                g => new
-                {
-                    AccountId = g.Key,
-                    Count = g.Count(),
-                    Total = g.Sum(x => x.Total)
-                }));
+            .GroupBy(x => x.AccountId)
+            .Select(g => new
+            {
+                AccountId = g.Key,
+                Count = g.Count(),
+                Total = g.Sum(x => x.Total)
+            }));
 
         Assert.NotEmpty(result);
     }

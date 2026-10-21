@@ -1,4 +1,5 @@
 using QChain.Internal.Helpers;
+using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain.Internal.Types;
@@ -21,11 +22,17 @@ internal sealed class QueryShape<T>(IQueryable<T> source) : IQueryShape
 
 internal sealed class QueryShape<T, Q>(IQueryable<Q> source) : IQueryShape
 {
+    private static readonly Expression<Func<Q, T>> Projection = CreateProjection();
+    private static readonly Lazy<Func<Q, T>> ProjectItem = new(() => Projection.Compile());
+
     public IQueryable Source => source;
-    public LambdaExpression Shape { get; } = CreateProjection();
+    public LambdaExpression Shape => Projection;
     public Type SourceType => typeof(Q);
 
     public IQueryable Project() => source.Select((Expression<Func<Q, T>>)Shape);
+
+    // Arrays have already been materialized by the provider at this public boundary.
+    internal static T[] ProjectArray(Q[] items) => Array.ConvertAll(items, ProjectItem.Value.Invoke);
 
     private static Expression<Func<Q, T>> CreateProjection()
     {
