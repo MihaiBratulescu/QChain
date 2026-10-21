@@ -2,6 +2,7 @@
 
    <ItemGroup>
    	<InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
+    <InternalsVisibleTo Include="QChain.Tests" />
    </ItemGroup>
 
    <ItemGroup>

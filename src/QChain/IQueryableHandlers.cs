@@ -1,4 +1,4 @@
-﻿namespace QChain;
+namespace QChain;
 
 public static class IQueryableHandlers
 {
@@ -6,10 +6,14 @@ public static class IQueryableHandlers
     {
         public IQueryable<T> AsQuery()
         {
+            ArgumentNullException.ThrowIfNull(query);
+            if (query is IShapedQuery)
+                return query;
+
             var shape = new QueryShape<T>(query);
             var provider = new QueryProvider(query.Provider, shape);
 
-            return new Query<T>(provider, query.Expression);
+            return new Query<T>(provider);
         }
     }
 }

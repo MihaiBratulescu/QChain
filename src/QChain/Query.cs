@@ -1,24 +1,26 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain;
 
-internal sealed class Query<T>(IQueryProvider provider, Expression expression) : IOrderedQueryable<T>, IAsyncEnumerable<T>
+internal interface IShapedQuery
+{
+    IQueryShape QueryShape { get; }
+}
+
+internal sealed class Query<T>(QueryProvider provider) : IOrderedQueryable<T>, IAsyncEnumerable<T>, IShapedQuery
 {
     public Type ElementType => typeof(T);
-    public Expression Expression { get; } = expression;
-    public IQueryProvider Provider { get; } = provider;
+    public Expression Expression => Expression.Constant(this);
+    public IQueryProvider Provider => provider;
+    IQueryShape IShapedQuery.QueryShape => provider.QueryShape;
 
-    public IEnumerator<T> GetEnumerator() => Provider
-        .Execute<IEnumerable<T>>(Expression)
-        .GetEnumerator();
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator(); 
+    public IEnumerator<T> GetEnumerator() => ((IQueryable<T>)provider.QueryShape.Project()).GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        var query = Provider.CreateQuery<T>(Expression);
-
-        if (query is IAsyncEnumerable<T> asyncQuery)
+        if (provider.QueryShape.Project() is IAsyncEnumerable<T> asyncQuery)
             return asyncQuery.GetAsyncEnumerator(cancellationToken);
 
         throw new InvalidOperationException("The underlying query does not support asynchronous enumeration.");
