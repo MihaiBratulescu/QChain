@@ -1,5 +1,4 @@
 using QChain.Internal.Helpers;
-using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain.Internal.Types;
@@ -7,7 +6,6 @@ namespace QChain.Internal.Types;
 internal interface IQueryShape
 {
     IQueryable Source { get; }
-    LambdaExpression Shape { get; }
     Type SourceType { get; }
     IQueryable Project();
 }

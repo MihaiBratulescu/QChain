@@ -5,9 +5,6 @@ namespace QChain.Internal.Helpers;
 
 internal static class QueryReflection
 {
-    public static object InvokeUnwrapped(this MethodInfo method, object? target, object?[] arguments) =>
-        Invoke(method, target, arguments);
-
     public static object Invoke(MethodInfo method, object? target, object?[] arguments)
     {
         try
