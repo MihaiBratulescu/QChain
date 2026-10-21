@@ -126,6 +126,23 @@ public class Execution(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     }
 
     [Fact]
+    public async Task TerminalPredicate_Async()
+    {
+        Expression<Func<Account, bool>> active = a => a.IsActive;
+        Expression<Func<Account, bool>> evenId = a => a.AccountId % 2 == 0;
+        Expression<Func<Account, bool>> account2 = a => a.AccountId == 2;
+
+        var accounts = Accounts.OrderBy(a => a.AccountId).Select(a => a);
+
+        Assert.True(await accounts.AnyAsync(x => active.And(evenId), default));
+        Assert.Equal(3, await accounts.CountAsync(x => active.And(evenId), default));
+        Assert.Equal(3L, await accounts.LongCountAsync(x => active.And(evenId), default));
+        Assert.Equal(2, (await accounts.FirstAsync(x => active.And(evenId), default)).AccountId);
+        Assert.Equal(6, (await accounts.LastAsync(x => active.And(evenId), default)).AccountId);
+        Assert.Equal(2, (await accounts.SingleAsync(x => active.And(account2), default)).AccountId);
+    }
+
+    [Fact]
     public void TerminalPredicate_Sync_AfterJoin()
     {
         Expression<Func<Account, bool>> active = a => a.IsActive;
