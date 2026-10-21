@@ -1,5 +1,6 @@
 using QChain.Internal.Types;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace QChain.Internal.Helpers;
@@ -119,6 +120,14 @@ internal static class CarrierProjection
         if (expression.Type == targetType || targetType.IsAssignableFrom(expression.Type))
             return expression;
 
+        // Computed tuple values must be evaluated once before reading their components.
+        if (!CanReadRepeatedly(expression) &&
+            (IsTuple(expression.Type) || IsTuple(targetType) ||
+             Nullable.GetUnderlyingType(expression.Type) is { } sourceNullable && IsTuple(sourceNullable) ||
+             Nullable.GetUnderlyingType(targetType) is { } targetNullable && IsTuple(targetNullable)))
+            return Expression.Call(typeof(QueryShape<,>).MakeGenericType(targetType, expression.Type),
+                nameof(QueryShape<object, object>.ProjectValue), Type.EmptyTypes, expression);
+
         if (Nullable.GetUnderlyingType(targetType) is { } targetTuple && IsTuple(targetTuple))
             return Expression.Condition(Expression.Property(expression, "HasValue"),
                 Expression.Convert(Convert(Expression.Property(expression, "Value"), targetTuple), targetType), Expression.Default(targetType));
@@ -164,6 +173,11 @@ internal static class CarrierProjection
 
         throw new NotSupportedException($"Cannot substitute tuples in '{targetType}'.");
     }
+
+    private static bool CanReadRepeatedly(Expression expression) =>
+        expression is ParameterExpression or ConstantExpression or DefaultExpression ||
+        expression is MemberExpression { Member: FieldInfo } member &&
+        (member.Expression is null || CanReadRepeatedly(member.Expression));
 
     private static Expression ConvertSequence(Expression expression, Type targetType)
     {

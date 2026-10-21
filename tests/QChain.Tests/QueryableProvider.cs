@@ -149,6 +149,45 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Custom_Tuple_Conversion_Runs_Once_Per_Element()
+    {
+        var items = new[] { new CountingTupleConversion(), new CountingTupleConversion() };
+        var source = items.AsQueryable();
+        Expression<Func<CountingTupleConversion, ValueTuple<int, int>>> selector = value => (ValueTuple<int, int>)value;
+        var expected = source.Select(selector).ToArray();
+        var expectedCalls = items.Select(item => item.Calls).ToArray();
+        Assert.All(expectedCalls, calls => Assert.Equal(1, calls));
+
+        foreach (var item in items)
+            item.Calls = 0;
+
+        var actual = source.AsQuery().Select(selector).ToArray();
+
+        Assert.Equal(expectedCalls, items.Select(item => item.Calls).ToArray());
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Custom_Tuple_Conversion_Runs_Once_When_Used_By_A_Method()
+    {
+        var items = new[] { new CountingTupleConversion(), new CountingTupleConversion() };
+        var source = items.AsQueryable();
+        Expression<Func<CountingTupleConversion, bool>> selector = value =>
+            ((ValueTuple<int, int>)value).Equals(ValueTuple.Create(1, 1));
+        var expected = source.Select(selector).ToArray();
+        var expectedCalls = items.Select(item => item.Calls).ToArray();
+        Assert.All(expectedCalls, calls => Assert.Equal(1, calls));
+
+        foreach (var item in items)
+            item.Calls = 0;
+
+        var actual = source.AsQuery().Select(selector).ToArray();
+
+        Assert.Equal(expectedCalls, items.Select(item => item.Calls).ToArray());
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
     public void Tuple_Member_Initializer_Matches_Ordinary_Linq()
     {
         var source = new[] { 1, 1, 2 }.AsQueryable();
@@ -379,6 +418,38 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Nullable_Tuple_Coalesce_With_Conversion_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        var item = Expression.Parameter(typeof(ValueTuple<int, int>?), "item");
+        Expression<Func<ValueTuple<int, int>, ValueTuple<int, int>?>> conversion = pair =>
+            ValueTuple.Create(pair.Item1 + 100, pair.Item2 + 10);
+        var fallback = Expression.Convert(Expression.Constant(ValueTuple.Create(9, 9)), typeof(ValueTuple<int, int>?));
+        var selector = Expression.Lambda<Func<ValueTuple<int, int>?, ValueTuple<int, int>?>>(
+            Expression.Coalesce(item, fallback, conversion), item);
+
+        var expected = source.Select(selector).ToArray();
+        var actual = source.AsQuery().Select(selector).ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Coalesce_Conversion_Accepts_The_Whole_Nullable_Value()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        var item = Expression.Parameter(typeof(ValueTuple<int, int>?), "item");
+        Expression<Func<ValueTuple<int, int>?, int>> conversion = pair => pair!.Value.Item1 + 100;
+        var selector = Expression.Lambda<Func<ValueTuple<int, int>?, int>>(
+            Expression.Coalesce(item, Expression.Constant(-1), conversion), item);
+
+        var expected = source.Select(selector).ToArray();
+        var actual = source.AsQuery().Select(selector).ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
     public void Nullable_Tuple_Guarded_Access_Matches_Ordinary_Linq()
     {
         var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
@@ -418,6 +489,145 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Immediate_Anonymous_Member_Access_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>>> selector = value =>
+            new { Other = value + 99, Pair = ValueTuple.Create(value, value + 10) }.Pair;
+        var expected = source.Select(selector).Distinct();
+        var actual = source.AsQuery().Select(selector).Distinct();
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray(),
+            actual.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray());
+    }
+
+    [Fact]
+    public void Dto_Tuple_Assignment_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ProjectionContainer>> selector = value => new ProjectionContainer
+        {
+            Pair = ValueTuple.Create(value, value + 10)
+        };
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.Select(item => item.Pair).ToArray(), actual.Select(item => item.Pair).ToArray());
+        Assert.Equal(expected.Select(item => item.Unassigned).ToArray(), actual.Select(item => item.Unassigned).ToArray());
+    }
+
+    [Fact]
+    public void Dto_Unassigned_Member_Preserves_Its_Initializer()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, int>> selector = value => new ProjectionContainer
+        {
+            Pair = ValueTuple.Create(value, value + 10)
+        }.Unassigned;
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Nested_Object_Tuple_Binding_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        Expression<Func<int, ProjectionContainer>> selector = value => new ProjectionContainer
+        {
+            Child = { Pair = ValueTuple.Create(value, value + 10) }
+        };
+        var expected = source.Select(selector).Select(item => item.Child.Pair).Distinct().ToArray();
+        var actual = source.AsQuery().Select(selector).Select(item => item.Child.Pair).Distinct().ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void Collection_Property_Tuple_Binding_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        Expression<Func<int, ProjectionContainer>> selector = value => new ProjectionContainer
+        {
+            Items = { ValueTuple.Create(value, value + 10), ValueTuple.Create(value + 1, value + 11) }
+        };
+        var expected = source.Select(selector).SelectMany(item => item.Items).ToArray();
+        var actual = source.AsQuery().Select(selector).SelectMany(item => item.Items).ToArray();
+
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Explicit_List_Index_Rewrites_Collection_And_Result(int index)
+    {
+        var source = new[]
+        {
+            new List<(int, int)> { (1, 11), (2, 12) },
+            new List<(int, int)> { (3, 13), (4, 14) }
+        }.AsQueryable();
+        var items = Expression.Parameter(typeof(List<ValueTuple<int, int>>), "items");
+        var access = Expression.MakeIndex(items, items.Type.GetProperty("Item"), [Expression.Constant(index)]);
+        var selector = Expression.Lambda<Func<List<ValueTuple<int, int>>, ValueTuple<int, int>>>(access, items);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.Item2).ToArray(), actual.Select(pair => pair.Item2).ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void Explicit_Array_Index_Rewrites_Collection_And_Result(int index)
+    {
+        var source = new[]
+        {
+            new[] { (1, 11), (2, 12) },
+            new[] { (3, 13), (4, 14) }
+        }.AsQueryable();
+        var items = Expression.Parameter(typeof(ValueTuple<int, int>[]), "items");
+        var access = Expression.MakeIndex(items, null, [Expression.Constant(index)]);
+        var selector = Expression.Lambda<Func<ValueTuple<int, int>[], ValueTuple<int, int>>>(access, items);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.Item2).ToArray(), actual.Select(pair => pair.Item2).ToArray());
+    }
+
+    [Fact]
+    public void Explicit_Tuple_Index_Argument_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        var lookup = new TupleLookup();
+        var value = Expression.Parameter(typeof(int), "value");
+        var key = Expression.New(typeof(ValueTuple<int, int>).GetConstructor([typeof(int), typeof(int)])!,
+            value, Expression.Add(value, Expression.Constant(10)));
+        var access = Expression.MakeIndex(Expression.Constant(lookup), typeof(TupleLookup).GetProperty("Item"), [key]);
+        var selector = Expression.Lambda<Func<int, int>>(access, value);
+
+        Assert.Equal(source.Select(selector).ToArray(), source.AsQuery().Select(selector).ToArray());
+    }
+
+    [Fact]
+    public void Explicit_Tuple_Index_Result_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 2 }.AsQueryable();
+        var lookup = new TupleValueLookup();
+        var value = Expression.Parameter(typeof(int), "value");
+        var access = Expression.MakeIndex(Expression.Constant(lookup), typeof(TupleValueLookup).GetProperty("Item"), [value]);
+        var selector = Expression.Lambda<Func<int, ValueTuple<int, int>>>(access, value);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray(),
+            actual.Where(pair => pair.Item1 > 1).Select(pair => pair.Item2).ToArray());
+    }
+
+    [Fact]
     public void Provider_Can_Create_And_Execute_From_Existing_Expressions()
     {
         var source = new[] { 1, 2, 3 }.AsQueryable().AsQuery();
@@ -441,6 +651,40 @@ public class QueryableProvider
 
         Assert.Same(expected, error);
         Assert.Contains(nameof(ThrowingProvider.CreateQuery), error.StackTrace);
+    }
+
+    private sealed class CountingTupleConversion
+    {
+        public int Calls { get; set; }
+
+        public static implicit operator ValueTuple<int, int>(CountingTupleConversion value)
+        {
+            var call = ++value.Calls;
+            return (call, call);
+        }
+    }
+
+    private sealed class ProjectionContainer
+    {
+        public (int, int) Pair { get; set; }
+        public int Unassigned { get; set; } = 42;
+        public ProjectionChild Child { get; } = new();
+        public List<(int, int)> Items { get; } = [];
+    }
+
+    private sealed class ProjectionChild
+    {
+        public (int, int) Pair { get; set; }
+    }
+
+    private sealed class TupleLookup
+    {
+        public int this[(int Id, int Code) pair] => pair.Id + pair.Code;
+    }
+
+    private sealed class TupleValueLookup
+    {
+        public (int, int) this[int value] => (value, value + 10);
     }
 
     private sealed class ThrowingProvider(Exception error) : IQueryProvider

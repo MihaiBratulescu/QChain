@@ -23,6 +23,8 @@ internal sealed class QueryShape<T, Q>(IQueryable<Q> source) : IQueryShape
     public IQueryable Source => source;
     public IQueryable Project() => source.Select(Projection);
 
+    internal static T ProjectValue(Q item) => ProjectItem.Value(item);
+
     // Arrays have already been materialized by the provider at this public boundary.
     internal static T[] ProjectArray(Q[] items) => Array.ConvertAll(items, ProjectItem.Value.Invoke);
 

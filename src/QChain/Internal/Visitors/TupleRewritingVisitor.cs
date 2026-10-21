@@ -127,7 +127,8 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
                 CarrierProjection.Rebuild(Visit(assignment.Expression), MemberType(member))),
             MemberMemberBinding nested => Expression.MemberBind(member,
                 nested.Bindings.Select(child => VisitBinding(child, MemberType(member)))),
-            MemberListBinding list => Expression.ListBind(member, list.Initializers.Select(VisitElementInit)),
+            MemberListBinding list => Expression.ListBind(member,
+                list.Initializers.Select(initializer => VisitElementInit(initializer, MemberType(member)))),
             _ => throw new NotSupportedException($"Unsupported member binding: {binding.BindingType}.")
         };
     }
@@ -204,9 +205,11 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         if (node.NodeType == ExpressionType.Coalesce && Nullable.GetUnderlyingType(node.Left.Type) is { } tuple &&
             CarrierProjection.IsTuple(tuple))
         {
-            Expression value = left.Type == CarrierProjection.RewriteType(node.Type) ? left : Expression.Property(left, "Value");
-            if (node.Conversion is not null)
-                value = Expression.Invoke(Visit(node.Conversion), value);
+            var conversion = (LambdaExpression?)Visit(node.Conversion);
+            var expected = conversion?.Parameters[0].Type ?? CarrierProjection.RewriteType(node.Type);
+            Expression value = left.Type == expected ? left : Expression.Property(left, "Value");
+            if (conversion is not null)
+                value = Expression.Invoke(conversion, value);
             return Expression.Condition(Expression.Property(left, "HasValue"), value, right);
         }
         if (node.Method is not null)
@@ -232,17 +235,25 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         ? Expression.NewArrayInit(CarrierProjection.RewriteType(node.Type.GetElementType()!), node.Expressions.Select(expression => Visit(expression)))
         : CarrierProjection.Lower(node.Update(node.Expressions.Select(expression => Visit(expression))));
 
-    protected override ElementInit VisitElementInit(ElementInit node)
+    protected override ElementInit VisitElementInit(ElementInit node) =>
+        VisitElementInit(node, CarrierProjection.RewriteType(node.AddMethod.DeclaringType!));
+
+    private ElementInit VisitElementInit(ElementInit node, Type collectionType)
     {
-        var method = RebindMethod(node.AddMethod);
-        return Expression.ElementInit(method, node.Arguments.Select(argument => Visit(argument)));
+        var method = node.AddMethod.DeclaringType!.IsAssignableFrom(collectionType) ? node.AddMethod : RebindMethod(node.AddMethod);
+        var expected = method.GetParameters();
+        return Expression.ElementInit(method, node.Arguments.Select((argument, index) =>
+            CarrierProjection.Rebuild(Visit(argument), expected[index].ParameterType)));
     }
 
     protected override Expression VisitIndex(IndexExpression node)
     {
         var target = Visit(node.Object);
         var indexer = node.Indexer is null ? null : (PropertyInfo)RebindMember(node.Indexer, target!.Type);
-        return Expression.MakeIndex(target!, indexer, node.Arguments.Select(argument => Visit(argument)));
+        var expected = indexer?.GetIndexParameters();
+        var arguments = node.Arguments.Select((argument, index) =>
+            CarrierProjection.Rebuild(Visit(argument), expected?[index].ParameterType ?? argument.Type));
+        return CarrierProjection.Lower(Expression.MakeIndex(target!, indexer, arguments));
     }
 
     private static MemberInfo RebindMember(MemberInfo member, Type type) => member.DeclaringType == type ? member :
