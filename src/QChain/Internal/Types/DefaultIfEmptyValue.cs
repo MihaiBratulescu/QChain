@@ -1,6 +1,6 @@
 namespace QChain.Internal;
 
-// The default row has a false marker, including when the source runs in memory.
+// Preserve value-tuple presence when a nullable tuple or an empty sequence has no value.
 internal readonly struct DefaultIfEmptyValue<T>
 {
     public bool HasValue { get; init; }

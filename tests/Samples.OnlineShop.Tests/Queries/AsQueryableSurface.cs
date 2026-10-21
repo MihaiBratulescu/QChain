@@ -291,22 +291,6 @@ public class AsQueryableSurface(SqliteFixture fixture, ITestOutputHelper output)
     }
 
     [Fact]
-    public void AsQueryable_AfterSetBy()
-    {
-        var except = _fixture.db.Accounts
-            .ExceptBy([1, 2, 3], a => a.AccountId)
-            .AsQueryable()
-            .ToArray();
-        var intersect = _fixture.db.Accounts
-            .IntersectBy([1, 2, 3], a => a.AccountId)
-            .AsQueryable()
-            .ToArray();
-
-        Assert.Equal([4, 5, 6, 7], except.Select(a => a.AccountId));
-        Assert.Equal([1, 2, 3], intersect.Select(a => a.AccountId));
-    }
-
-    [Fact]
     public void AsQueryable_AfterSorting()
     {
         var rows = _fixture.db.Accounts

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query;
+using System.Collections;
 using System.Linq.Expressions;
 
 namespace QChain.Tests;
@@ -12,7 +13,7 @@ public class AsyncQueryProvider
         var source = new[] { 1, 2, 3 }.AsQueryable();
         var expectedTask = Task.FromResult(2);
         var inner = new RecordingProvider(source.Provider, expectedTask);
-        IQueryable<int> wrapped = new Query<int>(new QueryProvider(inner, new QueryShape<int>(source)));
+        var wrapped = new RecordingQuery<int>(source, inner).AsQuery();
         var query = wrapped.Select(value => ValueTuple.Create(value * 10, value));
         using var cancellation = new CancellationTokenSource();
 
@@ -34,6 +35,15 @@ public class AsyncQueryProvider
 
         Assert.Equal("The underlying query provider does not support asynchronous execution.", error.Message);
         Assert.Equal(3, query.Count());
+    }
+
+    private sealed class RecordingQuery<T>(IQueryable<T> source, IQueryProvider provider) : IQueryable<T>
+    {
+        public Type ElementType => typeof(T);
+        public Expression Expression => source.Expression;
+        public IQueryProvider Provider => provider;
+        public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class RecordingProvider(IQueryProvider inner, Task<int> result) : IAsyncQueryProvider

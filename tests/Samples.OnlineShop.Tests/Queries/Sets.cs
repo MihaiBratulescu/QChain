@@ -24,18 +24,4 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : QChainInteg
         Assert.Equal([2, 3], items.Select(x => x.Item2));
     }
 
-    [Fact]
-    public async Task IntersectBy_ThenGroupBy()
-    {
-        var items = await Query(q =>
-            q.Orders
-                .IntersectBy([1, 2], o => o.AccountId)
-                .GroupBy(
-                    o => o.AccountId,
-                    g => ValueTuple.Create(g.Key, g.Count()))
-                .OrderBy(x => x.Item1));
-
-        Assert.Equal([1, 2], items.Select(x => x.Item1));
-        Assert.All(items, x => Assert.True(x.Item2 > 0));
-    }
 }

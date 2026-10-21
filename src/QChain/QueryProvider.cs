@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using QChain.Internal.Helpers;
+using QChain.Internal.Types;
+using QChain.Internal.Visitors;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -39,21 +41,40 @@ internal sealed class QueryProvider(IQueryProvider provider, IQueryShape querySh
     {
         if (typeof(IQueryable).IsAssignableFrom(expression.Type))
             return Resolve(expression, provider).Project().Expression;
-        if (expression is MethodCallExpression call && call.Method.DeclaringType == typeof(Queryable))
-            return Resolve(call.Arguments[0], provider).TranslateExecution(call);
-        throw new NotSupportedException("Unsupported execution expression.");
+
+        // Element terminals must return the public type, including default(T) for empty queries.
+        if (expression is MethodCallExpression call && call.Method.DeclaringType == typeof(Queryable) &&
+            call.Type == CarrierProjection.SequenceElement(call.Arguments[0].Type) &&
+            CarrierProjection.RewriteType(call.Type) != call.Type)
+        {
+            var source = call.Arguments[0];
+            var arguments = call.Arguments.Skip(1).ToList();
+            if (arguments.FirstOrDefault() is UnaryExpression { Operand: LambdaExpression predicate } &&
+                predicate.ReturnType == typeof(bool) && call.Method.GetParameters()[1].Name == "predicate")
+            {
+                source = Expression.Call(typeof(Queryable), nameof(Queryable.Where), [call.Type], source, arguments[0]);
+                arguments.RemoveAt(0);
+            }
+
+            return Expression.Call(typeof(Queryable), call.Method.Name, call.Method.GetGenericArguments(),
+                new[] { Resolve(source, provider).Project().Expression }.Concat(arguments).ToArray());
+        }
+
+        return new TupleRewritingVisitor().Visit(expression);
     }
 
-    internal static IQueryShape Resolve(Expression expression, IQueryProvider provider) => expression switch
+    internal static IQueryShape Resolve(Expression expression, IQueryProvider provider)
     {
-        ConstantExpression { Value: IShapedQuery query } => query.QueryShape,
-        ConstantExpression { Value: IQueryable source } => Identity(source),
-        MethodCallExpression call when typeof(IQueryable).IsAssignableFrom(call.Type) => Resolve(call.Arguments[0], provider).Apply(call),
-        _ => Identity(provider.CreateQuery(expression))
-    };
+        if (expression is ConstantExpression { Value: IShapedQuery query })
+            return query.QueryShape;
 
-    internal static IQueryShape Identity(IQueryable source) =>
-        (IQueryShape)Activator.CreateInstance(typeof(QueryShape<>).MakeGenericType(source.ElementType), source)!;
+        var publicType = CarrierProjection.SequenceElement(expression.Type)!;
+        var source = provider.CreateQuery(new TupleRewritingVisitor().Visit(expression));
+        var shapeType = publicType == source.ElementType
+            ? typeof(QueryShape<>).MakeGenericType(publicType)
+            : typeof(QueryShape<,>).MakeGenericType(publicType, source.ElementType);
+        return (IQueryShape)Activator.CreateInstance(shapeType, source)!;
+    }
 
     private static readonly MethodInfo CreateQueryMethod = typeof(QueryProvider).GetMethods()
         .Single(method => method.Name == nameof(CreateQuery) && method.IsGenericMethodDefinition);

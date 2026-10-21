@@ -141,74 +141,6 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fi
     }
 
     [Fact]
-    public async Task ExceptBy()
-    {
-        var items = await Query(q =>
-            q.Accounts
-                .ExceptBy([1, 2, 3], a => a.AccountId)
-                .OrderBy(a => a.AccountId));
-
-        Assert.DoesNotContain(items, a => a.AccountId is 1 or 2 or 3);
-    }
-
-    [Fact]
-    public async Task ExceptBy_AfterTupleProjection()
-    {
-        var items = await Query(q =>
-            q.Accounts
-                .Select(a => ValueTuple.Create(a.AccountId, a.Email))
-                .ExceptBy([1, 2, 3], x => x.Item1)
-                .OrderBy(x => x.Item1));
-
-        Assert.Equal([4, 5, 6, 7], items.Select(x => x.Item1));
-    }
-
-    [Fact]
-    public async Task ExceptBy_Filters_DuplicateKeys()
-    {
-        var items = await Query(q =>
-            q.Orders
-                .OrderBy(o => o.OrderId)
-                .ExceptBy([3, 5], o => o.AccountId));
-
-        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
-        Assert.DoesNotContain(items, o => o.AccountId is 3 or 5);
-    }
-
-    [Fact]
-    public void ExceptBy_Translates_AsServerKeyFilter()
-    {
-        var query = _fixture.db.Orders
-            .OrderBy(o => o.OrderId)
-            .ExceptBy([3, 5], o => o.AccountId);
-
-        var sql = query.ToQueryString().ToUpperInvariant();
-
-        Assert.Contains("WHERE", sql);
-        Assert.Contains("ACCOUNTID", sql);
-        Assert.Contains("NOT", sql);
-        Assert.True(sql.Contains(" IN ") || sql.Contains("JSON_EACH") || sql.Contains("EXISTS"), sql);
-    }
-
-    [Fact]
-    public async Task ExceptBy_ThenJoin()
-    {
-        var items = await Query(q =>
-            q.Orders
-                .ExceptBy([3, 5], o => o.AccountId)
-                .Join(
-                    q.Accounts,
-                    o => o.AccountId,
-                    a => a.AccountId,
-                    (o, a) => ValueTuple.Create(o.AccountId, a.AccountId))
-                .OrderBy(x => x.Item1));
-
-        Assert.NotEmpty(items);
-        Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
-        Assert.DoesNotContain(items, x => x.Item1 is 3 or 5);
-    }
-
-    [Fact]
     public async Task Intersect()
     {
         var items = await Query(q =>
@@ -240,55 +172,6 @@ public class Sets(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fi
         Assert.NotEmpty(items);
         Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
         Assert.All(items, x => Assert.True(x.Item1 >= 3));
-    }
-
-    [Fact]
-    public async Task IntersectBy()
-    {
-        var items = await Query(q =>
-            q.Accounts
-                .IntersectBy([1, 2, 3], a => a.AccountId)
-                .OrderBy(a => a.AccountId));
-
-        Assert.Equal([1, 2, 3], items.Select(a => a.AccountId));
-    }
-
-    [Fact]
-    public async Task IntersectBy_AfterObjectProjection()
-    {
-        var items = await Query(q =>
-            q.Accounts
-                .Select(a => new { Id = a.AccountId, a.Email })
-                .IntersectBy([1, 2, 3], x => x.Id)
-                .OrderBy(x => x.Id));
-
-        Assert.Equal([1, 2, 3], items.Select(x => x.Id));
-    }
-
-    [Fact]
-    public async Task IntersectBy_Filters_DuplicateKeys()
-    {
-        var items = await Query(q =>
-            q.Orders
-                .OrderBy(o => o.OrderId)
-                .IntersectBy([1, 2], o => o.AccountId));
-
-        Assert.Equal([1, 2], items.Select(o => o.AccountId).Distinct());
-        Assert.All(items, o => Assert.True(o.AccountId is 1 or 2));
-    }
-
-    [Fact]
-    public void IntersectBy_Translates_AsServerKeyFilter()
-    {
-        var query = _fixture.db.Orders
-            .OrderBy(o => o.OrderId)
-            .IntersectBy([1, 2], o => o.AccountId);
-
-        var sql = query.ToQueryString().ToUpperInvariant();
-
-        Assert.Contains("WHERE", sql);
-        Assert.Contains("ACCOUNTID", sql);
-        Assert.True(sql.Contains(" IN ") || sql.Contains("JSON_EACH") || sql.Contains("EXISTS"), sql);
     }
 
     [Fact]

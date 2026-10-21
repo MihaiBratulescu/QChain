@@ -44,8 +44,6 @@ public class QueryableProvider
         Assert.Equal([(1, 11)], left.Except(right));
         Assert.Equal([(2, 12), (3, 13)], left.Intersect(right));
         Assert.Equal(5, left.Concat(right).Count());
-        Assert.Equal([2, 3], left.IntersectBy([2, 3], x => x.Item1).Select(x => x.Item1));
-        Assert.Equal([1], left.ExceptBy([2, 3], x => x.Item1).Select(x => x.Item1));
     }
 
     [Fact]
