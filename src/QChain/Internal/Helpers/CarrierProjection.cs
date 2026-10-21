@@ -27,26 +27,79 @@ internal static class CarrierProjection
         if (Nullable.GetUnderlyingType(type) is { } underlying && IsTuple(underlying))
             return typeof(DefaultIfEmptyValue<>).MakeGenericType(RewriteType(underlying));
 
+        if (IsTuple(type))
+            return Pack(TupleItemTypes(type).Select(RewriteType).ToArray(),
+                items => Definitions[items.Count - 1].MakeGenericType(items.ToArray()));
+
         var arguments = type.GetGenericArguments();
         var rewritten = arguments.Select(RewriteType).ToArray();
-        if (IsTuple(type))
-        {
-            if (arguments.Length > 7)
-                throw new NotSupportedException("ValueTuple arity > 7 is not supported yet.");
-            return Definitions[arguments.Length - 1].MakeGenericType(rewritten);
-        }
-
         return arguments.SequenceEqual(rewritten) ? type : type.GetGenericTypeDefinition().MakeGenericType(rewritten);
     }
 
-    public static MemberInitExpression Create(IReadOnlyList<Expression> items)
-    {
-        if (items.Count is < 1 or > 7)
-            throw new NotSupportedException("Carrier projections support between one and seven items.");
+    public static MemberInitExpression Create(IReadOnlyList<Expression> items) =>
+        (MemberInitExpression)Pack(items, CreateCarrier);
 
+    private static Expression CreateCarrier(IReadOnlyList<Expression> items)
+    {
         var type = Definitions[items.Count - 1].MakeGenericType(items.Select(item => item.Type).ToArray());
         return Expression.MemberInit(Expression.New(type),
             items.Select((item, index) => Expression.Bind(type.GetProperty($"Item{index + 1}")!, item)));
+    }
+
+    private static T Pack<T>(IReadOnlyList<T> items, Func<IReadOnlyList<T>, T> combine)
+    {
+        ArgumentOutOfRangeException.ThrowIfZero(items.Count);
+        while (items.Count > 7)
+            items = items.Chunk(7).Select(group => group.Length == 1 ? group[0] : combine(group)).ToArray();
+        return combine(items);
+    }
+
+    // Only the CLR's Rest field continues a flat tuple; a tuple-valued Item stays one item.
+    public static Type[] TupleItemTypes(Type type)
+    {
+        var arguments = type.GetGenericArguments();
+        return arguments.Length == 8 ? [.. arguments.Take(7), .. TupleItemTypes(arguments[7])] : arguments;
+    }
+
+    public static Expression[] ReadItems(Expression carrier, int count)
+    {
+        if (count <= 7)
+            return Enumerable.Range(0, count).Select(index => ReadSlot(carrier, $"Item{index + 1}")).ToArray();
+
+        var groupSize = 7;
+        while ((count - 1) / groupSize >= 7)
+            groupSize = checked(groupSize * 7);
+
+        return Enumerable.Range(0, (count - 1) / groupSize + 1).SelectMany(index =>
+        {
+            var group = ReadSlot(carrier, $"Item{index + 1}");
+            var size = Math.Min(groupSize, count - index * groupSize);
+            return size == 1 ? [group] : ReadItems(group, size);
+        }).ToArray();
+    }
+
+    public static Expression ReadSlot(Expression target, string name)
+    {
+        var member = Expression.PropertyOrField(target, name);
+        return ProjectionReduction.TryInlineMemberAccess(target, member.Member, out var value) ? value : member;
+    }
+
+    private static Expression[] ReadTuple(Expression tuple)
+    {
+        var count = tuple.Type.GetGenericArguments().Length;
+        var items = Enumerable.Range(0, Math.Min(7, count)).Select(index => ReadSlot(tuple, $"Item{index + 1}"));
+        return count == 8 ? [.. items, .. ReadTuple(ReadSlot(tuple, "Rest"))] : items.ToArray();
+    }
+
+    private static Expression ConstructTuple(Type type, IReadOnlyList<Expression> items)
+    {
+        var types = type.GetGenericArguments();
+        if (types.Length == 0)
+            return Expression.New(type);
+        var arguments = types.Length == 8
+            ? items.Take(7).Append(ConstructTuple(types[7], items.Skip(7).ToArray()))
+            : items;
+        return Expression.New(type.GetConstructor(types)!, arguments);
     }
 
     public static Expression Lower(Expression expression) => Convert(expression, RewriteType(expression.Type));
@@ -79,14 +132,15 @@ internal static class CarrierProjection
                 Expression.Bind(targetType.GetProperty("Value")!, Expression.Condition(hasValue, value, Expression.Default(value.Type))));
         }
 
-        if (IsTuple(targetType) || IsCarrier(targetType))
+        if (IsTuple(expression.Type))
+            return Create(ReadTuple(expression).Select(Lower).ToArray());
+
+        if (IsTuple(targetType))
         {
-            var types = targetType.GetGenericArguments();
-            var items = types.Select((type, index) =>
-                Convert(Expression.PropertyOrField(expression, $"Item{index + 1}"), type)).ToArray();
-            return IsTuple(targetType)
-                ? Expression.New(targetType.GetConstructor(types)!, items)
-                : Create(items);
+            var types = TupleItemTypes(targetType);
+            var items = ReadItems(expression, types.Length)
+                .Select((item, index) => Convert(item, types[index])).ToArray();
+            return ConstructTuple(targetType, items);
         }
 
         if (IsAnonymous(targetType))

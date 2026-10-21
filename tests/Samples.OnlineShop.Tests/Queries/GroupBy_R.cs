@@ -293,25 +293,6 @@ public class GroupBy_R(SqliteFixture fixture, ITestOutputHelper output) : QChain
     }
 
     [Fact]
-    public async Task TupleArity8_Grouping_Throws()
-    {
-        var exception = await Assert.ThrowsAsync<NotSupportedException>(() => Query(q => q.Orders
-            .GroupBy(
-                o => o.CurrencyId,
-                g => ValueTuple.Create(
-                    g.Key,
-                    g.Count(),
-                    g.Sum(o => o.Total),
-                    g.Min(o => o.Total),
-                    g.Max(o => o.Total),
-                    g.Count(o => o.Total > 50),
-                    g.Max(o => o.AccountId),
-                    g.Min(o => o.AccountId)))));
-
-        Assert.Equal("ValueTuple arity > 7 not supported yet.", exception.Message);
-    }
-
-    [Fact]
     public async Task NestedTuple_Grouping_Select()
     {
         var rows = await Query(q => q.Orders

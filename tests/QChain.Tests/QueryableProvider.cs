@@ -58,7 +58,7 @@ public class QueryableProvider
     }
 
     [Fact]
-    public void Chained_Joins_Flatten_Through_Seven_Items_And_Preserve_Branches()
+    public void Chained_Joins_Pack_Beyond_Seven_Items_And_Preserve_Branches()
     {
         var source = new[] { 1, 2 }.AsQueryable().AsQuery();
         var first = source.Join(source, x => x, x => x, (a, b) => ValueTuple.Create(a, b));
@@ -73,6 +73,10 @@ public class QueryableProvider
         Assert.Equal([(1, 1, 1, 1, 1, 1, 1), (2, 2, 2, 2, 2, 2, 2)], seven.ToArray());
         Assert.Equal([(1, 1), (2, 2)], first.ToArray());
         Assert.Equal([1, 2], source.ToArray());
+        var eight = seven.Join(source, x => x.Item1, x => x, (a, b) =>
+            ValueTuple.Create(a.Item1, a.Item2, a.Item3, a.Item4, a.Item5, a.Item6, a.Item7, b * 10));
+        Assert.Equal([ValueTuple.Create(1, 1, 1, 1, 1, 1, 1, 10), ValueTuple.Create(2, 2, 2, 2, 2, 2, 2, 20)], eight.ToArray());
+        Assert.Equal([20], eight.Where(x => x.Rest.Item1 > 10).Select(x => x.Rest.Item1).ToArray());
         Assert.Equal(2, seven.Join(source, x => x.Item1, x => x, (a, b) => ValueTuple.Create(a, b)).Count());
     }
 

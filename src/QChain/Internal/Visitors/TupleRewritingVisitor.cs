@@ -53,7 +53,14 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
     {
         var arguments = node.Arguments.Select(argument => Visit(argument)).ToArray();
         if (CarrierProjection.IsTuple(node.Type))
-            return arguments.Length == 0 ? VisitDefault(Expression.Default(node.Type)) : CarrierProjection.Create(arguments);
+        {
+            if (arguments.Length == 0)
+                return VisitDefault(Expression.Default(node.Type));
+            return CarrierProjection.Create(arguments.Length == 8
+                ? [.. arguments.Take(7), .. CarrierProjection.ReadItems(arguments[7],
+                    CarrierProjection.TupleItemTypes(node.Type.GetGenericArguments()[7]).Length)]
+                : arguments);
+        }
 
         var type = CarrierProjection.RewriteType(node.Type);
         if (Nullable.GetUnderlyingType(node.Type) is { } underlying && CarrierProjection.IsTuple(underlying))
@@ -73,6 +80,12 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
     protected override Expression VisitMember(MemberExpression node)
     {
         var target = Visit(node.Expression);
+        if (node.Expression is not null && CarrierProjection.IsTuple(node.Expression.Type))
+        {
+            var items = CarrierProjection.ReadItems(target!, CarrierProjection.TupleItemTypes(node.Expression.Type).Length);
+            return node.Member.Name == "Rest" ? CarrierProjection.Create(items.Skip(7).ToArray()) :
+                items[int.Parse(node.Member.Name.AsSpan(4)) - 1];
+        }
         var member = target is not null && target.Type != node.Expression!.Type
             ? RebindMember(node.Member, target.Type) : node.Member;
         if (target is not null && ProjectionReduction.TryInlineMemberAccess(target, member, out var value))
@@ -83,10 +96,19 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
     protected override Expression VisitMemberInit(MemberInitExpression node)
     {
         var rewritten = Visit(node.NewExpression);
-        if (rewritten is MemberInitExpression tuple)
-            return Expression.MemberInit(tuple.NewExpression, tuple.Bindings
-                .Concat(node.Bindings.Select(binding => VisitBinding(binding, tuple.Type)))
-                .GroupBy(binding => binding.Member).Select(group => group.Last()));
+        if (CarrierProjection.IsTuple(node.Type))
+        {
+            var items = CarrierProjection.ReadItems(rewritten, CarrierProjection.TupleItemTypes(node.Type).Length);
+            foreach (var assignment in node.Bindings.Cast<MemberAssignment>())
+            {
+                var value = Visit(assignment.Expression);
+                if (assignment.Member.Name == "Rest")
+                    CarrierProjection.ReadItems(value, items.Length - 7).CopyTo(items, 7);
+                else
+                    items[int.Parse(assignment.Member.Name.AsSpan(4)) - 1] = value;
+            }
+            return CarrierProjection.Create(items);
+        }
 
         var created = (NewExpression)rewritten;
         return Expression.MemberInit(created, node.Bindings.Select(binding => VisitBinding(binding, created.Type)));
@@ -193,7 +215,7 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         Visit(node.Test), Visit(node.IfTrue), Visit(node.IfFalse), CarrierProjection.RewriteType(node.Type));
 
     protected override Expression VisitDefault(DefaultExpression node) => CarrierProjection.IsTuple(node.Type)
-        ? CarrierProjection.Create(node.Type.GetGenericArguments().Select(type => Visit(Expression.Default(type))).ToArray())
+        ? CarrierProjection.Create(CarrierProjection.TupleItemTypes(node.Type).Select(type => Visit(Expression.Default(type))).ToArray())
         : Expression.Default(CarrierProjection.RewriteType(node.Type));
 
     protected override Expression VisitNewArray(NewArrayExpression node) => node.NodeType == ExpressionType.NewArrayInit
@@ -247,8 +269,13 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         return Select(defaulted, Expression.Lambda(DefaultItems(value, tupleType, hasValue), row));
     }
 
-    private static Expression DefaultItems(Expression value, Type publicType, Expression hasValue) => CarrierProjection.IsTuple(publicType)
-        ? CarrierProjection.Create(publicType.GetGenericArguments().Select((type, index) =>
-            DefaultItems(Expression.Property(value, $"Item{index + 1}"), type, hasValue)).ToArray())
-        : Expression.Condition(hasValue, value, Expression.Default(value.Type));
+    private static Expression DefaultItems(Expression value, Type publicType, Expression hasValue)
+    {
+        if (!CarrierProjection.IsTuple(publicType))
+            return Expression.Condition(hasValue, value, Expression.Default(value.Type));
+
+        var types = CarrierProjection.TupleItemTypes(publicType);
+        return CarrierProjection.Create(CarrierProjection.ReadItems(value, types.Length)
+            .Select((item, index) => DefaultItems(item, types[index], hasValue)).ToArray());
+    }
 }
