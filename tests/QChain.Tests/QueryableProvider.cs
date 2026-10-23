@@ -301,6 +301,86 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Nullable_Tuple_Value_Constructor_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 0, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>?>> selector = value =>
+            new Nullable<ValueTuple<int, int>>(ValueTuple.Create(value, value + 10));
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.HasValue).ToArray(), actual.Select(pair => pair.HasValue).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Empty_Constructor_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 0, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int>?>> selector = value => new Nullable<ValueTuple<int, int>>();
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.HasValue).ToArray(), actual.Select(pair => pair.HasValue).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_As_Cast_Matches_Ordinary_Linq()
+    {
+        var source = new object?[] { null, (1, 2), "not a tuple", (3, 4) }.AsQueryable();
+        Expression<Func<object?, ValueTuple<int, int>?>> selector = value => value as ValueTuple<int, int>?;
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Where(pair => pair.HasValue).Select(pair => pair!.Value.Item1).ToArray(),
+            actual.Where(pair => pair.HasValue).Select(pair => pair!.Value.Item1).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_Identity_Conversion_Matches_Ordinary_Linq()
+    {
+        var source = new[] { (1, 11), (2, 12) }.AsQueryable();
+        var pair = Expression.Parameter(typeof(ValueTuple<int, int>), "pair");
+        var selector = Expression.Lambda<Func<ValueTuple<int, int>, ValueTuple<int, int>>>(
+            Expression.Convert(pair, pair.Type), pair);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(value => value.Item2).ToArray(), actual.Select(value => value.Item2).ToArray());
+    }
+
+    [Fact]
+    public void Nullable_Tuple_Identity_Conversion_Matches_Ordinary_Linq()
+    {
+        var source = new (int, int)?[] { null, (0, 0), (1, 2) }.AsQueryable();
+        var pair = Expression.Parameter(typeof(ValueTuple<int, int>?), "pair");
+        var selector = Expression.Lambda<Func<ValueTuple<int, int>?, ValueTuple<int, int>?>>(
+            Expression.Convert(pair, pair.Type), pair);
+        var expected = source.Select(selector);
+        var actual = source.AsQuery().Select(selector);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(value => value.HasValue).ToArray(), actual.Select(value => value.HasValue).ToArray());
+    }
+
+    [Fact]
+    public void Tuple_With_Empty_Rest_Matches_Ordinary_Linq()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        Expression<Func<int, ValueTuple<int, int, int, int, int, int, int, ValueTuple>>> selector = value =>
+            new ValueTuple<int, int, int, int, int, int, int, ValueTuple>(
+                value, value + 1, value + 2, value + 3, value + 4, value + 5, value + 6, new ValueTuple());
+        var expected = source.Select(selector).Distinct();
+        var actual = source.AsQuery().Select(selector).Distinct();
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.Rest).ToArray(), actual.Select(pair => pair.Rest).ToArray());
+    }
+
+    [Fact]
     public void Nullable_Tuple_Preserves_Present_And_Absent_Values()
     {
         var source = new[] { 0, 1, 2 }.AsQueryable();
@@ -628,6 +708,40 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Grouping_NonGeneric_Enumeration_Exposes_Public_Tuples()
+    {
+        var source = new[] { 1, 1, 2 }.AsQueryable();
+        var expected = source.Select(value => ValueTuple.Create(value, value + 10))
+            .GroupBy(pair => ValueTuple.Create(pair.Item1 % 2)).OrderBy(group => group.Key.Item1).ToArray();
+        var actual = source.AsQuery().Select(value => ValueTuple.Create(value, value + 10))
+            .GroupBy(pair => ValueTuple.Create(pair.Item1 % 2)).OrderBy(group => group.Key.Item1).ToArray();
+
+        Assert.Equal(expected.Select(group => group.Key).ToArray(), actual.Select(group => group.Key).ToArray());
+        for (var index = 0; index < expected.Length; index++)
+        {
+            var expectedItems = ((IEnumerable)expected[index]).Cast<object>().ToArray();
+            var actualItems = ((IEnumerable)actual[index]).Cast<object>().ToArray();
+            Assert.Equal(expectedItems, actualItems);
+            Assert.All(actualItems, item => Assert.IsType<ValueTuple<int, int>>(item));
+        }
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void Constant_Query_Uses_Its_Underlying_Expression(int minimumId)
+    {
+        var source = new[] { (1, 11), (2, 12), (3, 13) }.AsQueryable();
+        var query = new ExpressionQuery<ValueTuple<int, int>>(source.Where(pair => pair.Item1 > minimumId));
+        var expression = Expression.Constant(query, typeof(IQueryable<ValueTuple<int, int>>));
+        var expected = source.Provider.CreateQuery<ValueTuple<int, int>>(expression);
+        var actual = source.AsQuery().Provider.CreateQuery<ValueTuple<int, int>>(expression);
+
+        Assert.Equal(expected.ToArray(), actual.ToArray());
+        Assert.Equal(expected.Select(pair => pair.Item2).ToArray(), actual.Select(pair => pair.Item2).ToArray());
+    }
+
+    [Fact]
     public void Provider_Can_Create_And_Execute_From_Existing_Expressions()
     {
         var source = new[] { 1, 2, 3 }.AsQueryable().AsQuery();
@@ -651,6 +765,15 @@ public class QueryableProvider
 
         Assert.Same(expected, error);
         Assert.Contains(nameof(ThrowingProvider.CreateQuery), error.StackTrace);
+    }
+
+    private sealed class ExpressionQuery<T>(IQueryable<T> source) : IQueryable<T>
+    {
+        public Type ElementType => typeof(T);
+        public Expression Expression => source.Expression;
+        public IQueryProvider Provider => source.Provider;
+        public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     private sealed class CountingTupleConversion

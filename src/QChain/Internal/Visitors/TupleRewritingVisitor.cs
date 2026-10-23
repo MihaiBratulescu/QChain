@@ -83,8 +83,10 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         if (node.Expression is not null && CarrierProjection.IsTuple(node.Expression.Type))
         {
             var items = CarrierProjection.ReadItems(target!, CarrierProjection.TupleItemTypes(node.Expression.Type).Length);
-            return node.Member.Name == "Rest" ? CarrierProjection.Create(items.Skip(7).ToArray()) :
-                items[int.Parse(node.Member.Name.AsSpan(4)) - 1];
+            if (node.Member.Name == "Rest")
+                return node.Type == typeof(ValueTuple) ? Expression.Default(node.Type) :
+                    CarrierProjection.Create(items.Skip(7).ToArray());
+            return items[int.Parse(node.Member.Name.AsSpan(4)) - 1];
         }
         var member = target is not null && target.Type != node.Expression!.Type
             ? RebindMember(node.Member, target.Type) : node.Member;
@@ -135,6 +137,15 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
+        if (node.Object is not null && node.Method.Name == nameof(Nullable<int>.GetValueOrDefault) &&
+            node.Arguments.Count == 0 && Nullable.GetUnderlyingType(node.Object.Type) is { } tuple &&
+            CarrierProjection.IsTuple(tuple))
+        {
+            var nullable = Visit(node.Object);
+            return Expression.Condition(Expression.Property(nullable, "HasValue"),
+                Expression.Property(nullable, "Value"), VisitDefault(Expression.Default(tuple)));
+        }
+
         var arguments = node.Arguments.Select(argument => Visit(argument)).ToArray();
         if (node.Method.DeclaringType == typeof(ValueTuple) && node.Method.Name == nameof(ValueTuple.Create) && arguments.Length > 0)
             return CarrierProjection.Create(arguments);

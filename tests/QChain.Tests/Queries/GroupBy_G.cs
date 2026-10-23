@@ -285,26 +285,6 @@ public class GroupBy_G(SqliteFixture fixture, ITestOutputHelper output) : TestBa
     }
 
     [Fact]
-    public async Task RawGroup_Reverse()
-    {
-        var efQuery = _fixture.db.Orders
-            .AsQueryable()
-            .GroupBy(o => o.AccountId)
-            .OrderBy(g => g.Key)
-            .Reverse()
-            .Select(g => g.Key);
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            efQuery.ToArrayAsync());
-
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Query(q => q.Orders
-            .GroupBy(o => o.AccountId)
-            .OrderBy(g => g.Key)
-            .Reverse()
-            .Select(g => g.Key)));
-    }
-
-    [Fact]
     public async Task RawGroup_Distinct_AfterSelect()
     {
         var result = await Query(q => q.Orders

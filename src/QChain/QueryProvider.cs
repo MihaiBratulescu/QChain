@@ -26,16 +26,25 @@ internal sealed class QueryProvider(IQueryProvider provider, IQueryShape querySh
     public override IQueryable<TElement> CreateQuery<TElement>(Expression expression) =>
         new Query<TElement>(new QueryProvider(provider, Resolve(expression, provider)));
 
-    public override object Execute(Expression expression) => provider.Execute(TranslateExecution(expression))!;
-    public override TResult Execute<TResult>(Expression expression) => provider.Execute<TResult>(TranslateExecution(expression));
+    public override object Execute(Expression expression) => provider.Execute(Prepare(TranslateExecution(expression)))!;
+    public override TResult Execute<TResult>(Expression expression) => provider.Execute<TResult>(Prepare(TranslateExecution(expression)));
 
     public override TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = default)
     {
         if (provider is not IAsyncQueryProvider asyncProvider)
             throw new InvalidOperationException("The underlying query provider does not support asynchronous execution.");
 
-        return asyncProvider.ExecuteAsync<TResult>(TranslateExecution(expression), cancellationToken);
+        return asyncProvider.ExecuteAsync<TResult>(Prepare(TranslateExecution(expression)), cancellationToken);
     }
+
+    internal IQueryable<T> Project<T>()
+    {
+        var query = QueryShape.Project();
+        return provider is EntityQueryProvider ? provider.CreateQuery<T>(Prepare(query.Expression)) : (IQueryable<T>)query;
+    }
+
+    private Expression Prepare(Expression expression) =>
+        provider is EntityQueryProvider ? new ProviderTupleVisitor().Visit(expression) : expression;
 
     internal Expression TranslateExecution(Expression expression)
     {
