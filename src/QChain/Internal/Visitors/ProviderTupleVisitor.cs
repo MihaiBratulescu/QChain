@@ -10,40 +10,53 @@ internal sealed class ProviderTupleVisitor : ExpressionVisitor
 {
     protected override Expression VisitMethodCall(MethodCallExpression node)
     {
-        var contains = node.Method.Name == nameof(Enumerable.Contains) &&
-            (node.Method.DeclaringType == typeof(Enumerable) || node.Method.DeclaringType == typeof(MemoryExtensions) ||
-             node.Method.DeclaringType is { IsGenericType: true } declaring &&
-             declaring.GetGenericTypeDefinition() == typeof(List<>));
-        var any = node.Method.DeclaringType == typeof(Enumerable) && node.Method.Name == nameof(Enumerable.Any);
-        if ((contains || any) && node.Arguments.Count == (node.Object is null ? 2 : 1))
-        {
-            var source = node.Object ?? node.Arguments[0];
-            if (source is MethodCallExpression { Method.Name: "op_Implicit", Arguments.Count: 1 } conversion &&
-                source.Type.IsByRefLike)
-                source = conversion.Arguments[0];
+        var any = IsPredicateAny(node);
+        if ((!IsContains(node) && !any) || CapturedTupleCollection(node) is not { } collection)
+            return base.VisitMethodCall(node);
 
-            var element = CarrierProjection.SequenceElement(source.Type);
-            var capture = new CaptureVisitor();
-            capture.Visit(source);
-            if (element is not null && (CarrierProjection.IsTuple(element) || CarrierProjection.IsCarrier(element)) &&
-                !capture.HasFreeParameter && !capture.HasQuery)
-            {
-                // Read at execution, so replacement, additions, and removals remain observable.
-                var values = Expression.Lambda<Func<IEnumerable>>(Expression.Convert(source, typeof(IEnumerable))).Compile()();
-                var argument = node.Arguments[^1];
-                var predicate = any ? (LambdaExpression)argument : null;
-                Expression result = Expression.Constant(false);
-                foreach (var value in values)
-                {
-                    var item = Expression.Constant(value, element);
-                    var comparison = predicate is null ? Equal(Visit(argument), item) :
-                        Visit(new ReplaceParameter(predicate.Parameters[0], item).Visit(predicate.Body));
-                    result = Expression.OrElse(result, comparison);
-                }
-                return result;
-            }
+        var argument = node.Arguments[^1];
+        return ExpandMembership(collection.Source, collection.Element, argument, any ? (LambdaExpression)argument : null);
+    }
+
+    private static bool IsContains(MethodCallExpression node) =>
+        node.Arguments.Count == (node.Object is null ? 2 : 1) &&
+        node.Method.Name == nameof(Enumerable.Contains) &&
+        (node.Method.DeclaringType == typeof(Enumerable) || node.Method.DeclaringType == typeof(MemoryExtensions) ||
+         node.Method.DeclaringType is { IsGenericType: true } declaring &&
+         declaring.GetGenericTypeDefinition() == typeof(List<>));
+
+    private static bool IsPredicateAny(MethodCallExpression node) => node.Arguments.Count == 2 &&
+        node.Method.DeclaringType == typeof(Enumerable) && node.Method.Name == nameof(Enumerable.Any);
+
+    private static (Expression Source, Type Element)? CapturedTupleCollection(MethodCallExpression node)
+    {
+        var source = node.Object ?? node.Arguments[0];
+        if (source is MethodCallExpression { Method.Name: "op_Implicit", Arguments.Count: 1 } conversion &&
+            source.Type.IsByRefLike)
+            source = conversion.Arguments[0];
+
+        var element = CarrierProjection.SequenceElement(source.Type);
+        if (element is null || !CarrierProjection.IsTuple(element) && !CarrierProjection.IsCarrier(element))
+            return null;
+
+        var capture = new CaptureVisitor();
+        capture.Visit(source);
+        return capture.HasFreeParameter || capture.HasQuery ? null : (source, element);
+    }
+
+    private Expression ExpandMembership(Expression source, Type element, Expression argument, LambdaExpression? predicate)
+    {
+        // Read at execution, so replacement, additions, and removals remain observable.
+        var values = Expression.Lambda<Func<IEnumerable>>(Expression.Convert(source, typeof(IEnumerable))).Compile()();
+        Expression result = Expression.Constant(false);
+        foreach (var value in values)
+        {
+            var item = Expression.Constant(value, element);
+            var comparison = predicate is null ? Equal(Visit(argument), item) :
+                Visit(new ReplaceParameter(predicate.Parameters[0], item).Visit(predicate.Body));
+            result = Expression.OrElse(result, comparison);
         }
-        return base.VisitMethodCall(node);
+        return result;
     }
 
     protected override Expression VisitConditional(ConditionalExpression node)
@@ -79,9 +92,7 @@ internal sealed class ProviderTupleVisitor : ExpressionVisitor
         var property = target.Type.GetProperty(name)!;
         if (target is DefaultExpression or ConstantExpression { Value: null })
             return Expression.Default(property.PropertyType);
-        if (ProjectionReduction.TryInlineMemberAccess(target, property, out var value))
-            return value;
-        return Expression.Property(target, property);
+        return CarrierProjection.ReadSlot(target, name);
     }
 
     private static bool IsShape(Type type) => CarrierProjection.IsCarrier(type) ||

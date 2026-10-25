@@ -1,7 +1,7 @@
 using System.Linq.Expressions;
 using Reduction = QChain.Internal.Helpers.ProjectionReduction;
 
-namespace QChain.Tests;
+namespace QChain.Tests.Visitors;
 
 public class ProjectionReduction
 {

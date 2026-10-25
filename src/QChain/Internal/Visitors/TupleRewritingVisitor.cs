@@ -156,10 +156,7 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
             return DefaultTuple(arguments[0], declaring, element);
 
         var target = Visit(node.Object);
-        var sequenceOperator = node.Method.DeclaringType == typeof(Queryable) || node.Method.DeclaringType == typeof(Enumerable) ||
-            node.Method.DeclaringType == typeof(MemoryExtensions) || IsSpan(node.Method.DeclaringType!) ||
-            typeof(IQueryable).IsAssignableFrom(node.Type);
-        var method = sequenceOperator ? RebindMethod(node.Method) : node.Method;
+        var method = UsesRewrittenTypes(node) ? RebindMethod(node.Method) : node.Method;
         if (target is not null)
             target = CarrierProjection.Rebuild(target, method.DeclaringType!);
         var expected = method.GetParameters();
@@ -202,27 +199,15 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
 
     protected override Expression VisitBinary(BinaryExpression node)
     {
-        if (node.NodeType is ExpressionType.Equal or ExpressionType.NotEqual)
-        {
-            var nullable = IsNull(node.Left) ? node.Right : IsNull(node.Right) ? node.Left : null;
-            if (nullable is not null && Nullable.GetUnderlyingType(nullable.Type) is { } underlying && CarrierProjection.IsTuple(underlying))
-            {
-                var hasValue = Expression.Property(Visit(nullable), "HasValue");
-                return node.NodeType == ExpressionType.Equal ? Expression.Not(hasValue) : hasValue;
-            }
-        }
+        if (RewriteNullableComparison(node) is { } comparison)
+            return comparison;
+
         var left = Visit(node.Left);
         var right = Visit(node.Right);
         if (node.NodeType == ExpressionType.Coalesce && Nullable.GetUnderlyingType(node.Left.Type) is { } tuple &&
             CarrierProjection.IsTuple(tuple))
-        {
-            var conversion = (LambdaExpression?)Visit(node.Conversion);
-            var expected = conversion?.Parameters[0].Type ?? CarrierProjection.RewriteType(node.Type);
-            Expression value = left.Type == expected ? left : Expression.Property(left, "Value");
-            if (conversion is not null)
-                value = Expression.Invoke(conversion, value);
-            return Expression.Condition(Expression.Property(left, "HasValue"), value, right);
-        }
+            return RewriteTupleCoalesce(node, left, right);
+
         if (node.Method is not null)
         {
             left = CarrierProjection.Rebuild(left, node.Left.Type);
@@ -230,6 +215,29 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         }
         return CarrierProjection.Lower(Expression.MakeBinary(node.NodeType, left, right, node.IsLiftedToNull,
             node.Method, (LambdaExpression?)Visit(node.Conversion)));
+    }
+
+    private Expression? RewriteNullableComparison(BinaryExpression node)
+    {
+        if (node.NodeType is not (ExpressionType.Equal or ExpressionType.NotEqual))
+            return null;
+
+        var nullable = IsNull(node.Left) ? node.Right : IsNull(node.Right) ? node.Left : null;
+        if (nullable is null || Nullable.GetUnderlyingType(nullable.Type) is not { } underlying || !CarrierProjection.IsTuple(underlying))
+            return null;
+
+        var hasValue = Expression.Property(Visit(nullable), "HasValue");
+        return node.NodeType == ExpressionType.Equal ? Expression.Not(hasValue) : hasValue;
+    }
+
+    private Expression RewriteTupleCoalesce(BinaryExpression node, Expression left, Expression right)
+    {
+        var conversion = (LambdaExpression?)Visit(node.Conversion);
+        var expected = conversion?.Parameters[0].Type ?? CarrierProjection.RewriteType(node.Type);
+        Expression value = left.Type == expected ? left : Expression.Property(left, "Value");
+        if (conversion is not null)
+            value = Expression.Invoke(conversion, value);
+        return Expression.Condition(Expression.Property(left, "HasValue"), value, right);
     }
 
     private static bool IsNull(Expression expression) => expression is ConstantExpression { Value: null } ||
@@ -268,13 +276,18 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
     }
 
     private static MemberInfo RebindMember(MemberInfo member, Type type) => member.DeclaringType == type ? member :
-        type.GetMember(member.Name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
-            .Single(candidate => candidate.MemberType == member.MemberType || member is FieldInfo && candidate is PropertyInfo);
+        type.GetMember(member.Name, member.MemberType,
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static).Single();
 
     private static Type MemberType(MemberInfo member) => member is PropertyInfo property ? property.PropertyType : ((FieldInfo)member).FieldType;
 
     private static bool IsSpan(Type type) => type.IsGenericType &&
         (type.GetGenericTypeDefinition() == typeof(Span<>) || type.GetGenericTypeDefinition() == typeof(ReadOnlySpan<>));
+
+    private static bool UsesRewrittenTypes(MethodCallExpression node) =>
+        node.Method.DeclaringType == typeof(Queryable) || node.Method.DeclaringType == typeof(Enumerable) ||
+        node.Method.DeclaringType == typeof(MemoryExtensions) || IsSpan(node.Method.DeclaringType!) ||
+        typeof(IQueryable).IsAssignableFrom(node.Type);
 
     private static MethodInfo RebindMethod(MethodInfo method)
     {

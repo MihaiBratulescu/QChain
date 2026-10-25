@@ -1,10 +1,9 @@
 using QChain.Tests.TestBench;
 using Microsoft.EntityFrameworkCore;
-using QChain;
 using Samples.OnlineShop.DatabaseModels;
 using Xunit.Abstractions;
 
-namespace QChain.Tests;
+namespace QChain.Tests.Queries;
 
 public class Execution(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
 {

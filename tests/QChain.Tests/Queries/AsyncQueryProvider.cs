@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Query;
 using System.Collections;
 using System.Linq.Expressions;
 
-namespace QChain.Tests;
+namespace QChain.Tests.Queries;
 
 public class AsyncQueryProvider
 {

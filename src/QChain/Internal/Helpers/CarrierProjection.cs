@@ -8,10 +8,10 @@ namespace QChain.Internal.Helpers;
 internal static class CarrierProjection
 {
     public static bool IsTuple(Type type) => type.IsGenericType &&
-        type.FullName?.StartsWith("System.ValueTuple`", StringComparison.Ordinal) == true;
+        TupleDefinitions.Contains(type.GetGenericTypeDefinition());
 
     public static bool IsCarrier(Type type) => type.IsGenericType &&
-        Definitions.Contains(type.GetGenericTypeDefinition());
+        CarrierDefinitions.Contains(type.GetGenericTypeDefinition());
 
     public static Type RewriteType(Type type)
     {
@@ -30,7 +30,7 @@ internal static class CarrierProjection
 
         if (IsTuple(type))
             return Pack(TupleItemTypes(type).Select(RewriteType).ToArray(),
-                items => Definitions[items.Count - 1].MakeGenericType(items.ToArray()));
+                items => CarrierDefinitions[items.Count - 1].MakeGenericType(items.ToArray()));
 
         var arguments = type.GetGenericArguments();
         var rewritten = arguments.Select(RewriteType).ToArray();
@@ -42,7 +42,7 @@ internal static class CarrierProjection
 
     private static Expression CreateCarrier(IReadOnlyList<Expression> items)
     {
-        var type = Definitions[items.Count - 1].MakeGenericType(items.Select(item => item.Type).ToArray());
+        var type = CarrierDefinitions[items.Count - 1].MakeGenericType(items.Select(item => item.Type).ToArray());
         return Expression.MemberInit(Expression.New(type),
             items.Select((item, index) => Expression.Bind(type.GetProperty($"Item{index + 1}")!, item)));
     }
@@ -120,58 +120,74 @@ internal static class CarrierProjection
         if (expression.Type == targetType || targetType.IsAssignableFrom(expression.Type))
             return expression;
 
+        var sourceNullable = Nullable.GetUnderlyingType(expression.Type);
+        var targetNullable = Nullable.GetUnderlyingType(targetType);
+
         // Computed tuple values must be evaluated once before reading their components.
         if (!CanReadRepeatedly(expression) &&
-            (IsTuple(expression.Type) || IsTuple(targetType) ||
-             Nullable.GetUnderlyingType(expression.Type) is { } sourceNullable && IsTuple(sourceNullable) ||
-             Nullable.GetUnderlyingType(targetType) is { } targetNullable && IsTuple(targetNullable)))
+            (IsTuple(sourceNullable ?? expression.Type) || IsTuple(targetNullable ?? targetType)))
             return Expression.Call(typeof(QueryShape<,>).MakeGenericType(targetType, expression.Type),
                 nameof(QueryShape<object, object>.ProjectValue), Type.EmptyTypes, expression);
 
-        if (Nullable.GetUnderlyingType(targetType) is { } targetTuple && IsTuple(targetTuple))
-            return Expression.Condition(Expression.Property(expression, "HasValue"),
-                Expression.Convert(Convert(Expression.Property(expression, "Value"), targetTuple), targetType), Expression.Default(targetType));
+        if (targetNullable is not null && IsTuple(targetNullable))
+            return RebuildNullableTuple(expression, targetType, targetNullable);
 
-        if (Nullable.GetUnderlyingType(expression.Type) is { } sourceTuple && IsTuple(sourceTuple))
-        {
-            var hasValue = Expression.Property(expression, "HasValue");
-            var value = Lower(Expression.Property(expression, "Value"));
-            return Expression.MemberInit(Expression.New(targetType),
-                Expression.Bind(targetType.GetProperty("HasValue")!, hasValue),
-                Expression.Bind(targetType.GetProperty("Value")!, Expression.Condition(hasValue, value, Expression.Default(value.Type))));
-        }
+        if (sourceNullable is not null && IsTuple(sourceNullable))
+            return LowerNullableTuple(expression, targetType);
 
         if (IsTuple(expression.Type))
             return Create(ReadTuple(expression).Select(Lower).ToArray());
 
         if (IsTuple(targetType))
-        {
-            var types = TupleItemTypes(targetType);
-            var items = ReadItems(expression, types.Length)
-                .Select((item, index) => Convert(item, types[index])).ToArray();
-            return ConstructTuple(targetType, items);
-        }
+            return RebuildTuple(expression, targetType);
 
         if (IsAnonymous(targetType))
-        {
-            var constructor = targetType.GetConstructors().Single();
-            var members = constructor.GetParameters().Select(parameter => targetType.GetProperty(parameter.Name!)!).ToArray();
-            return Expression.New(constructor,
-                members.Select(member => Convert(Expression.Property(expression, member.Name), member.PropertyType)), members);
-        }
+            return ConvertAnonymous(expression, targetType);
 
         if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(IGrouping<,>))
-        {
-            var types = targetType.GetGenericArguments();
-            var items = ConvertSequence(expression, typeof(IEnumerable<>).MakeGenericType(types[1]));
-            return Expression.New(typeof(ProjectedGrouping<,>).MakeGenericType(types).GetConstructors().Single(),
-                Convert(Expression.Property(expression, "Key"), types[0]), items);
-        }
+            return ConvertGrouping(expression, targetType);
 
         if (SequenceElement(targetType) is not null)
             return ConvertSequence(expression, targetType);
 
         throw new NotSupportedException($"Cannot substitute tuples in '{targetType}'.");
+    }
+
+    private static Expression RebuildNullableTuple(Expression expression, Type targetType, Type tupleType) =>
+        Expression.Condition(Expression.Property(expression, "HasValue"),
+            Expression.Convert(Convert(Expression.Property(expression, "Value"), tupleType), targetType), Expression.Default(targetType));
+
+    private static Expression LowerNullableTuple(Expression expression, Type targetType)
+    {
+        var hasValue = Expression.Property(expression, "HasValue");
+        var value = Lower(Expression.Property(expression, "Value"));
+        return Expression.MemberInit(Expression.New(targetType),
+            Expression.Bind(targetType.GetProperty("HasValue")!, hasValue),
+            Expression.Bind(targetType.GetProperty("Value")!, Expression.Condition(hasValue, value, Expression.Default(value.Type))));
+    }
+
+    private static Expression RebuildTuple(Expression expression, Type tupleType)
+    {
+        var types = TupleItemTypes(tupleType);
+        var items = ReadItems(expression, types.Length)
+            .Select((item, index) => Convert(item, types[index])).ToArray();
+        return ConstructTuple(tupleType, items);
+    }
+
+    private static Expression ConvertAnonymous(Expression expression, Type targetType)
+    {
+        var constructor = targetType.GetConstructors().Single();
+        var members = constructor.GetParameters().Select(parameter => targetType.GetProperty(parameter.Name!)!).ToArray();
+        return Expression.New(constructor,
+            members.Select(member => Convert(Expression.Property(expression, member.Name), member.PropertyType)), members);
+    }
+
+    private static Expression ConvertGrouping(Expression expression, Type targetType)
+    {
+        var types = targetType.GetGenericArguments();
+        var items = ConvertSequence(expression, typeof(IEnumerable<>).MakeGenericType(types[1]));
+        return Expression.New(typeof(ProjectedGrouping<,>).MakeGenericType(types).GetConstructors().Single(),
+            Convert(Expression.Property(expression, "Key"), types[0]), items);
     }
 
     private static bool CanReadRepeatedly(Expression expression) =>
@@ -193,9 +209,15 @@ internal static class CarrierProjection
         Expression result = Expression.Call(queryable ? typeof(Queryable) : typeof(Enumerable), nameof(Enumerable.Select),
             [sourceElement, targetElement], expression, queryable ? Expression.Quote(selector) : selector);
 
-        if (targetType.IsArray || targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>))
-            result = Expression.Call(typeof(Enumerable), targetType.IsArray ? nameof(Enumerable.ToArray) : nameof(Enumerable.ToList),
-                [targetElement], result);
+        return MaterializeSequence(result, targetType, targetElement);
+    }
+
+    private static Expression MaterializeSequence(Expression result, Type targetType, Type element)
+    {
+        var materializer = targetType.IsArray ? nameof(Enumerable.ToArray) :
+            targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(List<>) ? nameof(Enumerable.ToList) : null;
+        if (materializer is not null)
+            result = Expression.Call(typeof(Enumerable), materializer, [element], result);
 
         if (!targetType.IsAssignableFrom(result.Type))
             throw new NotSupportedException($"Cannot substitute tuples in sequence '{targetType}'.");
@@ -209,7 +231,13 @@ internal static class CarrierProjection
     public static bool IsAnonymous(Type type) => type.IsDefined(typeof(CompilerGeneratedAttribute), false) &&
         type.Name.Contains("AnonymousType", StringComparison.Ordinal);
 
-    private static readonly Type[] Definitions =
+    private static readonly Type[] TupleDefinitions =
+    [
+        typeof(ValueTuple<>), typeof(ValueTuple<,>), typeof(ValueTuple<,,>), typeof(ValueTuple<,,,>),
+        typeof(ValueTuple<,,,,>), typeof(ValueTuple<,,,,,>), typeof(ValueTuple<,,,,,,>), typeof(ValueTuple<,,,,,,,>)
+    ];
+
+    private static readonly Type[] CarrierDefinitions =
     [
         typeof(Carrier<>), typeof(Carrier<,>), typeof(Carrier<,,>), typeof(Carrier<,,,>),
         typeof(Carrier<,,,,>), typeof(Carrier<,,,,,>), typeof(Carrier<,,,,,,>)
