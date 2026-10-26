@@ -1,5 +1,4 @@
 [![NuGet - QChain](https://img.shields.io/nuget/vpre/QChain?label=QChain)](https://www.nuget.org/packages/QChain)
-[![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/vpre/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
 [![Tests](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml/badge.svg)](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/MihaiBratulescu/QChain?label=License)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
 
@@ -190,37 +189,12 @@ public class AccountsRepository(IUnitOfWork db)
 
 ---
 
-## Escaping the Abstraction
+## Package and Installation
 
-`AsQueryable()` exposes the underlying `IQueryable<T>` for direct LINQ provider access. 
-
-This is when QChain abstractions are insufficient or translation fails.
-
-```csharp
-var sql = query
-    .AsQueryable()
-    .ToQueryString();
-```
-
----
-
-## &#x1F4E6; Packages
-
-- **QChain** - Core abstractions and query pipeline
-- **QChain.EntityFrameworkCore** - EF Core integration
-
----
-
-## &#x1F527; Installation
+QChain is distributed as a single package. It includes the query pipeline and its Entity Framework Core integration.
 
 ```bash
 dotnet add package QChain
-```
-
-For EF Core support:
-
-```bash
-dotnet add package QChain.EntityFrameworkCore
 ```
 ---
 
