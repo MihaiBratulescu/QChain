@@ -191,9 +191,9 @@ public class AccountsRepository(IUnitOfWork db)
 
 ## Package and Dependencies
 
-QChain is a single package and supports Entity Framework Core 8, 9, and 10. Its EF Core dependency matches the target framework: .NET 8 uses EF Core 8, .NET 9 uses EF Core 9, and .NET 10 uses EF Core 10.
+QChain supports EF Core 8, 9, and 10.
 
-Install QChain with:
+Install:
 
 ```bash
 dotnet add package QChain
