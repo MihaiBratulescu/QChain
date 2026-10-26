@@ -193,13 +193,12 @@ public class AccountsRepository(IUnitOfWork db)
 
 QChain supports EF Core 8, 9, and 10.
 
-> **Note:** `DefaultIfEmpty()` on nullable tuple projections is not supported with EF Core 8 or 9. Use EF Core 10 for these queries.
-
-Install:
-
 ```bash
 dotnet add package QChain
 ```
+
+> **Note:** `DefaultIfEmpty()` on nullable tuple projections is not supported with EF Core 8 or 9. Use EF Core 10 for these queries.
+
 ---
 
 ## Feedback/Contribution
