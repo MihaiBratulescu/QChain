@@ -189,12 +189,18 @@ public class AccountsRepository(IUnitOfWork db)
 
 ---
 
-## Package and Installation
+## Installation and Dependencies
 
-QChain is distributed as a single package. It includes the query pipeline and its Entity Framework Core integration.
+Install the single QChain package. It includes the Entity Framework Core integration and depends on the matching EF Core version for the target framework: EF Core 8 for .NET 8, EF Core 9 for .NET 9, and EF Core 10 for .NET 10.
 
 ```bash
 dotnet add package QChain
+```
+
+Add the EF Core provider package for your database separately. For example, for SQLite:
+
+```bash
+dotnet add package Microsoft.EntityFrameworkCore.Sqlite
 ```
 ---
 
