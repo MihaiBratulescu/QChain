@@ -61,10 +61,20 @@ internal sealed class ProviderTupleVisitor : ExpressionVisitor
 
     protected override Expression VisitConditional(ConditionalExpression node)
     {
+        if (IsCarrierPresenceCheck(node.Test))
+            return Visit(node.IfTrue)!;
+
         var test = Visit(node.Test);
         var whenTrue = Visit(node.IfTrue);
         var whenFalse = Visit(node.IfFalse);
         return Condition(test, whenTrue, whenFalse);
+    }
+
+    protected override Expression VisitBinary(BinaryExpression node)
+    {
+        if (node.NodeType == ExpressionType.AndAlso && IsCarrierPresenceCheck(node.Left))
+            return Visit(node.Right)!;
+        return base.VisitBinary(node);
     }
 
     protected override Expression VisitMember(MemberExpression node)
@@ -97,6 +107,14 @@ internal sealed class ProviderTupleVisitor : ExpressionVisitor
 
     private static bool IsShape(Type type) => CarrierProjection.IsCarrier(type) ||
         type.IsGenericType && type.GetGenericTypeDefinition() == typeof(DefaultIfEmptyValue<>);
+
+    private static bool IsCarrierPresenceCheck(Expression expression) =>
+        expression is BinaryExpression { NodeType: ExpressionType.NotEqual,
+            Left: ParameterExpression parameter,
+            Right: ConstantExpression { Value: null } } && IsDefaultIfEmptyCarrier(parameter.Type);
+
+    private static bool IsDefaultIfEmptyCarrier(Type type) => type.IsGenericType &&
+        type.GetGenericTypeDefinition() == typeof(DefaultIfEmptyCarrier<>);
 
     private Expression Equal(Expression left, Expression right)
     {

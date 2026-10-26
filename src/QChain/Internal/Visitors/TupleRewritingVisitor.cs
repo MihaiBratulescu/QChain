@@ -298,32 +298,72 @@ internal sealed class TupleRewritingVisitor : ExpressionVisitor
         return arguments is null ? method : method.GetGenericMethodDefinition().MakeGenericMethod(arguments);
     }
 
-    // A reference carrier must retain default(ValueTuple)'s component defaults.
+    // Nullable slots and an explicit presence flag work for both EF and in-memory providers.
     private static Expression DefaultTuple(Expression source, Type linq, Type tupleType)
     {
         var carrierType = CarrierProjection.RewriteType(tupleType);
-        var markerType = typeof(DefaultIfEmptyValue<>).MakeGenericType(carrierType);
         var item = Expression.Parameter(carrierType, "item");
-        var wrap = Expression.MemberInit(Expression.New(markerType),
-            Expression.Bind(markerType.GetProperty(nameof(DefaultIfEmptyValue<int>.HasValue))!, Expression.Constant(true)),
-            Expression.Bind(markerType.GetProperty(nameof(DefaultIfEmptyValue<int>.Value))!, item));
         Expression Select(Expression sequence, LambdaExpression selector) => Expression.Call(linq, nameof(Queryable.Select),
             [selector.Parameters[0].Type, selector.ReturnType], sequence, linq == typeof(Queryable) ? Expression.Quote(selector) : selector);
-        var wrapped = Select(source, Expression.Lambda(wrap, item));
-        var defaulted = Expression.Call(linq, nameof(Queryable.DefaultIfEmpty), [markerType], wrapped);
+        var liftedValue = LiftCarrier(item, tupleType);
+        var liftedType = LiftType(liftedValue.Type);
+        var markerType = typeof(DefaultIfEmptyCarrier<>).MakeGenericType(liftedType);
+        var wrapped = Expression.MemberInit(Expression.New(markerType),
+            Expression.Bind(markerType.GetProperty(nameof(DefaultIfEmptyCarrier<int>.HasValue))!, Expression.Constant(true)),
+            Expression.Bind(markerType.GetProperty(nameof(DefaultIfEmptyCarrier<int>.Value))!, liftedValue));
+        var lifted = Select(source, Expression.Lambda(wrapped, item));
+        var defaultedMarkers = Expression.Call(linq, nameof(Queryable.DefaultIfEmpty), [markerType], lifted);
         var row = Expression.Parameter(markerType, "row");
-        var hasValue = Expression.Property(row, nameof(DefaultIfEmptyValue<int>.HasValue));
-        var value = Expression.Property(row, nameof(DefaultIfEmptyValue<int>.Value));
-        return Select(defaulted, Expression.Lambda(DefaultItems(value, tupleType, hasValue), row));
+        var exists = Expression.NotEqual(row, Expression.Constant(null, markerType));
+        var hasValue = Expression.AndAlso(exists, Expression.Property(row, nameof(DefaultIfEmptyCarrier<int>.HasValue)));
+        var value = Expression.Property(row, nameof(DefaultIfEmptyCarrier<int>.Value));
+        var presentValue = Expression.Condition(exists, value, Expression.Default(liftedType));
+        return Select(defaultedMarkers, Expression.Lambda(UnliftCarrier(presentValue, tupleType, hasValue), row));
     }
 
-    private static Expression DefaultItems(Expression value, Type publicType, Expression hasValue)
+    private static Expression LiftCarrier(Expression value, Type tupleType)
     {
-        if (!CarrierProjection.IsTuple(publicType))
-            return Expression.Condition(hasValue, value, Expression.Default(value.Type));
-
-        var types = CarrierProjection.TupleItemTypes(publicType);
+        var types = CarrierProjection.TupleItemTypes(tupleType);
         return CarrierProjection.Create(CarrierProjection.ReadItems(value, types.Length)
-            .Select((item, index) => DefaultItems(item, types[index], hasValue)).ToArray());
+            .Select((item, index) => LiftItem(item, types[index])).ToArray());
+    }
+
+    private static Expression LiftItem(Expression value, Type publicType) => CarrierProjection.IsTuple(publicType)
+        ? LiftCarrier(value, publicType)
+        : value.Type.IsValueType && Nullable.GetUnderlyingType(value.Type) is null
+            ? Expression.Convert(value, typeof(Nullable<>).MakeGenericType(value.Type))
+            : value;
+
+    private static Type LiftType(Type type)
+    {
+        if (CarrierProjection.IsCarrier(type))
+        {
+            var arguments = type.GetGenericArguments().Select(LiftType).ToArray();
+            return type.GetGenericTypeDefinition().MakeGenericType(arguments);
+        }
+
+        return type.IsValueType && Nullable.GetUnderlyingType(type) is null
+            ? typeof(Nullable<>).MakeGenericType(type)
+            : type;
+    }
+
+    private static Expression UnliftCarrier(Expression value, Type tupleType, Expression hasValue)
+    {
+        var types = CarrierProjection.TupleItemTypes(tupleType);
+        var items = CarrierProjection.ReadItems(value, types.Length)
+            .Select((item, index) => UnliftItem(item, types[index], hasValue)).ToArray();
+        return CarrierProjection.Create(items);
+    }
+
+    private static Expression UnliftItem(Expression value, Type publicType, Expression hasValue)
+    {
+        if (CarrierProjection.IsTuple(publicType))
+            return UnliftCarrier(value, publicType, hasValue);
+
+        var targetType = CarrierProjection.RewriteType(publicType);
+        var item = publicType.IsValueType && Nullable.GetUnderlyingType(publicType) is null
+            ? Expression.Coalesce(value, Expression.Default(publicType))
+            : CarrierProjection.Rebuild(value, targetType);
+        return Expression.Condition(hasValue, item, Expression.Default(targetType));
     }
 }

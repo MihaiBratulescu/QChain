@@ -12,3 +12,10 @@ internal readonly struct DefaultIfEmptyValue<T>
         init => this.value = value;
     }
 }
+
+// EF-facing row shape: all values can be null when a left join finds no row.
+internal sealed class DefaultIfEmptyCarrier<T>
+{
+    public bool HasValue { get; init; }
+    public T Value { get; init; } = default!;
+}
