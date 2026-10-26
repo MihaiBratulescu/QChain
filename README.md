@@ -65,20 +65,20 @@ public Task<List<CustomerRiskDto>> GetRecentEuropeanCustomerRisksAsync(decimal t
 Readable, reusable, and aligned with your domain. QChain keeps intermediate query shapes as named tuples instead of anonymous types.
 
 ```csharp
-public IQuery<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerPayments()
+public IQueryable<(Customer c, Order o, Payment p)> GetActiveEuropeanCustomerPayments()
 {
     return CustomerPayments()       // reusable joined query shape
         .Where(x => x.c.IsActive()  // composable predicates
             .And(x.c.FromEurope()));
 }
 
-public IQuery<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(decimal threshold)
+public IQueryable<(Customer c, Order o, Payment p)> GetRecentEuropeanCustomerRisks(decimal threshold)
 {
     return GetActiveEuropeanCustomerPayments()  // Tuple<(Customer c, Order o, Payment p)>
         .Where(x => x.p.Amount >= threshold));
 }
 
-private IQuery<(Customer c, Order o, Payment p)> CustomerPayments()
+private IQueryable<(Customer c, Order o, Payment p)> CustomerPayments()
 {
     return db.Customers
         .Join(db.Orders, c => c.Id, o => o.CustomerId,
@@ -113,8 +113,8 @@ var risks = await unitOfWork.Query(db => db.Customers
 Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
 
 ```csharp
-IQuery<Account> Accounts = new Query<Account>(db.Set<Account>());
-IQuery<Order> Orders = new Query<Order>(db.Set<Order>());
+IQueryable<Account> Accounts = new Query<Account>(db.Set<Account>());
+IQueryable<Order> Orders = new Query<Order>(db.Set<Order>());
 ```
 
 Define reusable predicates as extension methods over the entity type. 
@@ -141,13 +141,13 @@ public static class OrderPredicates
 
 ## Unit of Work
 
-Expose query roots from your unit of work as `IQuery<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary. `QueryExecutor<T>` is provided for deferred execution.
+Expose query roots from your unit of work as `IQueryable<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary. `QueryExecutor<T>` is provided for deferred execution.
 
 ```csharp
 public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 {
-    public IQuery<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
-    public IQuery<Order> Orders { get; } = new Query<Order>(db.Set<Order>());
+    public IQueryable<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
+    public IQueryable<Order> Orders { get; } = new Query<Order>(db.Set<Order>());
 
     public IAccountsRepository AccountsRepository { get; } = new AccountsRepository(this);
 
@@ -155,14 +155,14 @@ public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
 
     public Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query) => query(this);
 
-    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQuery<T>> query) =>
+    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQueryable<T>> query) =>
         new QueryExecutor<T>(query(this));
 }
 ```
 
 - `Query<T>(Func<IUnitOfWork, T>)` for immediate values
 - `Query<T>(Func<IUnitOfWork, Task<T>>)` for async work
-- `Query<T>(Func<IUnitOfWork, IQuery<T>>)` for deferred query execution
+- `Query<T>(Func<IUnitOfWork, IQueryable<T>>)` for deferred query execution
 
 ```csharp
 int totalAccounts = unitOfWork.Query(db => db.Accounts.Count());
@@ -179,7 +179,7 @@ int activeCount = await unitOfWork.Query(db => db.Accounts
 ```csharp
 public class AccountsRepository(IUnitOfWork db)
 {
-    public IQuery<(Account account, Order order)> ActiveEuropeanOrdersInLastMonth() =>
+    public IQueryable<(Account account, Order order)> ActiveEuropeanOrdersInLastMonth() =>
         db.Accounts
             .Join(db.Orders, a => a.AccountId, o => o.AccountId,
                 (a, o) => ValueTuple.Create(a, o))
