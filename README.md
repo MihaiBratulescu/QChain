@@ -1,5 +1,4 @@
 [![NuGet - QChain](https://img.shields.io/nuget/vpre/QChain?label=QChain)](https://www.nuget.org/packages/QChain)
-[![NuGet - QChain.EntityFrameworkCore](https://img.shields.io/nuget/vpre/QChain.EntityFrameworkCore?label=QChain.EntityFrameworkCore)](https://www.nuget.org/packages/QChain.EntityFrameworkCore)
 [![Tests](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml/badge.svg)](https://github.com/MihaiBratulescu/QChain/actions/workflows/tests.yml)
 [![License](https://img.shields.io/github/license/MihaiBratulescu/QChain?label=License)](https://github.com/MihaiBratulescu/QChain/blob/master/LICENSE)
 
@@ -190,38 +189,16 @@ public class AccountsRepository(IUnitOfWork db)
 
 ---
 
-## Escaping the Abstraction
-
-`AsQueryable()` exposes the underlying `IQueryable<T>` for direct LINQ provider access. 
-
-This is when QChain abstractions are insufficient or translation fails.
-
-```csharp
-var sql = query
-    .AsQueryable()
-    .ToQueryString();
-```
-
----
-
-## &#x1F4E6; Packages
-
-- **QChain** - Core abstractions and query pipeline
-- **QChain.EntityFrameworkCore** - EF Core integration
-
----
-
-## &#x1F527; Installation
+## Package and Dependencies
 
 ```bash
 dotnet add package QChain
 ```
 
-For EF Core support:
+QChain supports EF Core 8, 9, and 10.
 
-```bash
-dotnet add package QChain.EntityFrameworkCore
-```
+> **Note:** `DefaultIfEmpty()` on nullable tuple projections is not supported with EF Core 8 or 9. Use EF Core 10 for these queries.
+
 ---
 
 ## Feedback/Contribution

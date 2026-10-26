@@ -1,0 +1,224 @@
+using QChain.Tests.TestBench;
+using Microsoft.EntityFrameworkCore;
+using Samples.OnlineShop.DatabaseModels;
+using Xunit.Abstractions;
+
+namespace QChain.Tests.Queries;
+
+public class LeftJoin(SqliteFixture fixture, ITestOutputHelper output) : TestBase(fixture, output)
+{
+    [Fact]
+    public async Task Basic_ReturnsAccountsWithOrders()
+    {
+        (Account, Order?)[] items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
+
+        Assert.NotEmpty(items);
+        Assert.Contains(items, x => x.Item1 is not null);
+        Assert.All(items.Where(x => x.Item2 is not null), 
+            x => Assert.Equal(x.Item1.AccountId, x.Item2!.AccountId));
+    }
+
+    [Fact]
+    public async Task Basic_ReturnsAccountsWithoutOrders()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
+
+        Assert.Contains(items, x => x.Item2 is null);
+    }
+
+    [Fact]
+    public async Task CanFilterLeftSide()
+    {
+        var items = await Query(q => q.Accounts
+            .Where(a => a.IsActive)
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.True(x.Item1.IsActive));
+    }
+
+    [Fact]
+    public async Task CanFilterRightSideBeforeJoin()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(
+                q.Orders.Where(o => o.CurrencyId == CurrencyType.EUR),
+                a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
+
+        Assert.NotEmpty(items);
+
+        Assert.All(items.Where(x => x.Item2 is not null), 
+            x => Assert.Equal(CurrencyType.EUR, x.Item2!.CurrencyId));
+    }
+
+    [Fact]
+    public async Task CanProjectResult()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => new
+            {
+                x.Item1.AccountId,
+                OrderId = x.Item2 == null ? (int?)null : x.Item2.OrderId
+            }));
+
+        Assert.NotEmpty(items);
+        Assert.Contains(items, x => x.OrderId is null);
+    }
+
+    [Fact]
+    public async Task CanFilterNullRightAfterJoin()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Where(x => x.Item2 == null)
+            .Select(x => x.Item1.AccountId)
+            .OrderBy(x => x));
+
+        Assert.Equal([4, 6, 7], items);
+    }
+
+    [Fact]
+    public async Task CanFilterNonNullRightAfterJoin()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Where(x => x.Item2 != null)
+            .Select(x => ValueTuple.Create(x.Item1.AccountId, x.Item2!.AccountId)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task CanUsePredicatesOnLeftAndRight()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Where(x => x.Item1.IsActive));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x =>
+        {
+            Assert.True(x.Item1.IsActive);
+        });
+    }
+
+    [Fact]
+    public async Task LeftJoin_Twice()
+    {
+        (Account account, Order? order, Currency? currency)[] items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .LeftJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => ValueTuple.Create(x.Item1.Item1, x.Item1.Item2, x.Item2)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x =>
+        {
+            if (x.order is null)
+                Assert.Null(x.currency);
+            else
+                Assert.Equal(x.order.CurrencyId, x.currency!.CurrencyId);
+        });
+    }
+
+    [Fact]
+    public async Task LeftJoin_Twice_WithProjection()
+    {
+        var items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .LeftJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => new
+            {
+                AccountId = x.Item1.Item1.AccountId,
+                OrderId = x.Item1.Item2 == null
+                    ? (int?)null
+                    : x.Item1.Item2.OrderId,
+                Currency = x.Item2 == null
+                    ? null
+                    : x.Item2.Symbol
+            }));
+
+        Assert.NotEmpty(items);
+    }
+
+    [Fact]
+    public async Task LeftJoin_LeftJoin_RightJoin()
+    {
+        (Account, Order?, Currency?, Transaction)[] items = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .LeftJoin(q.Currencies, x => x.Item2!.CurrencyId, c => c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Transactions, x => x.Item1.Item2!.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => ValueTuple.Create(x.Item1.Item1.Item1, x.Item1.Item1.Item2, x.Item1.Item2, x.Item2)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x =>
+        {
+            Assert.Equal(
+                x.Item2!.OrderId,
+                x.Item4.OrderId);
+        });
+    }
+
+    [Fact]
+    public async Task JoinDoesNotMatch_ReturnsNullLeft()
+    {
+        var items = await Query(q => q.Accounts
+            .RightJoin(q.Orders, a => 0, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow)));
+
+        Assert.NotEmpty(items);
+        Assert.All(items, x => Assert.Null(x.Item1));
+    }
+
+    [Fact]
+    public async Task LeftJoin_LeftJoin()
+    {
+        var rows = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .LeftJoin(
+                q.Currencies,
+                x => x.Item2 == null ? null : (int?)x.Item2.CurrencyId,
+                c => (int?)c.CurrencyId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => ValueTuple.Create(
+                x.Item1.Item2 == null ? null : (int?)x.Item1.Item2.CurrencyId,
+                x.Item2 == null ? null : (int?)x.Item2.CurrencyId)));
+
+        Assert.NotEmpty(rows);
+
+        Assert.All(
+            rows.Where(x => x.Item1.HasValue && x.Item2.HasValue),
+            x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task LeftJoin_RightJoin()
+    {
+        var rows = await Query(q => q.Accounts
+            .LeftJoin(q.Orders, a => a.AccountId, o => o.AccountId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .RightJoin(q.Transactions, x => x.Item2!.OrderId, t => t.OrderId, (leftRow, rightRow) => ValueTuple.Create(leftRow, rightRow))
+            .Select(x => ValueTuple.Create(
+                x.Item1!.Item2!.OrderId,
+                x.Item2.OrderId)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, x => Assert.Equal(x.Item1, x.Item2));
+    }
+
+    [Fact]
+    public async Task LeftJoin_With_Projected_Right_Side()
+    {
+        var rows = await Query(q => q.Accounts
+            .LeftJoin(
+                q.Orders.Select(o => ValueTuple.Create((int?)o.AccountId, (int?)o.OrderId)),
+                a => a.AccountId,
+                o => o.Item1,
+                (a, o) => ValueTuple.Create(
+                    a.AccountId,
+                    o.Item1)));
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows.Where(x => x.Item2.HasValue), x => Assert.Equal(x.Item1, x.Item2));
+    }
+}
