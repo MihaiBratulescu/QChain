@@ -542,6 +542,22 @@ public class QueryableProvider
     }
 
     [Fact]
+    public void Enumerable_DefaultIfEmpty_Preserves_Component_Defaults_Inside_Selector()
+    {
+        var source = new (int, string?)[][]
+        {
+            [(1, "one")],
+            [],
+            [(0, "zero")]
+        }.AsQueryable();
+        var expected = source.SelectMany(group => group.DefaultIfEmpty()).ToArray();
+        var actual = source.AsQuery().SelectMany(group => group.DefaultIfEmpty()).ToArray();
+
+        Assert.Equal([(1, "one"), (0, (string?)null), (0, "zero")], actual);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
     public void DefaultIfEmpty_Rebuilds_Empty_And_Present_Tuples()
     {
         var source = Array.Empty<int>().AsQueryable().AsQuery();

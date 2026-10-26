@@ -1,12 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
    <ItemGroup>
-   	<InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
     <InternalsVisibleTo Include="QChain.Tests" />
-   </ItemGroup>
-
-   <ItemGroup>
-     <ProjectReference Include="..\PCompose\PCompose.csproj" />
    </ItemGroup>
 
    <ItemGroup>

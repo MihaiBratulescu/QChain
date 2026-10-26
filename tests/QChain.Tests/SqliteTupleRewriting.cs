@@ -9,6 +9,68 @@ public class SqliteTupleRewriting(SqliteFixture fixture, ITestOutputHelper outpu
 {
     private IQueryable<int> Ids => _fixture.db.Accounts.Select(account => account.AccountId);
     private IQueryable<int> NativeIds => _fixture.db.Set<Account>().Select(account => account.AccountId);
+    private static (int Id, int Code) staticPair;
+
+    [Fact]
+    public async Task Scalar_Array_Contains_Passes_Through_To_Provider()
+    {
+        var ids = new[] { 1, 3 };
+        var query = Ids.Where(id => Enumerable.Contains(ids, id)).OrderBy(id => id);
+
+        await AssertRows(query, [1, 3], "WHERE", "ORDER BY");
+    }
+
+    [Fact]
+    public async Task Scalar_List_Contains_Passes_Through_To_Provider()
+    {
+        var ids = new List<int> { 2, 4 };
+        var query = Ids.Where(id => ids.Contains(id)).OrderBy(id => id);
+
+        await AssertRows(query, [2, 4], "WHERE", "ORDER BY");
+    }
+
+    [Fact]
+    public async Task Static_Tuple_Field_Changes_Are_Observed_Between_Executions()
+    {
+        var previous = staticPair;
+        try
+        {
+            staticPair = (2, 12);
+            var query = Ids.Where(id => id == staticPair.Id)
+                .Select(id => ValueTuple.Create(id, staticPair.Code));
+
+            await AssertRows(query, [(2, 12)], "WHERE");
+            staticPair = (3, 13);
+            await AssertRows(query, [(3, 13)], "WHERE");
+        }
+        finally
+        {
+            staticPair = previous;
+        }
+    }
+
+    [Fact]
+    public async Task Unused_Tuple_Parameter_Is_Rewritten_When_Selector_Body_Is_Unchanged()
+    {
+        var query = Ids.Where(id => id <= 2)
+            .Select(id => ValueTuple.Create(id, id + 10))
+            .Select(pair => 42);
+
+        await AssertRows(query, [42, 42], "WHERE");
+    }
+
+    [Fact]
+    public async Task Final_Projection_Assigns_Tuple_To_Public_Field()
+    {
+        var query = Ids.Where(id => id <= 2).OrderBy(id => id)
+            .Select(id => new FieldProjection { Pair = ValueTuple.Create(id, id + 10) });
+
+        Assert.Contains("WHERE", query.ToQueryString());
+        var rows = await query.ToArrayAsync();
+
+        Assert.Equal([(1, 11), (2, 12)], rows.Select(row => row.Pair));
+        Assert.All(rows, row => Assert.Equal(42, row.Unassigned));
+    }
 
     [Fact]
     public async Task Captured_Members_Work_In_Filter_And_Projection()
@@ -197,6 +259,45 @@ public class SqliteTupleRewriting(SqliteFixture fixture, ITestOutputHelper outpu
     }
 
     [Fact]
+    public async Task Nullable_Tuple_NotNull_Comparison_Translates()
+    {
+        var query = Ids.Select(id => new
+            {
+                Id = id,
+                Pair = id % 2 == 0 ? (ValueTuple<int, int>?)null : ValueTuple.Create(id, id + 10)
+            })
+            .Where(row => row.Pair != null).OrderBy(row => row.Id).Select(row => row.Id);
+
+        await AssertRows(query, [1, 3, 5, 7], "WHERE", "ORDER BY");
+    }
+
+    [Fact]
+    public async Task Nullable_Tuple_Reversed_Null_Comparison_Translates()
+    {
+        var query = Ids.Select(id => new
+            {
+                Id = id,
+                Pair = id % 2 == 0 ? (ValueTuple<int, int>?)null : ValueTuple.Create(id, id + 10)
+            })
+            .Where(row => null == row.Pair).OrderBy(row => row.Id).Select(row => row.Id);
+
+        await AssertRows(query, [2, 4, 6], "WHERE", "ORDER BY");
+    }
+
+    [Fact]
+    public async Task Nullable_Tuple_Reversed_NotNull_Comparison_Translates()
+    {
+        var query = Ids.Select(id => new
+            {
+                Id = id,
+                Pair = id % 2 == 0 ? (ValueTuple<int, int>?)null : ValueTuple.Create(id, id + 10)
+            })
+            .Where(row => null != row.Pair).OrderBy(row => row.Id).Select(row => row.Id);
+
+        await AssertRows(query, [1, 3, 5, 7], "WHERE", "ORDER BY");
+    }
+
+    [Fact]
     public async Task Nullable_Tuple_Coalesce_Composes_After_Distinct()
     {
         var query = Ids.Select(id => id % 2 == 0 ? (ValueTuple<int, int>?)null : ValueTuple.Create(id, id + 10))
@@ -273,5 +374,11 @@ public class SqliteTupleRewriting(SqliteFixture fixture, ITestOutputHelper outpu
         foreach (var clause in sqlClauses)
             Assert.Contains(clause, sql);
         Assert.Equal(expected, await query.ToArrayAsync());
+    }
+
+    private sealed class FieldProjection
+    {
+        public (int, int) Pair;
+        public int Unassigned = 42;
     }
 }

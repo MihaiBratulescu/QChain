@@ -32,10 +32,17 @@ internal static class CarrierProjection
             return Pack(TupleItemTypes(type).Select(RewriteType).ToArray(),
                 items => CarrierDefinitions[items.Count - 1].MakeGenericType(items.ToArray()));
 
+        if (!RewritesGenericArguments(type))
+            return type;
+
         var arguments = type.GetGenericArguments();
         var rewritten = arguments.Select(RewriteType).ToArray();
         return arguments.SequenceEqual(rewritten) ? type : type.GetGenericTypeDefinition().MakeGenericType(rewritten);
     }
+
+    private static bool RewritesGenericArguments(Type type) =>
+        IsAnonymous(type) || IsCarrier(type) || typeof(Delegate).IsAssignableFrom(type) ||
+        QueryDefinitions.Contains(type.GetGenericTypeDefinition());
 
     public static MemberInitExpression Create(IReadOnlyList<Expression> items) =>
         (MemberInitExpression)Pack(items, CreateCarrier);
@@ -230,6 +237,13 @@ internal static class CarrierProjection
 
     public static bool IsAnonymous(Type type) => type.IsDefined(typeof(CompilerGeneratedAttribute), false) &&
         type.Name.Contains("AnonymousType", StringComparison.Ordinal);
+
+    private static readonly Type[] QueryDefinitions =
+    [
+        typeof(Expression<>), typeof(DefaultIfEmptyValue<>), typeof(IGrouping<,>), typeof(Span<>), typeof(ReadOnlySpan<>),
+        typeof(IQueryable<>), typeof(IOrderedQueryable<>), typeof(IEnumerable<>), typeof(IOrderedEnumerable<>),
+        typeof(List<>), typeof(ICollection<>), typeof(IList<>), typeof(IReadOnlyCollection<>), typeof(IReadOnlyList<>)
+    ];
 
     private static readonly Type[] TupleDefinitions =
     [

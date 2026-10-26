@@ -16,8 +16,4 @@
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PCompose'">
-    <InternalsVisibleTo Include="QChain" />
-    <InternalsVisibleTo Include="QChain.EntityFrameworkCore" />
-  </ItemGroup>
 </Project>
