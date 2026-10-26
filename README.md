@@ -6,25 +6,17 @@
 
 # QChain
 
-**LINQ specification pattern for building reusable and composable DAL query pipelines.**
+**Composable LINQ query pipelines with named tuples.**
 
-QChain lets you build reusable, composable, and expressive query pipelines on top of LINQ.  
-Instead of duplicating query logic across repositories and services, you define query fragments once and chain them together.
+QChain lets you return joined queries from methods and keep composing them through `IQueryable<T>`. Define a shared pipeline once, then add filters, sorting, pagination, and projections where you use it.
 
----
+## Motivation
 
-## &#x2728; Motivation
+Sharing a joined LINQ query across methods often means declaring a class or record just to hold the intermediate results.
 
-LINQ is powerful, but in real-world applications it often leads to:
-- duplicated query logic
-- hard-to-read query chains
-- bloated repositories
-- poor support for reusable specifications
+QChain lets you use named tuples instead. Return a joined pipeline as `IQueryable<(Customer customer, Order order)>`, then build on it with familiar LINQ operators.
 
-### What QChain Solves
-- Reusable predicates
-- Composable pipelines
-- Flexible construction and execution
+For reusable predicates and expression composition, QChain can be paired with a library such as NeinLinq or LINQKit.
 
 ---
 
