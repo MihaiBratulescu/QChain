@@ -11,7 +11,7 @@ QChain lets you return joined queries from methods and keep composing them throu
 
 ## Motivation
 
-Sharing a joined LINQ query across methods often means declaring a class or record just to hold the intermediate results.
+Repositories can grow bloated with methods that repeat the same joins and differ only in their filters or projections. Sharing the common query is awkward when its intermediate results use anonymous types; returning it from a method means introducing a class or record just to hold those results.
 
 QChain lets you use named tuples instead. Return a joined pipeline as `IQueryable<(Customer customer, Order order)>`, then build on it with familiar LINQ operators.
 
