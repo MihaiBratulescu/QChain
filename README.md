@@ -15,7 +15,7 @@ Repositories can grow bloated with methods that repeat the same joins and differ
 
 QChain lets you use named tuples instead. Return a joined pipeline as `IQueryable<(Customer customer, Order order)>`, then build on it with familiar LINQ operators.
 
-For reusable predicates and expression composition, QChain can be paired with a library such as NeinLinq or LINQKit.
+For reusable predicates and expression composition, QChain can be paired with a library such as [NeinLinq](https://github.com/axelheer/nein-linq) or [LINQKit](https://github.com/scottksmith95/LINQKit).
 
 ---
 
