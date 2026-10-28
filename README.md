@@ -10,7 +10,7 @@ Repositories often repeat the same joins in methods that differ only in their fi
 
 ## Usage
 
-Here is one way to structure a DAL: the application database context exposes query roots and shared joins, repositories express business queries, and the unit of work exposes those repositories.
+The example below organizes a DAL into an application database context, domain repositories, and a unit of work.
 
 ```csharp
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
