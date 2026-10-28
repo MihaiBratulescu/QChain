@@ -11,8 +11,6 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
-    <PackageVersion Include="NeinLinq.EntityFrameworkCore" Version="7.4.0" />
-    <PackageVersion Include="LinqKit.Microsoft.EntityFrameworkCore" Version="10.1.1" />
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
