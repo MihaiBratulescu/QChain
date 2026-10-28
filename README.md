@@ -31,9 +31,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public IQueryable<Account> Accounts => Set<Account>().AsQuery();
     public IQueryable<Order> Orders => Set<Order>().AsQuery();
+    public IQueryable<OrderLine> OrderLines => Set<OrderLine>().AsQuery();
 
     public IQueryable<(Account account, Order order)> CustomerOrders() =>
         Accounts.Join(Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o));
+
+    public IQueryable<(Account account, Order order, OrderLine line)> CustomerOrderLines() =>
+        CustomerOrders().Join(OrderLines, x => x.order.OrderId, l => l.OrderId, (x, l) => ValueTuple.Create(x.account, x.order, l));
 }
 ```
 
@@ -53,6 +57,16 @@ public class ShippingRepository(IApplicationDbContext db) : IShippingRepository
 }
 ```
 
+`CustomerOrderLines()` builds on the same join, adding order lines. Warehouse uses this extended pipeline to produce a delivery list:
+
+```csharp
+public class WarehouseRepository(IApplicationDbContext db) : IWarehouseRepository
+{
+    public IQueryable<DeliveryItemDto> GetDeliveryList() =>
+        db.CustomerOrderLines().Where(x => x.order.IsPaid() && x.line.IsNotDelivered()).Select(x => new DeliveryItemDto(x.account, x.order, x.line));
+}
+```
+
 Expose departments through the unit of work:
 
 ```csharp
@@ -60,6 +74,7 @@ public class UnitOfWork(IApplicationDbContext db) : IUnitOfWork
 {
     public IAccountingRepository Accounting { get; } = new AccountingRepository(db);
     public IShippingRepository Shipping { get; } = new ShippingRepository(db);
+    public IWarehouseRepository Warehouse { get; } = new WarehouseRepository(db);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
@@ -71,6 +86,7 @@ Callers execute the queries when needed:
 ```csharp
 var overdue = await unitOfWork.Accounting.GetOverdueReport(asOf).ToArrayAsync(ct);
 var dispatch = await unitOfWork.Shipping.GetDispatchQueue().ToArrayAsync(ct);
+var deliveries = await unitOfWork.Warehouse.GetDeliveryList().ToArrayAsync(ct);
 ```
 
 Business functions such as `IsNotPaid()` and `IsNotShipped()` are application-defined and configured with [NeinLinq](https://github.com/axelheer/nein-linq) for expression translation. QChain keeps the joined pipelines composable.
