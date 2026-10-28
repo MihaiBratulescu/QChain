@@ -22,7 +22,7 @@ For reusable predicates and expression composition, QChain can be paired with a 
 
 Here is one way to structure a DAL: the application database context exposes query roots and shared joins, repositories express business queries, and the unit of work exposes those repositories.
 
-Define the relationship once, reuse it across DDD contexts.
+Define the relationship once, reuse it across domain contexts.
 
 ```csharp
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
