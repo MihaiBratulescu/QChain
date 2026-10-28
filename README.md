@@ -33,20 +33,26 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 public class AccountingRepository(IApplicationDbContext db) : IAccountingRepository
 {
     public IQueryable<OverduePaymentDto> GetOverdueReport(DateTime asOf) =>
-        db.CustomerOrders().Where(x => x.order.IsNotPaid() && x.order.IsPastDue(asOf)).Select(x => new OverduePaymentDto(x.account, x.order));
+        db.CustomerOrders()
+            .Where(x => x.order.IsNotPaid() && x.order.IsPastDue(asOf))
+            .Select(x => new OverduePaymentDto(x.account, x.order));
 }
 
 public class ShippingRepository(IApplicationDbContext db) : IShippingRepository
 {
     public IQueryable<DispatchDto> GetDispatchQueue() =>
-        db.CustomerOrders().Where(x => x.order.IsPaid() && x.order.IsNotShipped()).Select(x => new DispatchDto(x.account, x.order));
+        db.CustomerOrders()
+            .Where(x => x.order.IsPaid() && x.order.IsNotShipped())
+            .Select(x => new DispatchDto(x.account, x.order));
 }
 
 // Warehouse uses CustomerOrderLines() to produce a delivery list.
 public class WarehouseRepository(IApplicationDbContext db) : IWarehouseRepository
 {
     public IQueryable<DeliveryItemDto> GetDeliveryList() =>
-        db.CustomerOrderLines().Where(x => x.order.IsPaid() && x.line.IsNotDelivered()).Select(x => new DeliveryItemDto(x.account, x.order, x.line));
+        db.CustomerOrderLines()
+            .Where(x => x.order.IsPaid() && x.line.IsNotDelivered())
+            .Select(x => new DeliveryItemDto(x.account, x.order, x.line));
 }
 ```
 
