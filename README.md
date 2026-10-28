@@ -10,6 +10,8 @@ Repositories often repeat the same joins in methods that differ only in their fi
 
 ## Usage
 
+Here is one way to structure a DAL: the application database context exposes query roots and shared joins, repositories express business queries, and the unit of work exposes those repositories.
+
 ```csharp
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options), IApplicationDbContext
@@ -25,8 +27,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         CustomerOrders().Join(OrderLines, x => x.order.OrderId, l => l.OrderId, (x, l) => ValueTuple.Create(x.account, x.order, l));
 }
 ```
-
-Here is one way to structure a DAL: the application database context exposes query roots and shared joins, repositories express business queries, and the unit of work exposes those repositories.
 
 Accounting and shipping build different business queries from the same join:
 
