@@ -17,6 +17,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     : DbContext(options), IApplicationDbContext
 {
     public IQueryable<Account> Accounts => Set<Account>().AsQuery();
+    public IQueryable<Address> Addresses => Set<Address>().AsQuery();
     public IQueryable<Order> Orders => Set<Order>().AsQuery();
     public IQueryable<OrderLine> OrderLines => Set<OrderLine>().AsQuery();
 
@@ -46,13 +47,14 @@ public class ShippingRepository(IApplicationDbContext db) : IShippingRepository
             .Select(x => new DispatchDto(x.account, x.order));
 }
 
-// Warehouse uses CustomerOrderLines() to produce a delivery list.
+// Warehouse joins CustomerOrderLines() with addresses to produce a delivery list.
 public class WarehouseRepository(IApplicationDbContext db) : IWarehouseRepository
 {
     public IQueryable<DeliveryItemDto> GetDeliveryList() =>
         db.CustomerOrderLines()
             .Where(x => x.order.IsPaid() && x.line.IsNotDelivered())
-            .Select(x => new DeliveryItemDto(x.account, x.order, x.line));
+            .Join(db.Addresses, x => x.account.AccountId, a => a.AccountId,
+                (x, a) => new DeliveryItemDto(x.account, x.order, x.line, a));
 }
 ```
 
