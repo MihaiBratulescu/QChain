@@ -92,7 +92,12 @@ public IQueryable<Order> Orders => Set<Order>().ToEntityInjectable().AsQuery();
 
 For LINQKit, use `Set<Order>().AsExpandable().AsQuery()`.
 
-Alternatively, enable expansion globally in EF Core after configuring the database provider: `options.UseSqlite(connectionString).WithLambdaInjection()` for NeinLinq, or `options.UseSqlite(connectionString).WithExpressionExpanding()` for LINQKit. With global expansion enabled, query roots need only `AsQuery()`, as in the example above.
+Alternatively, enable expansion globally in EF Core after configuring the database provider:
+
+- NeinLinq: `options.UseSqlite(connectionString).WithLambdaInjection()`
+- LINQKit: `options.UseSqlite(connectionString).WithExpressionExpanding()`
+
+With global expansion enabled, query roots need only `AsQuery()`, as in the example above.
 
 ---
 
