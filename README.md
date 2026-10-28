@@ -12,6 +12,8 @@ Repositories often repeat the same joins in methods that differ only in their fi
 
 The example below organizes a DAL into an application database context, domain repositories, and a unit of work.
 
+Call `AsQuery()` on your `DbSet<T>` query roots to enable QChain’s tuple-based query composition.
+
 ```csharp
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options), IApplicationDbContext
