@@ -6,7 +6,7 @@
 
 **Compose LINQ query pipelines with named tuples.**
 
-Repositories often get a bad reputation because limited query reuse turns them into glorified query holders. QChain lets you define shared joins once and reuse them across domain contexts through named tuples and `IQueryable<T>`.
+Repositories often get a bad reputation because limited query reuse leaves them bloated with duplicated query logic. QChain lets you represent any combination of joined tables as named tuples, so you can define query pipelines once and reuse them across domain contexts.
 
 ## Usage
 
