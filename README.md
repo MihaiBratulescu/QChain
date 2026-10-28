@@ -20,12 +20,11 @@ For reusable predicates and expression composition, QChain can be paired with a 
 
 ## &#x1F3D7;&#xFE0F; Basic Usage
 
-Define the relationship once, reuse it across departments.
+Here is one way to structure a DAL: the application database context exposes query roots and shared joins, repositories express business queries, and the unit of work exposes those repositories.
+
+Define the relationship once, reuse it across DDD contexts.
 
 ```csharp
-using Microsoft.EntityFrameworkCore;
-using QChain;
-
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options), IApplicationDbContext
 {
@@ -57,7 +56,7 @@ public class ShippingRepository(IApplicationDbContext db) : IShippingRepository
 }
 ```
 
-`CustomerOrderLines()` builds on the same join, adding order lines. Warehouse uses this extended pipeline to produce a delivery list:
+Warehouse uses `CustomerOrderLines()` to produce a delivery list:
 
 ```csharp
 public class WarehouseRepository(IApplicationDbContext db) : IWarehouseRepository
@@ -67,7 +66,7 @@ public class WarehouseRepository(IApplicationDbContext db) : IWarehouseRepositor
 }
 ```
 
-Expose departments through the unit of work:
+Expose repositories through the unit of work:
 
 ```csharp
 public class UnitOfWork(IApplicationDbContext db) : IUnitOfWork
