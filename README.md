@@ -20,7 +20,7 @@ For reusable predicates and expression composition, QChain can be paired with a 
 
 ## &#x1F3D7;&#xFE0F; Basic Usage
 
-Expose query roots with `AsQuery()` and define shared joins on the application database context. `IApplicationDbContext` exposes those roots and joined pipelines to repositories.
+Define the relationship once, reuse it across departments.
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -37,51 +37,43 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 }
 ```
 
-`CustomerOrders()` represents a shared business relationship. Customer-facing queries and accounting queries can both build on it.
-
-## Department Repositories
-
-Organize repositories around business responsibilities. Each repository receives `IApplicationDbContext` and builds business queries from its roots and shared joins.
+Accounting and shipping build different business queries from the same join:
 
 ```csharp
 public class AccountingRepository(IApplicationDbContext db) : IAccountingRepository
 {
-    private IQueryable<(Account account, Order order)> PendingPayments() =>
-        db.CustomerOrders().Where(x => !x.order.IsPaid());
-
-    private IQueryable<(Account account, Order order)> OverduePayments(DateTime asOf) =>
-        PendingPayments().Where(x => x.order.IsInvoiced() && x.order.IsPastDue(asOf));
-
     public IQueryable<OverduePaymentDto> GetOverdueReport(DateTime asOf) =>
-        OverduePayments(asOf).OrderBy(x => x.order.DueDate).ThenBy(x => x.order.OrderId).Select(x => new OverduePaymentDto(x.account, x.order));
+        db.CustomerOrders().Where(x => x.order.IsNotPaid() && x.order.IsPastDue(asOf)).Select(x => new OverduePaymentDto(x.account, x.order));
+}
+
+public class ShippingRepository(IApplicationDbContext db) : IShippingRepository
+{
+    public IQueryable<DispatchDto> GetDispatchQueue() =>
+        db.CustomerOrders().Where(x => x.order.IsPaid() && x.order.IsNotShipped()).Select(x => new DispatchDto(x.account, x.order));
 }
 ```
 
-The joined pipeline is narrowed by reusable business filters, then projected through a DTO constructor that receives each tuple member as a whole.
-
-`IsPaid()`, `IsInvoiced()`, and `IsPastDue(asOf)` are application-defined business functions. This example assumes they are configured for translation with NeinLinq. QChain provides the tuple-based pipeline composition; expression libraries handle reusable business expressions.
-
-## Unit of Work
-
-Expose department repositories from the unit of work and share the same application database context between them.
+Expose departments through the unit of work:
 
 ```csharp
 public class UnitOfWork(IApplicationDbContext db) : IUnitOfWork
 {
     public IAccountingRepository Accounting { get; } = new AccountingRepository(db);
+    public IShippingRepository Shipping { get; } = new ShippingRepository(db);
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
         db.SaveChangesAsync(ct);
 }
 ```
 
-Consumers use the department's business API and can continue composing before execution:
+Callers execute the queries when needed:
 
 ```csharp
-var report = await unitOfWork.Accounting.GetOverdueReport(asOf).Skip(pageIndex * pageSize).Take(pageSize).ToArrayAsync(ct);
+var overdue = await unitOfWork.Accounting.GetOverdueReport(asOf).ToArrayAsync(ct);
+var dispatch = await unitOfWork.Shipping.GetDispatchQueue().ToArrayAsync(ct);
 ```
 
-The query remains an `IQueryable<T>` until a terminal operation such as `ToArrayAsync(ct)` executes it. Keep the underlying context alive until execution completes.
+Business functions such as `IsNotPaid()` and `IsNotShipped()` are application-defined and configured with [NeinLinq](https://github.com/axelheer/nein-linq) for expression translation. QChain keeps the joined pipelines composable.
 
 ---
 
