@@ -100,83 +100,68 @@ var risks = await unitOfWork.Query(db => db.Customers
 
 ## &#x1F3D7;&#xFE0F; Basic Usage
 
-Start from any `IQueryable<T>` and wrap it in a `Query<T>`.
+Expose query roots with `AsQuery()` and define shared joins on the application database context. `IApplicationDbContext` exposes those roots and joined pipelines to repositories.
 
 ```csharp
-IQueryable<Account> Accounts = new Query<Account>(db.Set<Account>());
-IQueryable<Order> Orders = new Query<Order>(db.Set<Order>());
+using Microsoft.EntityFrameworkCore;
+using QChain;
+
+public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    : DbContext(options), IApplicationDbContext
+{
+    public IQueryable<Account> Accounts => Set<Account>().AsQuery();
+    public IQueryable<Order> Orders => Set<Order>().AsQuery();
+
+    public IQueryable<(Account account, Order order)> CustomerOrders() =>
+        Accounts.Join(Orders, a => a.AccountId, o => o.AccountId, (a, o) => ValueTuple.Create(a, o));
+}
 ```
 
-Define reusable predicates as extension methods over the entity type. 
+`CustomerOrders()` represents a shared business relationship. Customer-facing queries and accounting queries can both build on it.
+
+## Department Repositories
+
+Organize repositories around business responsibilities. Each repository receives `IApplicationDbContext` and builds business queries from its roots and shared joins.
 
 ```csharp
-public static class AccountPredicates
+public class AccountingRepository(IApplicationDbContext db) : IAccountingRepository
 {
-    public static Expression<Func<Account, bool>> IsActive(this Account _)
-        => account => account.IsActive;
+    private IQueryable<(Account account, Order order)> PendingPayments() =>
+        db.CustomerOrders().Where(x => !x.order.IsPaid());
 
-    public static Expression<Func<Account, bool>> FromEurope(this Account _)
-        => account => account.Region == Region.Europe;
-}
+    private IQueryable<(Account account, Order order)> OverduePayments(DateTime asOf) =>
+        PendingPayments().Where(x => x.order.IsInvoiced() && x.order.IsPastDue(asOf));
 
-public static class OrderPredicates
-{
-    public static Expression<Func<Order, bool>> InLastMonth(this Order _)
-        => order => order.CreatedDate >= DateTime.UtcNow.AddMonths(-1);
-
-    public static Expression<Func<Order, bool>> InEuro(this Order _)
-        => order => order.CurrencyId == CurrencyType.EUR;
+    public IQueryable<OverduePaymentDto> GetOverdueReport(DateTime asOf) =>
+        OverduePayments(asOf).OrderBy(x => x.order.DueDate).ThenBy(x => x.order.OrderId).Select(x => new OverduePaymentDto(x.account, x.order));
 }
 ```
+
+The joined pipeline is narrowed by reusable business filters, then projected through a DTO constructor that receives each tuple member as a whole.
+
+`IsPaid()`, `IsInvoiced()`, and `IsPastDue(asOf)` are application-defined business functions. This example assumes they are configured for translation with NeinLinq. QChain provides the tuple-based pipeline composition; expression libraries handle reusable business expressions.
 
 ## Unit of Work
 
-Expose query roots from your unit of work as `IQueryable<T>` and provide a small set of `Query` overloads for invoking query logic inside that unit of work boundary. `QueryExecutor<T>` is provided for deferred execution.
+Expose department repositories from the unit of work and share the same application database context between them.
 
 ```csharp
-public sealed class UnitOfWork(AppDbContext db) : IUnitOfWork
+public class UnitOfWork(IApplicationDbContext db) : IUnitOfWork
 {
-    public IQueryable<Account> Accounts { get; } = new Query<Account>(db.Set<Account>());
-    public IQueryable<Order> Orders { get; } = new Query<Order>(db.Set<Order>());
+    public IAccountingRepository Accounting { get; } = new AccountingRepository(db);
 
-    public IAccountsRepository AccountsRepository { get; } = new AccountsRepository(this);
-
-    public T Query<T>(Func<IUnitOfWork, T> query) => query(this);
-
-    public Task<T> Query<T>(Func<IUnitOfWork, Task<T>> query) => query(this);
-
-    public IQueryExecutor<T> Query<T>(Func<IUnitOfWork, IQueryable<T>> query) =>
-        new QueryExecutor<T>(query(this));
+    public Task<int> SaveChangesAsync(CancellationToken ct = default) =>
+        db.SaveChangesAsync(ct);
 }
 ```
 
-- `Query<T>(Func<IUnitOfWork, T>)` for immediate values
-- `Query<T>(Func<IUnitOfWork, Task<T>>)` for async work
-- `Query<T>(Func<IUnitOfWork, IQueryable<T>>)` for deferred query execution
+Consumers use the department's business API and can continue composing before execution:
 
 ```csharp
-int totalAccounts = unitOfWork.Query(db => db.Accounts.Count());
-
-int activeCount = await unitOfWork.Query(db => db.Accounts
-        .Where(a => a.IsActive())
-        .CountAsync());
-
-(Account account, Order order)[] ordersInLastMonth = await unitOfWork.Query(db =>
-        db.AccountsRepository.ActiveEuropeanOrdersInLastMonth())
-    .ToArrayAsync();
+var report = await unitOfWork.Accounting.GetOverdueReport(asOf).Skip(pageIndex * pageSize).Take(pageSize).ToArrayAsync(ct);
 ```
 
-```csharp
-public class AccountsRepository(IUnitOfWork db)
-{
-    public IQueryable<(Account account, Order order)> ActiveEuropeanOrdersInLastMonth() =>
-        db.Accounts
-            .Join(db.Orders, a => a.AccountId, o => o.AccountId,
-                (a, o) => ValueTuple.Create(a, o))
-            // predicates are reusable across joins
-            .Where(x => x.account.IsActive().And(x.order.InLastMonth())); 
-}
-```
+The query remains an `IQueryable<T>` until a terminal operation such as `ToArrayAsync(ct)` executes it. Keep the underlying context alive until execution completes.
 
 ---
 
